@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinTrack
 
-## Getting Started
+FinTrack is a personal expense tracker designed to help you manage your finances with ease. It allows you to record transactions, set budgets, visualize spending trends, and gain insights into your financial habits—all in a simple, intuitive interface. Perfect for anyone looking to take control of their money and make smarter financial decisions.
 
-First, run the development server:
+## Table of Contents
+- [Features](#features)
+- [Project Overview](#project-overview)
+- [Screenshots](#screenshots)
+- [Technologies Used](#technologies-used)
+- [Folder Structure](#folder-structure)
+- [Getting Started](#getting-started)
+- [Contribution](#contribution)
+- [FAQ](#faq)
+- [License](#license)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+- Record transactions
+- Set and manage budgets
+- Visualize spending trends
+- Gain financial insights
+
+## Project Overview
+FinTrack helps users track their expenses, manage budgets, and understand their financial habits. The app provides visualizations and insights to make budgeting easier and more effective.
+
+## Screenshots
+
+
+## Technologies Used
+- Next.js
+- React
+- TypeScript
+- CSS/Styled Components
+- IndexedDB/local storage
+
+## Folder Structure
+```
+expense-tracker/
+├── data/              # JSON files for budgets and transactions
+├── public/            # Static assets and icons
+├── src/
+│   ├── app/           # Main app pages and API routes
+│   ├── components/    # Reusable UI components
+│   ├── lib/           # Utility functions and database logic
+├── .gitignore         # Git ignore rules
+├── README.md          # Project documentation
+├── package.json       # Project dependencies and scripts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Getting Started
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Start the development server with `npm run dev`
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Contribution
+Contributions are welcome! Please open an issue or submit a pull request for suggestions or improvements.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## FAQ
+**Q: How is my data stored?**
+A: Data is stored locally in JSON files and IndexedDB. No data is sent to external servers.
 
-## Learn More
+**Q: Can I deploy this app?**
+A: Yes, you can deploy it using platforms like Vercel or Netlify.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+MIT
