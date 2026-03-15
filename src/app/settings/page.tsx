@@ -214,42 +214,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <AccountSecuritySection />
-
-      {/* Connection Status */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mb-4">
-        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">Sync Status</h3>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {online ? (
-              <Wifi size={16} className="text-emerald-500" />
-            ) : (
-              <WifiOff size={16} className="text-red-500" />
-            )}
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              {online ? 'Online' : 'Offline'}
-            </span>
-          </div>
-          {pendingCount > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-amber-600 dark:text-amber-400">
-                {pendingCount} pending
-              </span>
-              <button
-                onClick={handleSync}
-                disabled={!online}
-                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 text-white text-xs font-medium rounded-lg transition-colors"
-              >
-                Sync Now
-              </button>
-            </div>
-          )}
-          {pendingCount === 0 && (
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">All synced</span>
-          )}
-        </div>
-      </div>
-
       {/* Budget Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center justify-between mb-4">
@@ -378,6 +342,45 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      <div className="mt-4">
+        <AccountSecuritySection />
+      </div>
+
+      {/* Connection Status */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
+        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">Sync Status</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {online ? (
+              <Wifi size={16} className="text-emerald-500" />
+            ) : (
+              <WifiOff size={16} className="text-red-500" />
+            )}
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              {online ? 'Online' : 'Offline'}
+            </span>
+          </div>
+          {pendingCount > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                {pendingCount} pending
+              </span>
+              <button
+                onClick={handleSync}
+                disabled={!online}
+                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                Sync Now
+              </button>
+            </div>
+          )}
+          {pendingCount === 0 && (
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">All synced</span>
+          )}
+        </div>
+      </div>
+
       {/* Data Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
         <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-1">Data Management</h3>
