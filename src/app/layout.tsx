@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, DM_Serif_Display, Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import BottomNav from "@/components/BottomNav";
-import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import AppShell from "@/components/AppShell";
 import ThemeProvider from "@/components/ThemeProvider";
 
 const geistSans = Geist({
@@ -14,6 +12,18 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const dmSerifDisplay = DM_Serif_Display({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+
+const inter = Inter({
+  variable: "--font-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -42,15 +52,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 dark:bg-zinc-950`}
+        className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} ${inter.variable} antialiased bg-zinc-50 dark:bg-zinc-950`}
       >
         <ThemeProvider>
-          <Sidebar />
-          <main className="sm:ml-64 pb-20 sm:pb-0 min-h-screen">
-            {children}
-          </main>
-          <BottomNav />
-          <ServiceWorkerRegistration />
+          <AppShell>{children}</AppShell>
         </ThemeProvider>
       </body>
     </html>

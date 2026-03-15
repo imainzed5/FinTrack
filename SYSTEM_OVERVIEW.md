@@ -10,8 +10,9 @@ The Expense Tracker is a web application designed to help users manage their per
 - **Styling:** Tailwind CSS, PostCSS
 - **State Management:** React Context/State
 - **Data Storage:**
-  - Local JSON files (budgets.json, transactions.json)
-  - IndexedDB (via custom library)
+  - Supabase Postgres (transactions, budgets, profiles, alerts)
+  - IndexedDB (pending offline queue for sync)
+- **Authentication:** Supabase Auth (email/password + password reset)
 - **API:** Next.js Route Handlers (RESTful endpoints)
 - **Testing/Quality:** ESLint
 - **PWA Support:** Service Worker, Manifest
@@ -33,6 +34,9 @@ The Expense Tracker is a web application designed to help users manage their per
   - Widgets summarizing financial status
 - **Settings:**
   - User preferences and theme selection
+- **Authentication:**
+  - Signup, login, forgot password
+  - Session-based access to protected data routes
 - **PWA Functionality:**
   - Offline support
   - Home screen installation
@@ -42,19 +46,21 @@ The Expense Tracker is a web application designed to help users manage their per
 
 ## Directory Structure
 
-- **data/**: Local JSON data files
 - **public/**: Static assets, manifest, service worker
+- **supabase/**: Schema and migration files
 - **src/**
   - **app/**: Main app pages and API routes
   - **components/**: UI components (modals, charts, navigation, etc.)
-  - **lib/**: Utility libraries (database, insights engine, types)
+  - **lib/**: Utility libraries (Supabase, insights engine, types)
 
 ## Current Progress
 
 - Core pages and navigation implemented
-- API routes for budgets, transactions, insights, savings, sync, and timeline
+- API routes for auth, budgets, transactions, insights, savings, sync, and timeline
 - UI components for expense management, dashboard, charts, and insights
-- IndexedDB integration for offline data persistence
+- Supabase integration completed for auth + backend persistence
+- RLS-aligned route handling with authenticated session checks
+- IndexedDB integration for offline queue and sync
 - Service worker and manifest for PWA support
 - Basic settings and theme provider
 
@@ -62,23 +68,9 @@ The Expense Tracker is a web application designed to help users manage their per
 
 - Enhance analytics and insights
 - Improve mobile responsiveness
-- Add authentication and user profiles
 - Expand settings and customization
 - Refine error handling and validation
 
 
 _Last updated: March 12, 2026_
-## Potential Backend Uses
-
-In the future, integrating a backend can provide:
-
-- **User Authentication & Profiles:** Secure login, multi-user support, and personalized settings.
-- **Cloud Data Storage:** Centralized, persistent storage for transactions, budgets, and insights.
-- **Synchronization:** Seamless syncing across devices and platforms.
-- **Advanced Analytics:** Server-side processing for complex financial insights and reporting.
-- **Notifications & Reminders:** Scheduled alerts for budgets, bills, or savings goals.
-- **Security & Backups:** Data protection, regular backups, and recovery options.
-- **Integration with External Services:** Connect to banks, payment gateways, or third-party APIs.
-- **Scalability:** Support for more users, larger datasets, and business features.
-
-Backend integration will enable richer features, improved reliability, and enhanced user experience.
+_Last updated: March 15, 2026_

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Plus, Repeat, Trash2, X } from 'lucide-react';
 import {
@@ -597,11 +598,16 @@ export default function EditTransactionModal({
                   </div>
                 )}
                 {attachmentBase64 && (
-                  <img
-                    src={attachmentBase64}
-                    alt="Receipt preview"
-                    className="mt-2 h-24 w-full object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
-                  />
+                  <div className="relative mt-2 h-24 w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <Image
+                      src={attachmentBase64}
+                      alt="Receipt preview"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 448px"
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
                 )}
               </div>
             </div>

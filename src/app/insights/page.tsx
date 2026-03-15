@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Insight } from '@/lib/types';
 import InsightCards from '@/components/InsightCards';
+import { InsightsSkeleton } from '@/components/SkeletonLoaders';
 import { Lightbulb } from 'lucide-react';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
 
@@ -53,8 +54,8 @@ export default function InsightsPage() {
           <Lightbulb size={20} className="text-amber-600 dark:text-amber-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Financial Insights</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Financial Insights</h1>
+          <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">
             Smart analysis of your spending behavior
           </p>
         </div>
@@ -78,9 +79,7 @@ export default function InsightsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <InsightsSkeleton />
       ) : (
         <InsightCards insights={filtered} />
       )}

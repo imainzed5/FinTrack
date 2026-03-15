@@ -1,410 +1,436 @@
-'use client';
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { Fraunces, Manrope } from 'next/font/google';
+import type { LucideIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  BarChart3,
+  Receipt,
+  ShieldCheck,
+  Target,
+  Wallet,
+} from 'lucide-react';
 
-import { useState, useEffect, useCallback } from 'react';
-import { format } from 'date-fns';
-import type { DashboardData, MonthlySavings } from '@/lib/types';
-import { StatsCards, BudgetProgress } from '@/components/DashboardWidgets';
-import { CategoryPieChart, WeeklySpendingChart, DailySpendingChart, MonthlySavingsChart } from '@/components/Charts';
-import InsightCards from '@/components/InsightCards';
-import TransactionList from '@/components/TransactionList';
-import FloatingAddButton from '@/components/FloatingAddButton';
-import AddExpenseModal from '@/components/AddExpenseModal';
-import { formatCurrency } from '@/lib/utils';
-import { AlertTriangle } from 'lucide-react';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+const displayFont = Fraunces({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+});
 
-const SAVINGS_PER_PAGE = 12;
+const bodyFont = Manrope({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
 
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [savings, setSavings] = useState<MonthlySavings[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [savingsPage, setSavingsPage] = useState(0); // 0 = most recent page
+type Feature = {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+};
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      const [res, savingsRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/savings'),
-      ]);
-      const json = await res.json();
-      const savingsJson = await savingsRes.json();
-      setData(json);
-      setSavings(savingsJson);
-    } catch {
-      // offline
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+type JourneyStep = {
+  title: string;
+  description: string;
+};
 
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+type Testimonial = {
+  quote: string;
+  name: string;
+  role: string;
+};
 
-  useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
-      void fetchDashboard();
-    });
+const features: Feature[] = [
+  {
+    title: 'Budgeting without shame',
+    description:
+      'Build category budgets that fit real life, then adjust when things change instead of feeling behind.',
+    icon: Target,
+  },
+  {
+    title: 'Transaction tracking that stays simple',
+    description:
+      'Log spending quickly, spot patterns instantly, and stop guessing where your paycheck disappeared to.',
+    icon: Receipt,
+  },
+  {
+    title: 'Savings insights you can act on',
+    description:
+      'See trends, not noise. Know what is improving month over month and what needs attention now.',
+    icon: BarChart3,
+  },
+  {
+    title: 'Privacy-first from day one',
+    description:
+      'Your financial data is protected in transit and at rest, with clear terms and policy transparency.',
+    icon: ShieldCheck,
+  },
+];
 
-    return unsubscribe;
-  }, [fetchDashboard]);
+const journey: JourneyStep[] = [
+  {
+    title: 'Sign up in minutes',
+    description: 'Create your account and set your monthly baseline in a calm, guided flow.',
+  },
+  {
+    title: 'Connect or add transactions',
+    description:
+      'Bring in your spending data your way, then organize it into categories that make sense to you.',
+  },
+  {
+    title: 'See the full picture',
+    description:
+      'Open your dashboard and understand where money goes, what to improve, and where you can save.',
+  },
+];
 
-  useEffect(() => {
-    if (!data || data.budgetAlerts.length === 0) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    if (!('serviceWorker' in navigator)) return;
+const testimonials: Testimonial[] = [
+  {
+    quote:
+      'I was not overspending wildly. I was just blind. FinTrack gave me a clean picture in one week.',
+    name: 'Mina R.',
+    role: 'Freelance Designer',
+  },
+  {
+    quote:
+      'My first salary used to disappear by month-end. Now I know exactly what goes to food, transport, and fun.',
+    name: 'Andre K.',
+    role: 'Fresh Graduate',
+  },
+  {
+    quote:
+      'We started using FinTrack as a family and finally hit our emergency fund target consistently.',
+    name: 'Leah and Marco',
+    role: 'Parents of Two',
+  },
+];
 
-    void navigator.serviceWorker.ready
-      .then((registration) => {
-        for (const alert of data.budgetAlerts) {
-          const dedupeKey = `budget-alert:${alert.month}:${alert.budgetId}:${alert.threshold}`;
-          if (window.localStorage.getItem(dedupeKey)) continue;
+export const metadata: Metadata = {
+  title: 'FinTrack | You Earn Enough. Now See Where It Goes.',
+  description:
+    'FinTrack helps everyday people understand spending, set realistic budgets, and feel in control of their money.',
+  alternates: {
+    canonical: '/',
+  },
+};
 
-          registration.showNotification('Budget Threshold Reached', {
-            body: alert.message,
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
-            tag: dedupeKey,
-          });
-          window.localStorage.setItem(dedupeKey, '1');
-        }
-      })
-      .catch(() => {
-        // no-op: notification delivery is best-effort
-      });
-  }, [data]);
-
-  // Reset to most-recent page whenever savings data is refreshed
-  useEffect(() => { setSavingsPage(0); }, [savings]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-zinc-500">
-        Unable to load dashboard. Check your connection.
-      </div>
-    );
-  }
-
-  const projectedWarnings = data.budgetStatuses.filter(
-    (status) => status.projectedOverage > 0 && status.status !== 'critical'
-  );
-
-  // ── Savings pagination derived values ──────────────────────────────────────
-  const totalSavingsPages = Math.max(1, Math.ceil(savings.length / SAVINGS_PER_PAGE));
-  const clampedPage = Math.min(savingsPage, totalSavingsPages - 1);
-  const savingsEnd = savings.length - clampedPage * SAVINGS_PER_PAGE;
-  const savingsStart = Math.max(0, savingsEnd - SAVINGS_PER_PAGE);
-  const pagedSavings = savings.slice(savingsStart, savingsEnd);
-  const availableYears = [...new Set(savings.map((s) => s.month.slice(0, 4)))].sort().reverse();
-  const jumpToYear = (year: string) => {
-    let latestIdx = -1;
-    savings.forEach((s, i) => { if (s.month.startsWith(year)) latestIdx = i; });
-    if (latestIdx === -1) return;
-    setSavingsPage(Math.floor((savings.length - 1 - latestIdx) / SAVINGS_PER_PAGE));
-  };
-  const pageRangeLabel = pagedSavings.length > 0
-    ? (() => {
-        const fmt = (mo: string) => {
-          const [y, m] = mo.split('-');
-          return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'short', year: 'numeric' });
-        };
-        const f = pagedSavings[0].month;
-        const l = pagedSavings[pagedSavings.length - 1].month;
-        return f === l ? fmt(f) : `${fmt(f)} – ${fmt(l)}`;
-      })()
-    : '';
-  // Year label shown inside each nav button so users know exactly where they'll land
-  const olderPageYear = clampedPage < totalSavingsPages - 1
-    ? (savings[Math.max(0, savingsStart - 1)]?.month.slice(0, 4) ?? savings[0]?.month.slice(0, 4) ?? '')
-    : '';
-  const newerPageYear = clampedPage > 0
-    ? (savings[Math.min(savings.length - 1, savingsEnd + SAVINGS_PER_PAGE - 1)]?.month.slice(0, 4) ?? '')
-    : '';
-
+export default function LandingPage() {
   return (
-    <>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Dashboard</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {format(new Date(), 'MMMM yyyy')} Overview
+    <div
+      className={`${bodyFont.className} relative min-h-screen overflow-x-clip bg-stone-50 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100`}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-[radial-gradient(70%_50%_at_50%_0%,rgba(251,191,36,0.2),transparent_70%)] dark:bg-[radial-gradient(70%_50%_at_50%_0%,rgba(20,184,166,0.2),transparent_70%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-32 top-44 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-500/20"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 top-[26rem] h-80 w-80 rounded-full bg-amber-300/20 blur-3xl dark:bg-amber-400/10"
+      />
+
+      <header className="relative">
+        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-white/70 px-3 py-1.5 text-sm font-semibold text-teal-800 backdrop-blur-sm transition-colors hover:bg-white dark:border-teal-500/30 dark:bg-zinc-900/70 dark:text-teal-300"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-white">
+              <Wallet size={16} aria-hidden />
+            </span>
+            FinTrack
+          </Link>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/auth/login"
+              className="rounded-full border border-slate-300/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              Log In
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-500"
+            >
+              Sign Up
+            </Link>
+          </div>
+        </nav>
+
+        <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 pb-16 pt-6 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:pb-24 lg:pt-10">
+          <div className="animate-fade-in">
+            <p className="mb-4 inline-flex rounded-full border border-amber-200 bg-amber-100/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              Clarity, not guilt
+            </p>
+            <h1
+              className={`${displayFont.className} text-balance text-4xl font-semibold leading-tight text-slate-900 dark:text-zinc-100 sm:text-5xl lg:text-6xl`}
+            >
+              You earn enough. You just can&apos;t see where it goes.
+            </h1>
+            <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-slate-600 dark:text-zinc-300 sm:text-lg">
+              FinTrack was built for the moment you check your bank balance and wonder what happened. It helps regular people understand spending, set realistic budgets, and finally feel in control of money.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-teal-500"
+              >
+                Start Free
+                <ArrowRight size={16} aria-hidden />
+              </Link>
+              <Link
+                href="/auth/login"
+                className="rounded-full border border-slate-300 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/85 dark:text-zinc-200"
+              >
+                I already have an account
+              </Link>
+            </div>
+
+            <p className="mt-4 text-sm text-slate-500 dark:text-zinc-400">
+              No credit card. No pressure. Just better visibility into your money.
+            </p>
+          </div>
+
+          <figure className="animate-fade-in rounded-3xl border border-slate-200/80 bg-white/80 p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.45)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80 lg:p-5">
+            <figcaption className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+              <span>FinTrack Preview</span>
+              <span>Placeholder</span>
+            </figcaption>
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 dark:border-teal-500/20 dark:bg-teal-500/10">
+                <p className="text-xs font-medium text-teal-700 dark:text-teal-200">Monthly snapshot</p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-xl bg-white p-2 dark:bg-zinc-900/70">
+                    <p className="text-slate-500 dark:text-zinc-400">Budget</p>
+                    <p className="font-semibold text-slate-900 dark:text-zinc-100">PHP 3,200</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-2 dark:bg-zinc-900/70">
+                    <p className="text-slate-500 dark:text-zinc-400">Spent</p>
+                    <p className="font-semibold text-slate-900 dark:text-zinc-100">PHP 2,460</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-2 dark:bg-zinc-900/70">
+                    <p className="text-slate-500 dark:text-zinc-400">Saved</p>
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-300">PHP 740</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/60">
+                <p className="text-xs font-medium text-slate-700 dark:text-zinc-200">Recent transactions</p>
+                <div className="mt-2 space-y-2 text-xs">
+                  <div className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 dark:bg-zinc-900">
+                    <span className="text-slate-600 dark:text-zinc-300">Groceries</span>
+                    <span className="font-semibold text-rose-600 dark:text-rose-300">-PHP 84</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 dark:bg-zinc-900">
+                    <span className="text-slate-600 dark:text-zinc-300">Transport</span>
+                    <span className="font-semibold text-rose-600 dark:text-rose-300">-PHP 26</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 dark:bg-zinc-900">
+                    <span className="text-slate-600 dark:text-zinc-300">Freelance invoice</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-300">+PHP 980</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </figure>
+        </section>
+      </header>
+
+      <main className="relative pb-20">
+        <section id="why" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 lg:grid-cols-[1fr_0.9fr] lg:p-8">
+            <div>
+              <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
+                Why FinTrack exists
+              </h2>
+              <p className="mt-3 text-slate-600 dark:text-zinc-300">
+                Most people are not bad with money. They are just overloaded and busy. FinTrack was created by someone who lived the same frustration and wanted a calmer way to understand spending.
+              </p>
+              <p className="mt-3 text-slate-600 dark:text-zinc-300">
+                It is for freelancers with irregular income, fresh grads managing a first salary, and families saving for something meaningful. You do not need to be a finance expert. You just need a clear picture.
+              </p>
+              <div className="mt-6">
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex items-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-5 py-2.5 text-sm font-semibold text-teal-700 transition-colors hover:bg-teal-100 dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-teal-200 dark:hover:bg-teal-500/20"
+                >
+                  Start your clarity plan
+                  <ArrowRight size={16} aria-hidden />
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/80">
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">Freelancer</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-zinc-300">
+                  Handle variable income without losing control of essentials.
+                </p>
+              </article>
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/80">
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">Fresh grad</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-zinc-300">
+                  Build confident money habits from your very first paycheck.
+                </p>
+              </article>
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/80">
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">Family</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-zinc-300">
+                  Align spending with goals that matter to everyone in the household.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
+              Features built for everyday life
+            </h2>
+            <Link
+              href="/auth/signup"
+              className="hidden text-sm font-semibold text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-600 dark:text-teal-300 sm:inline"
+            >
+              Create free account
+            </Link>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <article
+                  key={feature.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-teal-500/50"
+                >
+                  <div className="mb-3 inline-flex rounded-xl bg-teal-100 p-2 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300">
+                    <Icon size={18} aria-hidden />
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-zinc-100">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">
+                    {feature.description}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-7 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <p className="text-sm text-amber-900 dark:text-amber-100">
+              FinTrack does not punish you for spending. It gives you context so you can make better choices next month.
+            </p>
+            <div className="mt-3">
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-400"
+              >
+                Try FinTrack now
+                <ArrowRight size={16} aria-hidden />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section id="how" className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
+            How it works
+          </h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {journey.map((step, index) => (
+              <article
+                key={step.title}
+                className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/80"
+              >
+                <p className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">
+                  {index + 1}
+                </p>
+                <h3 className="mt-3 text-base font-semibold text-slate-900 dark:text-zinc-100">{step.title}</h3>
+                <p className="mt-2 text-sm text-slate-600 dark:text-zinc-300">{step.description}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/auth/signup"
+              className="rounded-full bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-500"
+            >
+              Sign Up
+            </Link>
+            <Link
+              href="/auth/login"
+              className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            >
+              Log In
+            </Link>
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
+            What users say
+          </h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {testimonials.map((testimonial) => (
+              <blockquote
+                key={testimonial.name}
+                className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/80"
+              >
+                <p className="text-sm leading-relaxed text-slate-700 dark:text-zinc-200">
+                  &ldquo;{testimonial.quote}&rdquo;
+                </p>
+                <footer className="mt-4 text-xs text-slate-500 dark:text-zinc-400">
+                  <p className="font-semibold text-slate-800 dark:text-zinc-100">{testimonial.name}</p>
+                  <p>{testimonial.role}</p>
+                </footer>
+              </blockquote>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-slate-200 bg-white/80 py-8 dark:border-zinc-800 dark:bg-zinc-950/80">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-slate-600 dark:text-zinc-300">
+              Your data privacy matters. FinTrack is designed with clear controls and transparent policies.
+            </p>
+            <Link
+              href="/auth/signup"
+              className="rounded-full bg-teal-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-teal-500"
+            >
+              Create account
+            </Link>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-zinc-300">
+            <Link href="/auth/login" className="hover:text-teal-700 dark:hover:text-teal-300">
+              Log In
+            </Link>
+            <Link href="/auth/signup" className="hover:text-teal-700 dark:hover:text-teal-300">
+              Sign Up
+            </Link>
+            <Link href="/auth/terms" className="hover:text-teal-700 dark:hover:text-teal-300">
+              Terms of Service
+            </Link>
+            <Link href="/auth/privacy" className="hover:text-teal-700 dark:hover:text-teal-300">
+              Privacy Policy
+            </Link>
+          </div>
+
+          <p className="text-xs text-slate-500 dark:text-zinc-400">
+            (c) 2026 FinTrack. Built to help everyday people feel financially clear and in control.
           </p>
         </div>
+      </footer>
 
-        {(data.budgetAlerts.length > 0 || projectedWarnings.length > 0) && (
-          <div className="mb-4 space-y-2">
-            {data.budgetAlerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2"
-              >
-                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-300 mt-0.5" />
-                <p className="text-xs text-amber-700 dark:text-amber-200">{alert.message}</p>
-              </div>
-            ))}
-            {projectedWarnings.map((warning) => (
-              <div
-                key={`projected-${warning.budgetId}`}
-                className="flex items-start gap-2 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-3 py-2"
-              >
-                <AlertTriangle size={16} className="text-rose-600 dark:text-rose-300 mt-0.5" />
-                <p className="text-xs text-rose-700 dark:text-rose-200">
-                  {warning.subCategory ? `${warning.category} - ${warning.subCategory}` : warning.category} is projected to overshoot by{' '}
-                  {formatCurrency(warning.projectedOverage)} this month.
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Stats */}
-        <StatsCards data={data} />
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Spending by Category
-            </h3>
-            <CategoryPieChart data={data.categoryBreakdown} />
-          </div>
-
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Weekly Spending Trend
-            </h3>
-            <WeeklySpendingChart data={data.weeklySpending} />
-          </div>
-        </div>
-
-        {/* Budget + Daily Spending */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Budget Progress
-            </h3>
-            <BudgetProgress budgets={data.budgetStatuses} />
-          </div>
-
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Last 7 Days
-            </h3>
-            <DailySpendingChart data={data.dailySpending} />
-          </div>
-        </div>
-
-        {/* Savings History */}
-        <div className="mt-4 bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-
-          {/* Card header: title + all-time stats */}
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Monthly Savings History</h3>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
-                Bars = monthly saved vs spent · Line = cumulative total savings
-              </p>
-            </div>
-            {savings.length > 0 && (() => {
-              const total = savings[savings.length - 1].cumulative;
-              const best = savings.reduce((b, s) => s.saved > b.saved ? s : b, savings[0]);
-              const [by, bm] = best.month.split('-');
-              const bestLabel = new Date(Number(by), Number(bm) - 1).toLocaleString('default', { month: 'short', year: '2-digit' });
-              const monthsWithSavings = savings.filter(s => s.saved > 0).length;
-              const avgRate = savings.filter(s => s.budget > 0).reduce((sum, s) => sum + s.savingsRate, 0) /
-                Math.max(1, savings.filter(s => s.budget > 0).length);
-              return (
-                <div className="flex gap-3 flex-wrap">
-                  <div className="text-right">
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Total Saved</div>
-                    <div className="text-base font-bold text-emerald-500">{formatCurrency(total)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Best Month</div>
-                    <div className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{bestLabel}</div>
-                    <div className="text-xs text-emerald-500">{formatCurrency(best.saved)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Avg Rate</div>
-                    <div className="text-sm font-semibold text-indigo-500">{avgRate.toFixed(1)}%</div>
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">{monthsWithSavings} months saved</div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Pagination controls */}
-          {savings.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              {/* Left: year jump + range label */}
-              <div className="flex items-center gap-2">
-                <select
-                  value=""
-                  onChange={(e) => { if (e.target.value) jumpToYear(e.target.value); }}
-                  aria-label="Jump to year"
-                  className="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="" disabled>Jump to year…</option>
-                  {availableYears.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">{pageRangeLabel}</span>
-              </div>
-
-              {/* Right: page indicator + prev/next */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-zinc-400 dark:text-zinc-500 mr-0.5">
-                  Page {clampedPage + 1} of {totalSavingsPages}
-                </span>
-                <button
-                  onClick={() => setSavingsPage((p) => Math.min(p + 1, totalSavingsPages - 1))}
-                  disabled={clampedPage >= totalSavingsPages - 1}
-                  aria-label={`Go to ${olderPageYear}`}
-                  title={`View ${olderPageYear}`}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                >
-                  ‹ {olderPageYear}
-                </button>
-                <button
-                  onClick={() => setSavingsPage((p) => Math.max(p - 1, 0))}
-                  disabled={clampedPage === 0}
-                  aria-label={`Go to ${newerPageYear}`}
-                  title={`View ${newerPageYear}`}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                >
-                  {newerPageYear} ›
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Chart — shows only the current page's 12 months */}
-          <MonthlySavingsChart data={pagedSavings} />
-
-          {/* Table */}
-          {savings.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                    <th className="text-left py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Month</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Budget</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Spent</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Saved</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Rate</th>
-                    <th className="text-right py-2 px-2 text-indigo-400 font-medium">Cumulative</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...pagedSavings].reverse().map((s) => {
-                    const [y, m] = s.month.split('-');
-                    const label = new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-                    const isNoBudget = s.budget === 0;
-                    return (
-                      <tr key={s.month} className="border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                        <td className="py-2 px-2 text-zinc-700 dark:text-zinc-300 font-medium">{label}</td>
-                        <td className="py-2 px-2 text-right text-zinc-500 dark:text-zinc-400">
-                          {isNoBudget ? <span className="text-zinc-300 dark:text-zinc-600 italic">—</span> : formatCurrency(s.budget)}
-                        </td>
-                        <td className="py-2 px-2 text-right text-red-500">
-                          {s.spent > 0 ? formatCurrency(s.spent) : <span className="text-zinc-300 dark:text-zinc-600">—</span>}
-                        </td>
-                        <td className={`py-2 px-2 text-right font-semibold ${s.saved > 0 ? 'text-emerald-500' : isNoBudget ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-400'}`}>
-                          {s.saved > 0 ? formatCurrency(s.saved) : isNoBudget ? '—' : formatCurrency(0)}
-                        </td>
-                        <td className={`py-2 px-2 text-right ${
-                          isNoBudget ? 'text-zinc-300 dark:text-zinc-600' :
-                          s.savingsRate >= 20 ? 'text-emerald-500' :
-                          s.savingsRate > 0 ? 'text-amber-500' : 'text-zinc-400'
-                        }`}>
-                          {isNoBudget ? '—' : `${s.savingsRate.toFixed(1)}%`}
-                        </td>
-                        <td className="py-2 px-2 text-right font-semibold text-indigo-500">
-                          {formatCurrency(s.cumulative)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40">
-                    <td colSpan={5} className="py-2 px-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-right">
-                      Total Savings Accumulated (all time)
-                    </td>
-                    <td className="py-2 px-2 text-right font-bold text-emerald-500">
-                      {formatCurrency(savings[savings.length - 1]?.cumulative ?? 0)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-
-              {/* Bottom pagination for long tables */}
-              {totalSavingsPages > 1 && (
-                <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500 mr-1">
-                    Page {clampedPage + 1} of {totalSavingsPages}
-                  </span>
-                  <button
-                    onClick={() => setSavingsPage((p) => Math.min(p + 1, totalSavingsPages - 1))}
-                    disabled={clampedPage >= totalSavingsPages - 1}
-                    aria-label={`Go to ${olderPageYear}`}
-                    title={`View ${olderPageYear}`}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                  >
-                    ‹ {olderPageYear}
-                  </button>
-                  <button
-                    onClick={() => setSavingsPage((p) => Math.max(p - 1, 0))}
-                    disabled={clampedPage === 0}
-                    aria-label={`Go to ${newerPageYear}`}
-                    title={`View ${newerPageYear}`}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {newerPageYear} ›
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Insights + Recent Transactions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Financial Insights
-            </h3>
-            <InsightCards insights={data.insights} compact />
-          </div>
-
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Recent Transactions
-            </h3>
-            <TransactionList transactions={data.recentTransactions} />
-          </div>
-        </div>
+      <div className="sr-only" aria-live="polite">
+        FinTrack landing page loaded
       </div>
-
-      <FloatingAddButton onClick={() => setShowAddModal(true)} />
-      <AddExpenseModal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdded={fetchDashboard}
-      />
-    </>
+    </div>
   );
 }

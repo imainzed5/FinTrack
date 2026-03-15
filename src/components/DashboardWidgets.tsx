@@ -26,7 +26,7 @@ export function StatsCards({ data }: StatsCardsProps) {
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Spent This Month</span>
           <Wallet size={16} className="text-emerald-500" />
         </div>
-        <p className="text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(data.totalSpentThisMonth)}</p>
+        <p className="font-display text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(data.totalSpentThisMonth)}</p>
         <div className="flex items-center gap-1 mt-1">
           {growthPositive ? (
             <ArrowUpRight size={12} className="text-red-500" />
@@ -44,7 +44,7 @@ export function StatsCards({ data }: StatsCardsProps) {
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Remaining Budget</span>
           <Target size={16} className="text-blue-500" />
         </div>
-        <p className="text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(data.remainingBudget)}</p>
+        <p className="font-display text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(data.remainingBudget)}</p>
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
           of {formatCurrency(data.monthlyBudget)} budget
         </p>
@@ -55,7 +55,7 @@ export function StatsCards({ data }: StatsCardsProps) {
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Savings Rate</span>
           <PiggyBank size={16} className="text-violet-500" />
         </div>
-        <p className="text-2xl font-bold text-zinc-900 dark:text-white">
+        <p className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
           {data.savingsRate > 0 ? `${Math.round(data.savingsRate)}%` : '—'}
         </p>
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
@@ -72,7 +72,7 @@ export function StatsCards({ data }: StatsCardsProps) {
             <TrendingUp size={16} className="text-red-500" />
           )}
         </div>
-        <p className="text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(data.totalSpentLastMonth)}</p>
+        <p className="font-display text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(data.totalSpentLastMonth)}</p>
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">total spent</p>
       </div>
     </div>

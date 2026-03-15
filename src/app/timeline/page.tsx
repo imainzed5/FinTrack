@@ -41,7 +41,7 @@ export default function TimelinePage() {
           <Clock size={20} className="text-violet-600 dark:text-violet-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Financial Timeline</h1>
+          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Financial Timeline</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Your financial life milestones
           </p>

@@ -1,66 +1,69 @@
 # FinTrack
 
-FinTrack is a personal expense tracker designed to help you manage your finances with ease. It allows you to record transactions, set budgets, visualize spending trends, and gain insights into your financial habits—all in a simple, intuitive interface. Perfect for anyone looking to take control of their money and make smarter financial decisions.
-
-## Table of Contents
-- [Features](#features)
-- [Project Overview](#project-overview)
-- [Screenshots](#screenshots)
-- [Technologies Used](#technologies-used)
-- [Folder Structure](#folder-structure)
-- [Getting Started](#getting-started)
-- [Contribution](#contribution)
-- [FAQ](#faq)
-- [License](#license)
+FinTrack is a personal expense tracker built with Next.js. It now uses Supabase for authentication and cloud data storage, while keeping the existing mobile-first UI and analytics workflows.
 
 ## Features
-- Record transactions
-- Set and manage budgets
-- Visualize spending trends
-- Gain financial insights
+- Email/password authentication (signup, login, forgot password)
+- Transaction CRUD with category/split/recurring support
+- Budget management with threshold alerts
+- Dashboard, savings history, insights, and timeline analytics
+- Offline queue via IndexedDB + sync endpoint
+- WebSocket refresh events for real-time UI updates
 
-## Project Overview
-FinTrack helps users track their expenses, manage budgets, and understand their financial habits. The app provides visualizations and insights to make budgeting easier and more effective.
+## Tech Stack
+- Next.js (App Router)
+- React + TypeScript
+- Tailwind CSS
+- Supabase Auth + Postgres (RLS enabled)
+- IndexedDB (offline queue)
 
-## Screenshots
+## Supabase Setup
 
+1. Install dependencies:
+	`npm install`
 
-## Technologies Used
-- Next.js
-- React
-- TypeScript
-- CSS/Styled Components
-- IndexedDB/local storage
+2. Configure environment variables in `.env.local`:
+	- `NEXT_PUBLIC_SUPABASE_URL`
+	- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+	- `NEXT_PUBLIC_SITE_URL`
 
-## Folder Structure
-```
-expense-tracker/
-├── data/              # JSON files for budgets and transactions
-├── public/            # Static assets and icons
-├── src/
-│   ├── app/           # Main app pages and API routes
-│   ├── components/    # Reusable UI components
-│   ├── lib/           # Utility functions and database logic
-├── .gitignore         # Git ignore rules
-├── README.md          # Project documentation
-├── package.json       # Project dependencies and scripts
-```
+3. Link your local project to Supabase:
+	`cmd /c npx supabase link --project-ref YOUR_PROJECT_REF`
 
-## Getting Started
-1. Clone the repository
-2. Install dependencies with `npm install`
-3. Start the development server with `npm run dev`
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+4. Apply migrations:
+	`cmd /c npx supabase db push`
 
-## Contribution
-Contributions are welcome! Please open an issue or submit a pull request for suggestions or improvements.
+	The current backend requires both migrations:
+	- `supabase/migrations/202603150001_initial_schema.sql`
+	- `supabase/migrations/202603150002_replace_transaction_splits_rpc.sql`
 
-## FAQ
-**Q: How is my data stored?**
-A: Data is stored locally in JSON files and IndexedDB. No data is sent to external servers.
+5. Start development server:
+	`npm run dev`
 
-**Q: Can I deploy this app?**
-A: Yes, you can deploy it using platforms like Vercel or Netlify.
+6. Build and lint checks:
+	- `cmd /c npm run lint`
+	- `cmd /c npm run build`
+
+## API Notes
+- Data APIs require an authenticated Supabase session cookie.
+- Auth routes:
+  - `POST /api/auth/signup`
+  - `POST /api/auth/login`
+  - `POST /api/auth/forgot-password`
+- Data routes:
+  - `/api/transactions`
+  - `/api/budgets`
+  - `/api/dashboard`
+  - `/api/insights`
+  - `/api/savings`
+  - `/api/timeline`
+  - `/api/sync`
+  - `/api/transactions/recurring`
+
+## Security
+- Supabase Row Level Security (RLS) is enabled on core tables.
+- API routes return `401` for unauthenticated requests.
+- Ownership checks are enforced by RLS policies and authenticated session context.
 
 ## License
 MIT

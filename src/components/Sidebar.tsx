@@ -1,30 +1,123 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ChevronUp,
   LayoutDashboard,
   Receipt,
   Lightbulb,
+  LogOut,
   Clock,
   Settings,
   Wallet,
   Sun,
   Moon,
 } from 'lucide-react';
+import type { SessionUser } from '@/lib/auth-contract';
 import { useTheme } from './ThemeProvider';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/insights', label: 'Insights', icon: Lightbulb },
   { href: '/timeline', label: 'Timeline', icon: Clock },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  user: SessionUser;
+  onLoggedOut: () => void;
+}
+
+function getDisplayName(user: SessionUser): string {
+  if (user.fullName.trim().length > 0) {
+    return user.fullName.trim();
+  }
+  const [emailName] = user.email.split('@');
+  return emailName || 'Your account';
+}
+
+function getInitials(name: string): string {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) return 'FT';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, toggle } = useTheme();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const displayName = useMemo(() => getDisplayName(user), [user]);
+  const initials = useMemo(() => getInitials(displayName), [displayName]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!menuRef.current) return;
+      if (event.target instanceof Node && menuRef.current.contains(event.target)) return;
+      setIsMenuOpen(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isMenuOpen]);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    setLogoutError('');
+
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      const data = (await response.json().catch(() => null)) as {
+        success?: boolean;
+        error?: string;
+        redirectTo?: string;
+      } | null;
+
+      if (!response.ok || !data?.success) {
+        setLogoutError(data?.error || 'Unable to log out right now. Please try again.');
+        return;
+      }
+
+      setIsMenuOpen(false);
+      onLoggedOut();
+      router.push(typeof data.redirectTo === 'string' ? data.redirectTo : '/auth/login');
+      router.refresh();
+    } catch {
+      setLogoutError('Network error. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <aside className="hidden sm:flex flex-col w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen fixed left-0 top-0">
@@ -60,6 +153,60 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-4 py-4 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+        <div ref={menuRef} className="relative">
+          {isMenuOpen ? (
+            <div className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+              <div className="border-b border-zinc-100 px-2 pb-2 dark:border-zinc-800">
+                <p className="text-[11px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                  Signed in as
+                </p>
+                <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  {user.email}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="mt-2 inline-flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-rose-300 dark:text-rose-300 dark:hover:bg-rose-500/10 dark:disabled:text-rose-700"
+              >
+                {isLoggingOut ? 'Logging out...' : 'Log out'}
+                <LogOut size={16} />
+              </button>
+              {logoutError ? (
+                <p className="px-2 pt-1 text-xs text-rose-600 dark:text-rose-400">{logoutError}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <button
+            onClick={() => {
+              setIsMenuOpen((previous) => !previous);
+              setLogoutError('');
+            }}
+            className="w-full flex items-center justify-between gap-2 rounded-xl border border-zinc-200 px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                {initials}
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  {displayName}
+                </p>
+                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
+              </div>
+            </div>
+            <ChevronUp
+              size={14}
+              className={`shrink-0 text-zinc-500 transition-transform dark:text-zinc-400 ${
+                isMenuOpen ? '' : 'rotate-180'
+              }`}
+            />
+          </button>
+        </div>
+
         <button
           onClick={toggle}
           className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"

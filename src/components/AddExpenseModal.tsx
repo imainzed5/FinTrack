@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Plus, Repeat, Trash2, X } from 'lucide-react';
@@ -617,11 +618,16 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
                   </div>
                 )}
                 {attachmentBase64 && (
-                  <img
-                    src={attachmentBase64}
-                    alt="Receipt preview"
-                    className="mt-2 h-24 w-full object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
-                  />
+                  <div className="relative mt-2 h-24 w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <Image
+                      src={attachmentBase64}
+                      alt="Receipt preview"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 448px"
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
                 )}
               </div>
             </div>

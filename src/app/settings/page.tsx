@@ -8,6 +8,7 @@ import type { Budget, Category, Transaction } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
+import { SettingsSkeleton } from '@/components/SkeletonLoaders';
 
 export default function SettingsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -203,7 +204,7 @@ export default function SettingsPage() {
           <SettingsIcon size={20} className="text-zinc-600 dark:text-zinc-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Settings</h1>
+          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Settings</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Manage budgets and preferences
           </p>
@@ -212,7 +213,7 @@ export default function SettingsPage() {
 
       {/* Connection Status */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">Sync Status</h3>
+        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">Sync Status</h3>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {online ? (
@@ -247,7 +248,7 @@ export default function SettingsPage() {
       {/* Budget Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Budget Management</h3>
+          <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white">Budget Management</h3>
           <div className="flex items-center gap-2">
             <input
               type="month"
@@ -340,9 +341,7 @@ export default function SettingsPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <SettingsSkeleton />
         ) : monthBudgets.length === 0 ? (
           <div className="text-center py-8 text-zinc-400 dark:text-zinc-600 text-sm">
             No budgets set for {format(new Date(month + '-01'), 'MMMM yyyy')}.
@@ -376,7 +375,7 @@ export default function SettingsPage() {
       </div>
       {/* Data Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-1">Data Management</h3>
+        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-1">Data Management</h3>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
           Export a JSON backup of all your transactions, or import a previously exported backup.
         </p>

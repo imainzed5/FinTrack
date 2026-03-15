@@ -14,7 +14,7 @@ import {
 import { useTheme } from './ThemeProvider';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/insights', label: 'Insights', icon: Lightbulb },
   { href: '/timeline', label: 'Timeline', icon: Clock },
