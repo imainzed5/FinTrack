@@ -1,4 +1,4 @@
-# FinTrack Backend Schema Design (Supabase/PostgreSQL)
+# Moneda Backend Schema Design (Supabase/PostgreSQL)
 
 This design was derived from the current running system behavior in:
 - `src/lib/types.ts`

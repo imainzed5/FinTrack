@@ -1,6 +1,6 @@
 {
-  "name": "FinTrack",
-  "short_name": "FinTrack",
+  "name": "Moneda",
+  "short_name": "Moneda",
   "description": "Personal Financial Intelligence Dashboard",
   "start_url": "/",
   "display": "standalone",

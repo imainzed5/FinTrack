@@ -1,6 +1,6 @@
-# Supabase Backend Setup (FinTrack)
+# Supabase Backend Setup (Moneda)
 
-This folder contains the initial PostgreSQL schema and design notes for migrating FinTrack from local JSON storage to Supabase.
+This folder contains the initial PostgreSQL schema and design notes for migrating Moneda from local JSON storage to Supabase.
 
 ## Files
 

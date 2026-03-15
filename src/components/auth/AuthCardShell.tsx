@@ -32,7 +32,7 @@ export default function AuthCardShell({
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
               <Wallet size={16} />
             </span>
-            FinTrack
+            Moneda
           </Link>
 
           <header className="mb-6 space-y-2">

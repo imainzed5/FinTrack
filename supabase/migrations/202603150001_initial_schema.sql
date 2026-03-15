@@ -1,4 +1,4 @@
--- FinTrack Supabase/PostgreSQL initial schema
+-- Moneda Supabase/PostgreSQL initial schema
 -- Generated: 2026-03-15
 -- Purpose: Move JSON-based local data model to a normalized, multi-user relational schema.
 

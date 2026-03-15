@@ -57,15 +57,15 @@ export default async function PrivacyPolicyPage({ searchParams }: PolicyPageProp
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">1. Overview</h2>
             <p>
-              This Privacy Policy explains how FinTrack collects, uses, stores, and protects your
+              This Privacy Policy explains how Moneda collects, uses, stores, and protects your
               personal data when you use our services. We are committed to handling your
               information responsibly and transparently. By creating an account or continuing to
-              use FinTrack, you acknowledge this policy.
+              use Moneda, you acknowledge this policy.
             </p>
             <p>
               This policy applies to the website, application features, and related support
               services. It does not apply to third-party services that may be linked from within
-              FinTrack.
+              Moneda.
             </p>
           </section>
 
@@ -92,7 +92,7 @@ export default async function PrivacyPolicyPage({ searchParams }: PolicyPageProp
 
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">3. How We Use Data</h2>
-            <p>We use personal data to provide and improve FinTrack, including to:</p>
+            <p>We use personal data to provide and improve Moneda, including to:</p>
             <p>
               Authenticate users, secure accounts, and maintain session integrity.
             </p>
@@ -126,7 +126,7 @@ export default async function PrivacyPolicyPage({ searchParams }: PolicyPageProp
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">5. Data Sharing</h2>
             <p>
               We do not sell your personal data. We may share data with trusted infrastructure and
-              service providers that help us operate FinTrack, such as authentication, hosting, and
+              service providers that help us operate Moneda, such as authentication, hosting, and
               database providers, under confidentiality and security obligations.
             </p>
             <p>
@@ -165,7 +165,7 @@ export default async function PrivacyPolicyPage({ searchParams }: PolicyPageProp
               the right to file a complaint with a data protection authority.
             </p>
             <p>
-              To exercise rights, contact support@fintrack.app. We may need to verify your identity
+              To exercise rights, contact support@moneda.app. We may need to verify your identity
               before fulfilling requests.
             </p>
           </section>
@@ -190,7 +190,7 @@ export default async function PrivacyPolicyPage({ searchParams }: PolicyPageProp
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">11. Contact</h2>
             <p>
-              For privacy questions or requests, contact support@fintrack.app.
+              For privacy questions or requests, contact support@moneda.app.
             </p>
           </section>
         </div>

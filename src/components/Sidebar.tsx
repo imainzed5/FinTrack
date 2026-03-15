@@ -122,7 +122,7 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
           <Wallet size={18} className="text-white" />
         </div>
         <div>
-          <h1 className="font-bold text-zinc-900 dark:text-white text-base">FinTrack</h1>
+          <h1 className="font-bold text-zinc-900 dark:text-white text-base">Moneda</h1>
           <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Financial Intelligence</p>
         </div>
       </div>

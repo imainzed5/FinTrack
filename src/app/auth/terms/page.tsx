@@ -57,14 +57,14 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">1. Acceptance of Terms</h2>
             <p>
-              By creating an account, accessing, or using FinTrack, you agree to be bound by these
+              By creating an account, accessing, or using Moneda, you agree to be bound by these
               Terms of Service. If you do not agree with these terms, do not use the service. You
               must be at least the age of legal majority in your jurisdiction to use this service,
               or you must use the service with the consent of a parent or legal guardian.
             </p>
             <p>
               These terms apply to all users, including people who browse public pages and people
-              who create an account. Your continued use of FinTrack after changes to these terms
+              who create an account. Your continued use of Moneda after changes to these terms
               are posted means you accept the updated terms.
             </p>
           </section>
@@ -78,7 +78,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
             </p>
             <p>
               You agree not to share your credentials, attempt to gain unauthorized access to any
-              account or system, or use FinTrack in any way that disrupts service reliability or
+              account or system, or use Moneda in any way that disrupts service reliability or
               security. If you suspect unauthorized access to your account, notify us promptly and
               change your password immediately.
             </p>
@@ -87,7 +87,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">3. Acceptable Use</h2>
             <p>
-              FinTrack is provided to help you manage personal financial records and insights. You
+              Moneda is provided to help you manage personal financial records and insights. You
               may not use the service for unlawful activities, fraudulent conduct, harmful
               automation, reverse engineering for abuse, or transmission of malicious code.
             </p>
@@ -101,7 +101,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">4. Financial Information Disclaimer</h2>
             <p>
-              FinTrack is an informational tool and does not provide legal, tax, accounting, or
+              Moneda is an informational tool and does not provide legal, tax, accounting, or
               investment advice. Insights, trends, projections, and recommendations are generated
               from the information you provide and may be incomplete or inaccurate.
             </p>
@@ -129,7 +129,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">6. Intellectual Property</h2>
             <p>
-              The FinTrack application, design, content, branding, and related materials are owned
+              The Moneda application, design, content, branding, and related materials are owned
               by the service operator or its licensors and are protected by applicable intellectual
               property laws. Except where expressly allowed, you may not copy, distribute,
               commercially exploit, or create derivative works from service materials.
@@ -139,7 +139,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">7. Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, FinTrack is provided on an &quot;as is&quot; and &quot;as
+              To the maximum extent permitted by law, Moneda is provided on an &quot;as is&quot; and &quot;as
               available&quot; basis without warranties of any kind. We are not liable for indirect,
               incidental, consequential, special, or punitive damages, including loss of profits,
               data, or goodwill, resulting from your use of or inability to use the service.
@@ -154,7 +154,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">8. Termination</h2>
             <p>
-              You may stop using FinTrack at any time. We may suspend or terminate your access if
+              You may stop using Moneda at any time. We may suspend or terminate your access if
               you violate these terms, create legal risk, or misuse the platform. Sections that by
               nature should survive termination, such as disclaimers, limitations of liability, and
               dispute-related provisions, will continue to apply.
@@ -173,7 +173,7 @@ export default async function TermsOfServicePage({ searchParams }: PolicyPagePro
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">10. Contact</h2>
             <p>
-              Questions about these Terms of Service can be sent to support@fintrack.app.
+              Questions about these Terms of Service can be sent to support@moneda.app.
             </p>
           </section>
         </div>

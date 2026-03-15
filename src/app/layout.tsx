@@ -27,13 +27,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "FinTrack — Personal Financial Intelligence",
+  title: "Moneda — Personal Financial Intelligence",
   description: "Track expenses, detect patterns, and gain financial intelligence.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "FinTrack",
+    title: "Moneda",
   },
 };
 

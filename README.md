@@ -1,6 +1,6 @@
-# FinTrack
+# Moneda
 
-FinTrack is a personal expense tracker built with Next.js. It now uses Supabase for authentication and cloud data storage, while keeping the existing mobile-first UI and analytics workflows.
+Moneda is a personal expense tracker built with Next.js. It now uses Supabase for authentication and cloud data storage, while keeping the existing mobile-first UI and analytics workflows.
 
 ## Features
 - Email/password authentication (signup, login, forgot password)

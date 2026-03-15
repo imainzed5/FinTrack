@@ -7,7 +7,7 @@ interface FABProps {
   onClick: () => void;
 }
 
-const FAB_TOOLTIP_KEY = 'fintrack:add-transaction-fab-tooltip-seen';
+const FAB_TOOLTIP_KEY = 'moneda:add-transaction-fab-tooltip-seen';
 
 export default function FloatingAddButton({ onClick }: FABProps) {
   const [showTooltip, setShowTooltip] = useState(false);

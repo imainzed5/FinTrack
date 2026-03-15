@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fintrack-v1';
+const CACHE_NAME = 'moneda-v1';
 const STATIC_ASSETS = [
   '/',
   '/transactions',

@@ -85,7 +85,7 @@ const journey: JourneyStep[] = [
 const testimonials: Testimonial[] = [
   {
     quote:
-      'I was not overspending wildly. I was just blind. FinTrack gave me a clean picture in one week.',
+      'I was not overspending wildly. I was just blind. Moneda gave me a clean picture in one week.',
     name: 'Mina R.',
     role: 'Freelance Designer',
   },
@@ -97,16 +97,16 @@ const testimonials: Testimonial[] = [
   },
   {
     quote:
-      'We started using FinTrack as a family and finally hit our emergency fund target consistently.',
+      'We started using Moneda as a family and finally hit our emergency fund target consistently.',
     name: 'Leah and Marco',
     role: 'Parents of Two',
   },
 ];
 
 export const metadata: Metadata = {
-  title: 'FinTrack | You Earn Enough. Now See Where It Goes.',
+  title: 'Moneda | You Earn Enough. Now See Where It Goes.',
   description:
-    'FinTrack helps everyday people understand spending, set realistic budgets, and feel in control of their money.',
+    'Moneda helps everyday people understand spending, set realistic budgets, and feel in control of their money.',
   alternates: {
     canonical: '/',
   },
@@ -139,7 +139,7 @@ export default function LandingPage() {
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-white">
               <Wallet size={16} aria-hidden />
             </span>
-            FinTrack
+            Moneda
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -169,7 +169,7 @@ export default function LandingPage() {
               You earn enough. You just can&apos;t see where it goes.
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-slate-600 dark:text-zinc-300 sm:text-lg">
-              FinTrack was built for the moment you check your bank balance and wonder what happened. It helps regular people understand spending, set realistic budgets, and finally feel in control of money.
+              Moneda was built for the moment you check your bank balance and wonder what happened. It helps regular people understand spending, set realistic budgets, and finally feel in control of money.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -195,7 +195,7 @@ export default function LandingPage() {
 
           <figure className="animate-fade-in rounded-3xl border border-slate-200/80 bg-white/80 p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.45)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80 lg:p-5">
             <figcaption className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-              <span>FinTrack Preview</span>
+              <span>Moneda Preview</span>
               <span>Placeholder</span>
             </figcaption>
 
@@ -245,10 +245,10 @@ export default function LandingPage() {
           <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 lg:grid-cols-[1fr_0.9fr] lg:p-8">
             <div>
               <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
-                Why FinTrack exists
+                Why Moneda exists
               </h2>
               <p className="mt-3 text-slate-600 dark:text-zinc-300">
-                Most people are not bad with money. They are just overloaded and busy. FinTrack was created by someone who lived the same frustration and wanted a calmer way to understand spending.
+                Most people are not bad with money. They are just overloaded and busy. Moneda was created by someone who lived the same frustration and wanted a calmer way to understand spending.
               </p>
               <p className="mt-3 text-slate-600 dark:text-zinc-300">
                 It is for freelancers with irregular income, fresh grads managing a first salary, and families saving for something meaningful. You do not need to be a finance expert. You just need a clear picture.
@@ -322,14 +322,14 @@ export default function LandingPage() {
 
           <div className="mt-7 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
             <p className="text-sm text-amber-900 dark:text-amber-100">
-              FinTrack does not punish you for spending. It gives you context so you can make better choices next month.
+              Moneda does not punish you for spending. It gives you context so you can make better choices next month.
             </p>
             <div className="mt-3">
               <Link
                 href="/auth/signup"
                 className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-400"
               >
-                Try FinTrack now
+                Try Moneda now
                 <ArrowRight size={16} aria-hidden />
               </Link>
             </div>
@@ -397,7 +397,7 @@ export default function LandingPage() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-slate-600 dark:text-zinc-300">
-              Your data privacy matters. FinTrack is designed with clear controls and transparent policies.
+              Your data privacy matters. Moneda is designed with clear controls and transparent policies.
             </p>
             <Link
               href="/auth/signup"
@@ -429,13 +429,13 @@ export default function LandingPage() {
           </div>
 
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            (c) 2026 FinTrack. Built to help everyday people feel financially clear and in control.
+            (c) 2026 Moneda. Built to help everyday people feel financially clear and in control.
           </p>
         </div>
       </footer>
 
       <div className="sr-only" aria-live="polite">
-        FinTrack landing page loaded
+        Moneda landing page loaded
       </div>
     </div>
   );

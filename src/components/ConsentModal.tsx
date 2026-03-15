@@ -63,7 +63,7 @@ function ConsentModalContent({
             id="consent-modal-description"
             className="text-sm leading-relaxed text-slate-600 dark:text-zinc-300"
           >
-            FinTrack has updated legal terms. Please review and accept the current versions to
+            Moneda has updated legal terms. Please review and accept the current versions to
             continue using your account.
           </p>
         </header>
