@@ -1,29 +1,39 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Insight } from '@/lib/types';
 import InsightCards from '@/components/InsightCards';
 import { Lightbulb } from 'lucide-react';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 
 export default function InsightsPage() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
 
-  useEffect(() => {
-    async function fetchInsights() {
-      try {
-        const res = await fetch('/api/insights');
-        const json = await res.json();
-        setInsights(json);
-      } catch {
-        // offline
-      } finally {
-        setLoading(false);
-      }
+  const fetchInsights = useCallback(async () => {
+    try {
+      const res = await fetch('/api/insights');
+      const json = await res.json();
+      setInsights(json);
+    } catch {
+      // offline
+    } finally {
+      setLoading(false);
     }
-    fetchInsights();
   }, []);
+
+  useEffect(() => {
+    void fetchInsights();
+  }, [fetchInsights]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchInsights();
+    });
+
+    return unsubscribe;
+  }, [fetchInsights]);
 
   const filtered =
     filter === 'all' ? insights : insights.filter((i) => i.insightType === filter);

@@ -3,11 +3,11 @@ import {
   startOfMonth,
   endOfMonth,
   subMonths,
+  subDays,
   addMonths,
   format,
   parseISO,
   differenceInDays,
-  startOfWeek,
   eachWeekOfInterval,
   eachDayOfInterval,
   isWithinInterval,
@@ -19,9 +19,109 @@ import type {
   Subscription,
   Budget,
   BudgetStatus,
+  BudgetThresholdAlert,
   Category,
   DashboardData,
 } from './types';
+
+const BUDGET_ALERT_THRESHOLDS = [50, 80, 100] as const;
+
+function roundMoney(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function budgetLabel(budget: Pick<Budget, 'category' | 'subCategory'>): string {
+  if (budget.subCategory) return `${budget.category} - ${budget.subCategory}`;
+  return budget.category;
+}
+
+type Allocation = { category: Category; subCategory?: string; amount: number };
+
+function getTransactionAllocations(tx: Transaction): Allocation[] {
+  if (Array.isArray(tx.split) && tx.split.length > 0) {
+    return tx.split.map((line) => ({
+      category: line.category,
+      subCategory: line.subCategory,
+      amount: line.amount,
+    }));
+  }
+
+  return [
+    {
+      category: tx.category,
+      subCategory: tx.subCategory,
+      amount: tx.amount,
+    },
+  ];
+}
+
+function getBudgetSpentForMonth(
+  transactions: Transaction[],
+  budget: Budget,
+  month: string
+): number {
+  const monthTxs = transactions.filter((tx) => tx.date.startsWith(month));
+
+  if (budget.category === 'Overall') {
+    return roundMoney(sumTransactions(monthTxs));
+  }
+
+  let spent = 0;
+  for (const tx of monthTxs) {
+    for (const allocation of getTransactionAllocations(tx)) {
+      if (allocation.category !== budget.category) continue;
+      if (budget.subCategory && (allocation.subCategory || '') !== budget.subCategory) {
+        continue;
+      }
+      spent += allocation.amount;
+    }
+  }
+
+  return roundMoney(spent);
+}
+
+function getEffectiveBudgetLimit(
+  budget: Budget,
+  budgets: Budget[],
+  transactions: Transaction[],
+  memo: Map<string, { effectiveLimit: number; rolloverCarry: number }> = new Map()
+): { effectiveLimit: number; rolloverCarry: number } {
+  const key = `${budget.month}|${budget.category}|${budget.subCategory || ''}`;
+  const cached = memo.get(key);
+  if (cached) return cached;
+
+  if (!budget.rollover) {
+    const resolved = { effectiveLimit: roundMoney(budget.monthlyLimit), rolloverCarry: 0 };
+    memo.set(key, resolved);
+    return resolved;
+  }
+
+  const [year, month] = budget.month.split('-').map(Number);
+  const previousMonth = format(subMonths(new Date(year, month - 1, 1), 1), 'yyyy-MM');
+  const previousBudget = budgets.find(
+    (candidate) =>
+      candidate.month === previousMonth &&
+      candidate.category === budget.category &&
+      (candidate.subCategory || '') === (budget.subCategory || '')
+  );
+
+  if (!previousBudget) {
+    const resolved = { effectiveLimit: roundMoney(budget.monthlyLimit), rolloverCarry: 0 };
+    memo.set(key, resolved);
+    return resolved;
+  }
+
+  const previousResolved = getEffectiveBudgetLimit(previousBudget, budgets, transactions, memo);
+  const previousSpent = getBudgetSpentForMonth(transactions, previousBudget, previousMonth);
+  const rolloverCarry = Math.max(0, previousResolved.effectiveLimit - previousSpent);
+
+  const resolved = {
+    effectiveLimit: roundMoney(budget.monthlyLimit + rolloverCarry),
+    rolloverCarry: roundMoney(rolloverCarry),
+  };
+  memo.set(key, resolved);
+  return resolved;
+}
 
 function getMonthTransactions(transactions: Transaction[], date: Date): Transaction[] {
   const start = startOfMonth(date);
@@ -39,7 +139,9 @@ function sumTransactions(txs: Transaction[]): number {
 function categorySum(txs: Transaction[]): Record<string, number> {
   const sums: Record<string, number> = {};
   for (const tx of txs) {
-    sums[tx.category] = (sums[tx.category] || 0) + tx.amount;
+    for (const allocation of getTransactionAllocations(tx)) {
+      sums[allocation.category] = (sums[allocation.category] || 0) + allocation.amount;
+    }
   }
   return sums;
 }
@@ -79,17 +181,17 @@ export function detectSpendingSpikes(
 // Subscription Detection
 export function detectSubscriptions(transactions: Transaction[]): Subscription[] {
   const subscriptions: Subscription[] = [];
-  const byNotes: Record<string, Transaction[]> = {};
+  const grouped: Record<string, Transaction[]> = {};
 
   for (const tx of transactions) {
-    const key = `${tx.notes.toLowerCase().trim()}_${tx.amount}`;
-    if (tx.notes.trim()) {
-      if (!byNotes[key]) byNotes[key] = [];
-      byNotes[key].push(tx);
-    }
+    const descriptor = (tx.merchant || tx.description || tx.notes || '').toLowerCase().trim();
+    if (!descriptor) continue;
+    const key = `${descriptor}_${tx.amount}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(tx);
   }
 
-  for (const [, txs] of Object.entries(byNotes)) {
+  for (const [, txs] of Object.entries(grouped)) {
     if (txs.length >= 2) {
       const sorted = txs.sort(
         (a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()
@@ -107,9 +209,10 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
       else if (avgGap > 300) billingCycle = 'yearly';
 
       if (avgGap >= 5 && avgGap <= 400) {
+        const name = txs[0].merchant || txs[0].description || txs[0].notes || txs[0].category;
         subscriptions.push({
           id: uuidv4(),
-          name: txs[0].notes,
+          name,
           amount: txs[0].amount,
           billingCycle,
           lastDetected: sorted[sorted.length - 1].date,
@@ -129,28 +232,41 @@ export function calculateBudgetStatuses(
   now: Date = new Date()
 ): BudgetStatus[] {
   const monthStr = format(now, 'yyyy-MM');
-  const monthTxs = getMonthTransactions(transactions, now);
-  const totalSpent = sumTransactions(monthTxs);
-  const catSpent = categorySum(monthTxs);
+  const dayOfMonth = now.getDate();
+  const daysInMonth = endOfMonth(now).getDate();
+  const rolloverMemo = new Map<string, { effectiveLimit: number; rolloverCarry: number }>();
 
   const statuses: BudgetStatus[] = [];
 
   for (const budget of budgets) {
     if (budget.month !== monthStr) continue;
 
-    const spent =
-      budget.category === 'Overall' ? totalSpent : (catSpent[budget.category] || 0);
-    const percentage = budget.monthlyLimit > 0 ? (spent / budget.monthlyLimit) * 100 : 0;
+    const spent = getBudgetSpentForMonth(transactions, budget, monthStr);
+    const { effectiveLimit, rolloverCarry } = getEffectiveBudgetLimit(
+      budget,
+      budgets,
+      transactions,
+      rolloverMemo
+    );
+    const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0;
+    const projectedSpent = dayOfMonth > 0 ? (spent / dayOfMonth) * daysInMonth : 0;
+    const projectedOverage = Math.max(0, projectedSpent - effectiveLimit);
 
     let status: 'safe' | 'warning' | 'critical' = 'safe';
     if (percentage >= 100) status = 'critical';
     else if (percentage >= 80) status = 'warning';
 
     statuses.push({
+      budgetId: budget.id,
       category: budget.category,
+      subCategory: budget.subCategory,
       limit: budget.monthlyLimit,
+      effectiveLimit,
+      rolloverCarry,
       spent,
       percentage,
+      projectedSpent: roundMoney(projectedSpent),
+      projectedOverage: roundMoney(projectedOverage),
       status,
     });
   }
@@ -165,25 +281,19 @@ export function predictBudgetRisk(
   now: Date = new Date()
 ): Insight[] {
   const insights: Insight[] = [];
-  const monthStr = format(now, 'yyyy-MM');
-  const monthStart = startOfMonth(now);
-  const dayOfMonth = now.getDate();
-  const daysInMonth = endOfMonth(now).getDate();
-  const monthTxs = getMonthTransactions(transactions, now);
-  const totalSpent = sumTransactions(monthTxs);
+  const statuses = calculateBudgetStatuses(transactions, budgets, now);
 
-  for (const budget of budgets) {
-    if (budget.month !== monthStr || budget.category !== 'Overall') continue;
-
-    const dailyRate = dayOfMonth > 0 ? totalSpent / dayOfMonth : 0;
-    const projected = dailyRate * daysInMonth;
-
-    if (projected > budget.monthlyLimit && totalSpent < budget.monthlyLimit) {
+  for (const status of statuses) {
+    if (status.projectedOverage > 0 && status.spent < status.effectiveLimit) {
+      const label = status.subCategory
+        ? `${status.category} - ${status.subCategory}`
+        : status.category;
       insights.push({
         id: uuidv4(),
         insightType: 'budget_risk',
-        message: `At your current pace, you may exceed your monthly budget by ₱${(projected - budget.monthlyLimit).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
-        severity: 'warning',
+        message: `At your current pace, ${label} may exceed budget by ₱${status.projectedOverage.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+        severity: status.projectedOverage > status.effectiveLimit * 0.2 ? 'critical' : 'warning',
+        category: status.category === 'Overall' ? undefined : status.category,
         createdAt: new Date().toISOString(),
       });
     }
@@ -262,9 +372,11 @@ export function buildDashboardData(
 
   const monthStr = format(now, 'yyyy-MM');
   const overallBudget = budgets.find(
-    (b) => b.category === 'Overall' && b.month === monthStr
+    (b) => b.category === 'Overall' && b.month === monthStr && !b.subCategory
   );
-  const monthlyBudget = overallBudget?.monthlyLimit || 0;
+  const monthlyBudget = overallBudget
+    ? getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit
+    : 0;
   const remainingBudget = Math.max(0, monthlyBudget - totalSpentThisMonth);
 
   const savingsRate =
@@ -276,6 +388,30 @@ export function buildDashboardData(
       : 0;
 
   const budgetStatuses = calculateBudgetStatuses(transactions, budgets, now);
+  const budgetById = new Map(budgets.map((budget) => [budget.id, budget]));
+
+  const budgetAlerts: BudgetThresholdAlert[] = [];
+  for (const status of budgetStatuses) {
+    const budget = budgetById.get(status.budgetId);
+    if (!budget) continue;
+    const alreadyTriggered = budget.alertThresholdsTriggered || [];
+    for (const threshold of BUDGET_ALERT_THRESHOLDS) {
+      if (status.percentage >= threshold && !alreadyTriggered.includes(threshold)) {
+        budgetAlerts.push({
+          id: uuidv4(),
+          budgetId: status.budgetId,
+          month: monthStr,
+          category: status.category,
+          subCategory: status.subCategory,
+          threshold,
+          spent: status.spent,
+          limit: status.effectiveLimit,
+          percentage: status.percentage,
+          message: `${budgetLabel(status)} reached ${threshold}% (₱${status.spent.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} of ₱${status.effectiveLimit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`,
+        });
+      }
+    }
+  }
 
   const catBreakdown = categorySum(currentMonthTxs);
   const categoryBreakdown = Object.entries(catBreakdown)
@@ -300,9 +436,9 @@ export function buildDashboardData(
 
   // Daily spending for the last 7 days
   const days = eachDayOfInterval({
-    start: subMonths(now, 0),
+    start: subDays(now, 6),
     end: now,
-  }).slice(-7);
+  });
 
   const dailySpending = days.map((day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
@@ -327,12 +463,41 @@ export function buildDashboardData(
     savingsRate,
     expenseGrowthRate,
     budgetStatuses,
+    budgetAlerts,
     categoryBreakdown,
     weeklySpending,
     dailySpending,
     recentTransactions,
     insights,
   };
+}
+
+export function mergeTriggeredBudgetThresholds(
+  budgets: Budget[],
+  alerts: BudgetThresholdAlert[]
+): Budget[] {
+  if (alerts.length === 0) return budgets;
+
+  const alertMap = new Map<string, number[]>();
+  for (const alert of alerts) {
+    const current = alertMap.get(alert.budgetId) || [];
+    current.push(alert.threshold);
+    alertMap.set(alert.budgetId, current);
+  }
+
+  return budgets.map((budget) => {
+    const incoming = alertMap.get(budget.id);
+    if (!incoming || incoming.length === 0) return budget;
+
+    const merged = Array.from(
+      new Set([...(budget.alertThresholdsTriggered || []), ...incoming])
+    ).sort((a, b) => a - b);
+
+    return {
+      ...budget,
+      alertThresholdsTriggered: merged,
+    };
+  });
 }
 
 // Compute monthly savings history — covers every month from earliest data to today
@@ -363,11 +528,13 @@ export function computeMonthlySavingsHistory(
 
   for (const month of months) {
     const overallBudget = budgets.find(
-      (b) => b.category === 'Overall' && b.month === month
+      (b) => b.category === 'Overall' && b.month === month && !b.subCategory
     );
     const monthTxs = transactions.filter((t) => t.date.startsWith(month));
     const spent = sumTransactions(monthTxs);
-    const budget = overallBudget?.monthlyLimit ?? 0;
+    const budget = overallBudget
+      ? getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit
+      : 0;
     const saved = budget > 0 ? Math.max(0, budget - spent) : 0;
     const savingsRate = budget > 0 ? (saved / budget) * 100 : 0;
     cumulative += saved;
@@ -396,13 +563,14 @@ export function generateTimelineEvents(
   // ── 1. Started tracking ──────────────────────────────────────────────────
   const sorted = [...transactions].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
   const firstTx = sorted[0];
+  const firstTxLabel = firstTx.description || firstTx.notes || firstTx.category;
   events.push({
     id: uuidv4(),
     eventType: 'started_tracking',
     description: 'Started expense tracking',
     date: firstTx.date,
     metadata: { totalTransactions: transactions.length },
-    context: `Your financial journey began with a ₱${peso(firstTx.amount)} expense on ${format(parseISO(firstTx.date), 'MMMM d, yyyy')}${firstTx.notes ? ` — "${firstTx.notes}"` : ''}. You have recorded ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} since then.`,
+    context: `Your financial journey began with a ₱${peso(firstTx.amount)} expense on ${format(parseISO(firstTx.date), 'MMMM d, yyyy')}${firstTxLabel ? ` — "${firstTxLabel}"` : ''}. You have recorded ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} since then.`,
     advice: 'Consistent tracking is the foundation of financial awareness. Keep it up!',
     severity: 'positive',
   });
@@ -434,7 +602,12 @@ export function generateTimelineEvents(
   const monthly: MonthData[] = sortedMonths.map(month => {
     const txs = transactions.filter(t => t.date.startsWith(month));
     const spent = sumTransactions(txs);
-    const budget = budgets.find(b => b.category === 'Overall' && b.month === month)?.monthlyLimit ?? 0;
+    const overallBudget = budgets.find(
+      (b) => b.category === 'Overall' && b.month === month && !b.subCategory
+    );
+    const budget = overallBudget
+      ? getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit
+      : 0;
     const saved = budget > 0 ? Math.max(0, budget - spent) : 0;
     return { month, spent, saved, budget, txs, cats: categorySum(txs) };
   });

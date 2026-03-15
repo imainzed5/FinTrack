@@ -7,13 +7,16 @@ import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload
 import type { Budget, Category, Transaction } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
 
 export default function SettingsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddBudget, setShowAddBudget] = useState(false);
   const [newCategory, setNewCategory] = useState<Category | 'Overall'>('Overall');
+  const [newSubCategory, setNewSubCategory] = useState('');
   const [newLimit, setNewLimit] = useState('');
+  const [newRollover, setNewRollover] = useState(false);
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
@@ -36,6 +39,10 @@ export default function SettingsPage() {
     fetchBudgets();
     setOnline(navigator.onLine);
 
+    const unsubscribeRealtime = subscribeBudgetUpdates(() => {
+      void fetchBudgets();
+    });
+
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
     window.addEventListener('online', handleOnline);
@@ -55,6 +62,7 @@ export default function SettingsPage() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      unsubscribeRealtime();
     };
   }, [fetchBudgets]);
 
@@ -65,8 +73,11 @@ export default function SettingsPage() {
     const budget: Budget = {
       id: uuidv4(),
       category: newCategory,
+      subCategory: newCategory === 'Overall' ? undefined : (newSubCategory.trim() || undefined),
       monthlyLimit: parseFloat(newLimit),
       month,
+      rollover: newRollover,
+      alertThresholdsTriggered: [],
     };
 
     try {
@@ -76,6 +87,8 @@ export default function SettingsPage() {
         body: JSON.stringify(budget),
       });
       setNewLimit('');
+      setNewSubCategory('');
+      setNewRollover(false);
       setShowAddBudget(false);
       fetchBudgets();
     } catch {
@@ -143,9 +156,22 @@ export default function SettingsPage() {
           body: JSON.stringify({
             amount: tx.amount,
             category: tx.category,
+            subCategory: tx.subCategory,
+            merchant: tx.merchant,
+            description: tx.description,
             date: tx.date,
             paymentMethod: tx.paymentMethod ?? 'Cash',
             notes: tx.notes ?? '',
+            tags: tx.tags ?? [],
+            attachmentBase64: tx.attachmentBase64,
+            split: tx.split,
+            recurring: tx.recurring
+              ? {
+                  frequency: tx.recurring.frequency,
+                  interval: tx.recurring.interval,
+                  endDate: tx.recurring.endDate,
+                }
+              : undefined,
           }),
         });
         if (res.ok) imported++;
@@ -160,7 +186,15 @@ export default function SettingsPage() {
     }
   };
 
-  const monthBudgets = budgets.filter((b) => b.month === month);
+  const monthBudgets = budgets
+    .filter((b) => b.month === month)
+    .sort((a, b) => {
+      if (a.category === 'Overall' && b.category !== 'Overall') return -1;
+      if (a.category !== 'Overall' && b.category === 'Overall') return 1;
+      const aLabel = `${a.category}:${a.subCategory || ''}`.toLowerCase();
+      const bLabel = `${b.category}:${b.subCategory || ''}`.toLowerCase();
+      return aLabel.localeCompare(bLabel);
+    });
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
@@ -232,12 +266,16 @@ export default function SettingsPage() {
 
         {showAddBudget && (
           <form onSubmit={handleAddBudget} className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl space-y-3 animate-fade-in">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Category</label>
                 <select
                   value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value as Category | 'Overall')}
+                  onChange={(e) => {
+                    const nextCategory = e.target.value as Category | 'Overall';
+                    setNewCategory(nextCategory);
+                    if (nextCategory === 'Overall') setNewSubCategory('');
+                  }}
                   className="w-full mt-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
                 >
                   <option value="Overall">Overall</option>
@@ -245,6 +283,17 @@ export default function SettingsPage() {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Sub-category (optional)</label>
+                <input
+                  type="text"
+                  value={newSubCategory}
+                  onChange={(e) => setNewSubCategory(e.target.value)}
+                  disabled={newCategory === 'Overall'}
+                  placeholder={newCategory === 'Overall' ? 'Not applicable for overall' : 'e.g., Groceries'}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none disabled:opacity-60"
+                />
               </div>
               <div>
                 <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Monthly Limit (₱)</label>
@@ -258,11 +307,24 @@ export default function SettingsPage() {
                   required
                 />
               </div>
+              <label className="flex items-center justify-between px-3 py-2 mt-5 sm:mt-0 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Enable rollover</span>
+                <input
+                  type="checkbox"
+                  checked={newRollover}
+                  onChange={(e) => setNewRollover(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+              </label>
             </div>
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => setShowAddBudget(false)}
+                onClick={() => {
+                  setShowAddBudget(false);
+                  setNewSubCategory('');
+                  setNewRollover(false);
+                }}
                 className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
               >
                 Cancel
@@ -293,9 +355,12 @@ export default function SettingsPage() {
                 className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl"
               >
                 <div>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-white">{budget.category}</p>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-white">
+                    {budget.subCategory ? `${budget.category} · ${budget.subCategory}` : budget.category}
+                  </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {formatCurrency(budget.monthlyLimit)} / month
+                    {budget.rollover ? ' · rollover on' : ''}
                   </p>
                 </div>
                 <button

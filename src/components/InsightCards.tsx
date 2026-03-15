@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Info, AlertCircle, TrendingUp, CreditCard, Zap } from 'lucide-react';
+import { AlertTriangle, Info, TrendingUp, CreditCard, Zap } from 'lucide-react';
 import type { Insight } from '@/lib/types';
 
 const insightIcons: Record<string, typeof Info> = {

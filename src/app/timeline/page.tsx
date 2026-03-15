@@ -1,28 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Clock } from 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
 import TimelineView from '@/components/TimelineView';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 
 export default function TimelinePage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchTimeline() {
-      try {
-        const res = await fetch('/api/timeline');
-        const json = await res.json();
-        setEvents(json);
-      } catch {
-        // offline
-      } finally {
-        setLoading(false);
-      }
+  const fetchTimeline = useCallback(async () => {
+    try {
+      const res = await fetch('/api/timeline');
+      const json = await res.json();
+      setEvents(json);
+    } catch {
+      // offline
+    } finally {
+      setLoading(false);
     }
-    fetchTimeline();
   }, []);
+
+  useEffect(() => {
+    void fetchTimeline();
+  }, [fetchTimeline]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchTimeline();
+    });
+
+    return unsubscribe;
+  }, [fetchTimeline]);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">

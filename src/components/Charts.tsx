@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -35,11 +36,31 @@ const CHART_COLORS = [
   '#ec4899', '#06b6d4', '#f97316', '#84cc16',
 ];
 
+function useIsCompactViewport() {
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const syncViewport = () => setIsCompactViewport(mediaQuery.matches);
+
+    syncViewport();
+    mediaQuery.addEventListener('change', syncViewport);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncViewport);
+    };
+  }, []);
+
+  return isCompactViewport;
+}
+
 interface CategoryChartProps {
   data: { category: string; amount: number }[];
 }
 
 export function CategoryPieChart({ data }: CategoryChartProps) {
+  const isCompactViewport = useIsCompactViewport();
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
@@ -61,7 +82,7 @@ export function CategoryPieChart({ data }: CategoryChartProps) {
   };
 
   return (
-    <div className="h-56 flex items-center justify-center">
+    <div className="h-64 sm:h-56 flex items-center justify-center">
       <Pie
         data={chartData}
         options={{
@@ -69,11 +90,11 @@ export function CategoryPieChart({ data }: CategoryChartProps) {
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              position: 'right',
+              position: isCompactViewport ? 'bottom' : 'right',
               labels: {
-                boxWidth: 10,
-                padding: 12,
-                font: { size: 11 },
+                boxWidth: isCompactViewport ? 8 : 10,
+                padding: isCompactViewport ? 10 : 12,
+                font: { size: isCompactViewport ? 10 : 11 },
                 usePointStyle: true,
               },
             },
@@ -94,6 +115,8 @@ interface WeeklyChartProps {
 }
 
 export function WeeklySpendingChart({ data }: WeeklyChartProps) {
+  const isCompactViewport = useIsCompactViewport();
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
@@ -112,7 +135,7 @@ export function WeeklySpendingChart({ data }: WeeklyChartProps) {
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         fill: true,
         tension: 0.4,
-        pointRadius: 4,
+        pointRadius: isCompactViewport ? 2 : 4,
         pointBackgroundColor: '#10b981',
       },
     ],
@@ -131,12 +154,13 @@ export function WeeklySpendingChart({ data }: WeeklyChartProps) {
               grid: { color: 'rgba(0,0,0,0.05)' },
               ticks: {
                 font: { size: 10 },
+                maxTicksLimit: isCompactViewport ? 5 : 8,
                 callback: (value) => peso(Number(value)),
               },
             },
             x: {
               grid: { display: false },
-              ticks: { font: { size: 10 } },
+              ticks: { font: { size: isCompactViewport ? 9 : 10 }, maxTicksLimit: isCompactViewport ? 4 : 7 },
             },
           },
           plugins: {
@@ -158,6 +182,8 @@ interface DailyChartProps {
 }
 
 export function DailySpendingChart({ data }: DailyChartProps) {
+  const isCompactViewport = useIsCompactViewport();
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
@@ -174,7 +200,8 @@ export function DailySpendingChart({ data }: DailyChartProps) {
         data: data.map((d) => d.amount),
         backgroundColor: '#10b981',
         borderRadius: 6,
-        barThickness: 20,
+        barThickness: isCompactViewport ? 12 : 20,
+        maxBarThickness: isCompactViewport ? 14 : 24,
       },
     ],
   };
@@ -192,12 +219,17 @@ export function DailySpendingChart({ data }: DailyChartProps) {
               grid: { color: 'rgba(0,0,0,0.05)' },
               ticks: {
                 font: { size: 10 },
+                maxTicksLimit: isCompactViewport ? 5 : 8,
                 callback: (value) => peso(Number(value)),
               },
             },
             x: {
               grid: { display: false },
-              ticks: { font: { size: 10 } },
+              ticks: {
+                font: { size: isCompactViewport ? 9 : 10 },
+                maxRotation: isCompactViewport ? 0 : 45,
+                minRotation: 0,
+              },
             },
           },
           plugins: {
@@ -219,6 +251,8 @@ interface MonthlySavingsChartProps {
 }
 
 export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
+  const isCompactViewport = useIsCompactViewport();
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
@@ -232,8 +266,7 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
     return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'short', year: '2-digit' });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartData: any = {
+  const chartData = {
     labels,
     datasets: [
       {
@@ -242,7 +275,7 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
         data: data.map((d) => d.saved),
         backgroundColor: 'rgba(16, 185, 129, 0.75)',
         borderRadius: 6,
-        barThickness: 14,
+        barThickness: isCompactViewport ? 10 : 14,
         yAxisID: 'y',
         order: 2,
       },
@@ -252,7 +285,7 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
         data: data.map((d) => d.spent),
         backgroundColor: 'rgba(239, 68, 68, 0.45)',
         borderRadius: 6,
-        barThickness: 14,
+        barThickness: isCompactViewport ? 10 : 14,
         yAxisID: 'y',
         order: 3,
       },
@@ -263,7 +296,7 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
         borderColor: 'rgba(99, 102, 241, 0.9)',
         backgroundColor: 'rgba(99, 102, 241, 0.08)',
         borderWidth: 2.5,
-        pointRadius: data.length > 24 ? 2 : 4,
+        pointRadius: isCompactViewport ? 2 : data.length > 24 ? 2 : 4,
         pointHoverRadius: 6,
         tension: 0.35,
         fill: true,
@@ -273,61 +306,68 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
     ],
   };
 
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      y: {
+        type: 'linear',
+        position: 'left',
+        beginAtZero: true,
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: {
+          font: { size: 10 },
+          callback: (value: string | number) => peso(Number(value)),
+        },
+        title: { display: true, text: 'Monthly (₱)', font: { size: 9 }, color: 'rgba(120,120,120,0.8)' },
+      },
+      y2: {
+        type: 'linear',
+        position: 'right',
+        beginAtZero: true,
+        grid: { drawOnChartArea: false },
+        ticks: {
+          font: { size: 10 },
+          callback: (value: string | number) => peso(Number(value)),
+        },
+        title: { display: true, text: 'Cumulative (₱)', font: { size: 9 }, color: 'rgba(99,102,241,0.8)' },
+      },
+      x: {
+        grid: { display: false },
+        ticks: {
+          font: { size: isCompactViewport ? 9 : 10 },
+          maxRotation: isCompactViewport ? 0 : 45,
+          minRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: isCompactViewport ? 6 : 12,
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        position: isCompactViewport ? 'bottom' : 'top',
+        labels: {
+          boxWidth: isCompactViewport ? 8 : 10,
+          font: { size: isCompactViewport ? 10 : 11 },
+          usePointStyle: true,
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx: { dataset: { label?: string }; parsed: { y?: number } }) =>
+            ` ${ctx.dataset.label}: ${peso(ctx.parsed.y ?? 0)}`,
+        },
+      },
+    },
+  };
+
   return (
     <div className="h-72">
       <Chart
         type="bar"
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data={chartData as any}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        options={{
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          scales: {
-            y: {
-              type: 'linear',
-              position: 'left',
-              beginAtZero: true,
-              grid: { color: 'rgba(0,0,0,0.05)' },
-              ticks: {
-                font: { size: 10 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                callback: (value: any) => peso(Number(value)),
-              },
-              title: { display: true, text: 'Monthly (₱)', font: { size: 9 }, color: 'rgba(120,120,120,0.8)' },
-            },
-            y2: {
-              type: 'linear',
-              position: 'right',
-              beginAtZero: true,
-              grid: { drawOnChartArea: false },
-              ticks: {
-                font: { size: 10 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                callback: (value: any) => peso(Number(value)),
-              },
-              title: { display: true, text: 'Cumulative (₱)', font: { size: 9 }, color: 'rgba(99,102,241,0.8)' },
-            },
-            x: {
-              grid: { display: false },
-              ticks: { font: { size: 10 }, maxRotation: 45 },
-            },
-          },
-          plugins: {
-            legend: {
-              position: 'top',
-              labels: { boxWidth: 10, font: { size: 11 }, usePointStyle: true },
-            },
-            tooltip: {
-              callbacks: {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                label: (ctx: any) => ` ${ctx.dataset.label}: ${peso(ctx.parsed.y ?? 0)}`,
-              },
-            },
-          },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any}
+        data={chartData as never}
+        options={chartOptions as never}
       />
     </div>
   );

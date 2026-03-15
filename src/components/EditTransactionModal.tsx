@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Plus, Repeat, Trash2, X } from 'lucide-react';
 import {
   CATEGORIES,
   PAYMENT_METHODS,
+  RECURRING_FREQUENCIES,
   type Category,
   type PaymentMethod,
+  type RecurringFrequency,
+  type TransactionSplitInput,
   type Transaction,
 } from '@/lib/types';
 
@@ -16,46 +19,264 @@ interface EditTransactionModalProps {
   onUpdated: () => void;
 }
 
+interface SplitDraft {
+  id: string;
+  category: Category;
+  subCategory: string;
+  amount: string;
+}
+
+function parseTags(input: string): string[] {
+  return Array.from(
+    new Set(
+      input
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Unable to encode image.'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Unable to read file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function createSplitDraft(defaultCategory: Category): SplitDraft {
+  return {
+    id: crypto.randomUUID(),
+    category: defaultCategory,
+    subCategory: '',
+    amount: '',
+  };
+}
+
 export default function EditTransactionModal({
   transaction,
   onClose,
   onUpdated,
 }: EditTransactionModalProps) {
-  const [amount, setAmount] = useState(transaction?.amount.toString() ?? '');
-  const [category, setCategory] = useState<Category>(transaction?.category ?? 'Food');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
-    transaction?.paymentMethod ?? 'Cash'
-  );
-  const [notes, setNotes] = useState(transaction?.notes ?? '');
-  const [date, setDate] = useState(
-    transaction?.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0]
-  );
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState<Category>('Food');
+  const [subCategory, setSubCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [merchant, setMerchant] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [notes, setNotes] = useState('');
+  const [tagsInput, setTagsInput] = useState('');
+  const [attachmentBase64, setAttachmentBase64] = useState<string | undefined>(undefined);
+  const [attachmentName, setAttachmentName] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [splitRows, setSplitRows] = useState<SplitDraft[]>([]);
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurringFrequency>('monthly');
+  const [recurringEndDate, setRecurringEndDate] = useState('');
   const [showOptional, setShowOptional] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoFocusAmount, setAutoFocusAmount] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const titleId = useId();
+  const isOpen = Boolean(transaction);
+
+  const amountValue = Number.parseFloat(amount);
+  const splitTotal = useMemo(
+    () => splitRows.reduce((sum, row) => sum + (Number.parseFloat(row.amount) || 0), 0),
+    [splitRows]
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 640px)');
+    const syncAutoFocus = () => setAutoFocusAmount(mediaQuery.matches);
+
+    syncAutoFocus();
+    mediaQuery.addEventListener('change', syncAutoFocus);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncAutoFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !autoFocusAmount) return;
+    amountInputRef.current?.focus();
+  }, [isOpen, autoFocusAmount]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!transaction) return;
+
+    setAmount(transaction.amount.toString());
+    setCategory(transaction.category);
+    setSubCategory(transaction.subCategory || '');
+    setDescription(transaction.description || '');
+    setMerchant(transaction.merchant || '');
+    setPaymentMethod(transaction.paymentMethod || 'Cash');
+    setNotes(transaction.notes || '');
+    setTagsInput((transaction.tags || []).join(', '));
+    setAttachmentBase64(transaction.attachmentBase64);
+    setAttachmentName(transaction.attachmentBase64 ? 'Attached receipt' : '');
+    setDate(transaction.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+
+    if (transaction.split && transaction.split.length > 0) {
+      setSplitEnabled(true);
+      setSplitRows(
+        transaction.split.map((line) => ({
+          id: line.id,
+          category: line.category,
+          subCategory: line.subCategory || '',
+          amount: line.amount.toString(),
+        }))
+      );
+    } else {
+      setSplitEnabled(false);
+      setSplitRows([]);
+    }
+
+    if (transaction.recurring) {
+      setRecurringEnabled(true);
+      setRecurringFrequency(transaction.recurring.frequency);
+      setRecurringEndDate(
+        transaction.recurring.endDate ? transaction.recurring.endDate.split('T')[0] : ''
+      );
+    } else {
+      setRecurringEnabled(false);
+      setRecurringFrequency('monthly');
+      setRecurringEndDate('');
+    }
+
+    setShowOptional(false);
+    setFormError(null);
+  }, [transaction]);
 
   if (!transaction) return null;
 
+  const handleAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setAttachmentBase64(undefined);
+      setAttachmentName('');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setFormError('Only image files can be attached as receipts.');
+      return;
+    }
+
+    try {
+      const encoded = await fileToBase64(file);
+      setAttachmentBase64(encoded);
+      setAttachmentName(file.name);
+      setFormError(null);
+    } catch {
+      setFormError('Unable to read attachment. Please try a different image.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) return;
+    setFormError(null);
+
+    if (!amount || !Number.isFinite(amountValue) || amountValue <= 0) {
+      setFormError('Amount must be greater than zero.');
+      return;
+    }
+
+    let normalizedSplit: TransactionSplitInput[] | undefined;
+    if (splitEnabled) {
+      const parsed = splitRows
+        .map((row) => ({
+          id: row.id,
+          category: row.category,
+          subCategory: row.subCategory.trim() || undefined,
+          amount: Number.parseFloat(row.amount),
+        }))
+        .filter((row) => Number.isFinite(row.amount) && row.amount > 0);
+
+      if (parsed.length < 2) {
+        setFormError('Split transactions require at least two lines with positive amounts.');
+        return;
+      }
+
+      const total = parsed.reduce((sum, row) => sum + row.amount, 0);
+      if (Math.abs(total - amountValue) > 0.01) {
+        setFormError('Split amounts must add up exactly to the transaction total.');
+        return;
+      }
+
+      normalizedSplit = parsed.map((row) => ({
+        id: row.id,
+        category: row.category,
+        subCategory: row.subCategory,
+        amount: Number(row.amount.toFixed(2)),
+      }));
+    }
 
     setSaving(true);
     try {
+      const normalizedDate = new Date(date).toISOString();
+
       const res = await fetch('/api/transactions', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: transaction.id,
-          amount: parseFloat(amount),
-          category,
-          date: new Date(date).toISOString(),
+          amount: Number(amountValue.toFixed(2)),
+          category: normalizedSplit?.[0]?.category || category,
+          subCategory: normalizedSplit?.[0]?.subCategory || (subCategory.trim() || ''),
+          merchant,
+          description,
+          date: normalizedDate,
           paymentMethod,
           notes,
+          tags: parseTags(tagsInput),
+          attachmentBase64: attachmentBase64 || null,
+          split: splitEnabled ? normalizedSplit : null,
+          recurring: recurringEnabled
+            ? {
+                frequency: recurringFrequency,
+                interval: 1,
+                endDate: recurringEndDate ? new Date(recurringEndDate).toISOString() : undefined,
+              }
+            : null,
         }),
       });
       if (res.ok) {
         onUpdated();
         onClose();
+      } else {
+        setFormError('Failed to update transaction.');
       }
     } finally {
       setSaving(false);
@@ -63,24 +284,39 @@ export default function EditTransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-2xl p-6 pb-8 animate-slide-up">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Expense</h2>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-2xl animate-slide-up max-h-[100dvh] sm:max-h-[90dvh] flex flex-col modal-shell"
+      >
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+          <h2 id={titleId} className="text-xl font-bold text-zinc-900 dark:text-white">Edit Expense</h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close edit expense modal"
             className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
           >
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-4 pb-4 space-y-4 modal-content-scroll">
+          {formError && (
+            <div className="px-3 py-2 rounded-xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400">
+              {formError}
+            </div>
+          )}
+
           {/* Amount */}
           <div>
             <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Amount (₱)</label>
             <input
+              ref={amountInputRef}
               type="number"
               inputMode="decimal"
               step="0.01"
@@ -88,9 +324,30 @@ export default function EditTransactionModal({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full mt-1 text-4xl font-bold text-center py-4 border-2 border-zinc-200 dark:border-zinc-700 rounded-2xl bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white focus:border-emerald-500 focus:ring-0 outline-none transition-colors"
-              autoFocus
+              className="w-full mt-1 text-3xl sm:text-4xl font-bold text-center py-4 border-2 border-zinc-200 dark:border-zinc-700 rounded-2xl bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white focus:border-emerald-500 focus:ring-0 outline-none transition-colors"
               required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g., Dinner with friends"
+              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Merchant</label>
+            <input
+              type="text"
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+              placeholder="e.g., Starbucks"
+              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
 
@@ -115,6 +372,18 @@ export default function EditTransactionModal({
             </div>
           </div>
 
+          <div>
+            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Sub-category (optional)</label>
+            <input
+              type="text"
+              value={subCategory}
+              onChange={(e) => setSubCategory(e.target.value)}
+              disabled={splitEnabled}
+              placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
+              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors disabled:opacity-60"
+            />
+          </div>
+
           {/* Date */}
           <div>
             <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Date</label>
@@ -125,6 +394,137 @@ export default function EditTransactionModal({
               className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
+              <span className="font-medium">Split Transaction</span>
+              <input
+                type="checkbox"
+                checked={splitEnabled}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setSplitEnabled(enabled);
+                  if (enabled && splitRows.length < 2) {
+                    setSplitRows([
+                      createSplitDraft(category),
+                      createSplitDraft('Miscellaneous'),
+                    ]);
+                  }
+                }}
+                className="h-4 w-4 accent-emerald-500"
+              />
+            </label>
+            <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
+              <span className="font-medium flex items-center gap-1.5"><Repeat size={14} />Recurring</span>
+              <input
+                type="checkbox"
+                checked={recurringEnabled}
+                onChange={(e) => setRecurringEnabled(e.target.checked)}
+                className="h-4 w-4 accent-emerald-500"
+              />
+            </label>
+          </div>
+
+          {splitEnabled && (
+            <div className="space-y-2 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Split Breakdown</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {splitTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {' / '}
+                  {(Number.isFinite(amountValue) ? amountValue : 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              {splitRows.map((row) => (
+                <div key={row.id} className="grid grid-cols-12 gap-2 items-center">
+                  <select
+                    value={row.category}
+                    onChange={(e) => {
+                      const next = e.target.value as Category;
+                      setSplitRows((prev) => prev.map((entry) => (
+                        entry.id === row.id ? { ...entry, category: next } : entry
+                      )));
+                    }}
+                    className="col-span-4 px-2 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={row.subCategory}
+                    onChange={(e) => {
+                      setSplitRows((prev) => prev.map((entry) => (
+                        entry.id === row.id ? { ...entry, subCategory: e.target.value } : entry
+                      )));
+                    }}
+                    placeholder="Sub-cat"
+                    className="col-span-4 px-2 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={row.amount}
+                    onChange={(e) => {
+                      setSplitRows((prev) => prev.map((entry) => (
+                        entry.id === row.id ? { ...entry, amount: e.target.value } : entry
+                      )));
+                    }}
+                    placeholder="0.00"
+                    className="col-span-3 px-2 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={splitRows.length <= 2}
+                    onClick={() => setSplitRows((prev) => prev.filter((entry) => entry.id !== row.id))}
+                    className="col-span-1 p-1.5 text-zinc-400 hover:text-red-500 disabled:opacity-30"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setSplitRows((prev) => [...prev, createSplitDraft(category)])}
+                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+              >
+                <Plus size={12} /> Add line
+              </button>
+            </div>
+          )}
+
+          {recurringEnabled && (
+            <div className="space-y-3 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 animate-fade-in">
+              <div>
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Frequency</label>
+                <select
+                  value={recurringFrequency}
+                  onChange={(e) => setRecurringFrequency(e.target.value as RecurringFrequency)}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                >
+                  {RECURRING_FREQUENCIES.map((freq) => (
+                    <option key={freq} value={freq}>
+                      {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">End Date (optional)</label>
+                <input
+                  type="date"
+                  value={recurringEndDate}
+                  min={date}
+                  onChange={(e) => setRecurringEndDate(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Optional Fields */}
           <button
@@ -155,24 +555,69 @@ export default function EditTransactionModal({
               </div>
               <div>
                 <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Notes</label>
-                <input
-                  type="text"
+                <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional note..."
+                  rows={2}
                   className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
                 />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="e.g., work, reimbursable"
+                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Receipt Attachment</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAttachmentChange}
+                  className="w-full mt-1 text-xs text-zinc-500 dark:text-zinc-400"
+                />
+                {attachmentName && (
+                  <div className="mt-2 flex items-center justify-between rounded-lg bg-zinc-100 dark:bg-zinc-800 px-3 py-2">
+                    <span className="text-xs text-zinc-600 dark:text-zinc-300 truncate">{attachmentName}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachmentBase64(undefined);
+                        setAttachmentName('');
+                      }}
+                      className="text-xs text-red-500"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                {attachmentBase64 && (
+                  <img
+                    src={attachmentBase64}
+                    alt="Receipt preview"
+                    className="mt-2 h-24 w-full object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
+                  />
+                )}
               </div>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white font-semibold rounded-2xl transition-colors mt-2"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          </div>
+
+          <div className="border-t border-zinc-100 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white font-semibold rounded-2xl transition-colors"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

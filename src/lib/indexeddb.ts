@@ -2,6 +2,8 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { Transaction } from './types';
 
 const DB_NAME = 'FinanceDashboard';
+// Schema stays at v1: pendingTransactions stores full transaction objects,
+// so new transaction fields are backward-compatible without a store migration.
 const DB_VERSION = 1;
 const TX_STORE = 'pendingTransactions';
 

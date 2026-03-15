@@ -10,6 +10,8 @@ import TransactionList from '@/components/TransactionList';
 import FloatingAddButton from '@/components/FloatingAddButton';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import { formatCurrency } from '@/lib/utils';
+import { AlertTriangle } from 'lucide-react';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 
 const SAVINGS_PER_PAGE = 12;
 
@@ -41,6 +43,39 @@ export default function DashboardPage() {
     fetchDashboard();
   }, [fetchDashboard]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchDashboard();
+    });
+
+    return unsubscribe;
+  }, [fetchDashboard]);
+
+  useEffect(() => {
+    if (!data || data.budgetAlerts.length === 0) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator)) return;
+
+    void navigator.serviceWorker.ready
+      .then((registration) => {
+        for (const alert of data.budgetAlerts) {
+          const dedupeKey = `budget-alert:${alert.month}:${alert.budgetId}:${alert.threshold}`;
+          if (window.localStorage.getItem(dedupeKey)) continue;
+
+          registration.showNotification('Budget Threshold Reached', {
+            body: alert.message,
+            icon: '/icons/icon-192.png',
+            badge: '/icons/icon-192.png',
+            tag: dedupeKey,
+          });
+          window.localStorage.setItem(dedupeKey, '1');
+        }
+      })
+      .catch(() => {
+        // no-op: notification delivery is best-effort
+      });
+  }, [data]);
+
   // Reset to most-recent page whenever savings data is refreshed
   useEffect(() => { setSavingsPage(0); }, [savings]);
 
@@ -59,6 +94,10 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const projectedWarnings = data.budgetStatuses.filter(
+    (status) => status.projectedOverage > 0 && status.status !== 'critical'
+  );
 
   // ── Savings pagination derived values ──────────────────────────────────────
   const totalSavingsPages = Math.max(1, Math.ceil(savings.length / SAVINGS_PER_PAGE));
@@ -102,6 +141,32 @@ export default function DashboardPage() {
             {format(new Date(), 'MMMM yyyy')} Overview
           </p>
         </div>
+
+        {(data.budgetAlerts.length > 0 || projectedWarnings.length > 0) && (
+          <div className="mb-4 space-y-2">
+            {data.budgetAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2"
+              >
+                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-300 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-200">{alert.message}</p>
+              </div>
+            ))}
+            {projectedWarnings.map((warning) => (
+              <div
+                key={`projected-${warning.budgetId}`}
+                className="flex items-start gap-2 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-3 py-2"
+              >
+                <AlertTriangle size={16} className="text-rose-600 dark:text-rose-300 mt-0.5" />
+                <p className="text-xs text-rose-700 dark:text-rose-200">
+                  {warning.subCategory ? `${warning.category} - ${warning.subCategory}` : warning.category} is projected to overshoot by{' '}
+                  {formatCurrency(warning.projectedOverage)} this month.
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Stats */}
         <StatsCards data={data} />

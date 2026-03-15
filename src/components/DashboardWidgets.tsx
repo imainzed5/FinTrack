@@ -95,11 +95,13 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
   return (
     <div className="space-y-3">
       {budgets.map((b) => (
-        <div key={b.category}>
+        <div key={b.budgetId}>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{b.category}</span>
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              {b.subCategory ? `${b.category} · ${b.subCategory}` : b.category}
+            </span>
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {formatCurrency(b.spent)} / {formatCurrency(b.limit)}
+              {formatCurrency(b.spent)} / {formatCurrency(b.effectiveLimit)}
             </span>
           </div>
           <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
@@ -114,11 +116,26 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
               style={{ width: `${Math.min(b.percentage, 100)}%` }}
             />
           </div>
+          {b.rolloverCarry > 0 && (
+            <p className="text-[11px] mt-1 text-emerald-600 dark:text-emerald-400">
+              Includes {formatCurrency(b.rolloverCarry)} rollover from last month.
+            </p>
+          )}
           {b.status !== 'safe' && (
             <p className={`text-xs mt-1 ${b.status === 'critical' ? 'text-red-500' : 'text-amber-500'}`}>
               {b.status === 'critical'
                 ? `Budget exceeded! ${Math.round(b.percentage)}% used.`
                 : `Warning: ${Math.round(b.percentage)}% of budget used.`}
+            </p>
+          )}
+          {b.projectedOverage > 0 && b.status !== 'critical' && (
+            <p className="text-xs mt-1 text-amber-500">
+              Projected month-end: {formatCurrency(b.projectedSpent)}. Likely over by {formatCurrency(b.projectedOverage)}.
+            </p>
+          )}
+          {b.limit !== b.effectiveLimit && (
+            <p className="text-[11px] mt-1 text-zinc-400 dark:text-zinc-500">
+              Base limit {formatCurrency(b.limit)}.
             </p>
           )}
         </div>

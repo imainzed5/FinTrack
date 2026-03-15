@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Search, Filter, Download } from 'lucide-react';
+import { Search, Filter, Download, ChevronDown } from 'lucide-react';
 import type { Transaction, Category } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { CATEGORIES } from '@/lib/types';
@@ -10,6 +10,7 @@ import TransactionList from '@/components/TransactionList';
 import FloatingAddButton from '@/components/FloatingAddButton';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EditTransactionModal from '@/components/EditTransactionModal';
+import { subscribeTransactionUpdates } from '@/lib/transaction-ws';
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -21,6 +22,8 @@ export default function TransactionsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -40,9 +43,43 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, [fetchTransactions]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeTransactionUpdates(() => {
+      void fetchTransactions();
+    });
+
+    return unsubscribe;
+  }, [fetchTransactions]);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!exportMenuRef.current) return;
+      if (event.target instanceof Node && exportMenuRef.current.contains(event.target)) return;
+      setShowExportMenu(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowExportMenu(false);
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [showExportMenu]);
+
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/transactions?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/transactions?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+      if (!res.ok) {
+        return;
+      }
       fetchTransactions();
     } catch {
       // offline
@@ -50,13 +87,33 @@ export default function TransactionsPage() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Date', 'Category', 'Amount', 'Payment Method', 'Notes'];
+    const headers = [
+      'Date',
+      'Category',
+      'Sub-category',
+      'Amount',
+      'Merchant',
+      'Description',
+      'Payment Method',
+      'Notes',
+      'Tags',
+      'Recurring',
+      'Split Lines',
+      'Has Receipt',
+    ];
     const rows = filtered.map((tx) => [
       format(parseISO(tx.date), 'yyyy-MM-dd'),
       tx.category,
+      tx.subCategory || '',
       tx.amount.toFixed(2),
+      tx.merchant || '',
+      tx.description || '',
       tx.paymentMethod,
-      tx.notes,
+      tx.notes || '',
+      (tx.tags || []).join('|'),
+      tx.recurring ? tx.recurring.frequency : '',
+      tx.split ? tx.split.length.toString() : '0',
+      tx.attachmentBase64 ? 'yes' : 'no',
     ]);
     const csv = [headers, ...rows]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
@@ -77,9 +134,12 @@ export default function TransactionsPage() {
           `<tr>
             <td>${format(parseISO(tx.date), 'MMM d, yyyy')}</td>
             <td>${tx.category}</td>
+            <td>${tx.subCategory || ''}</td>
             <td style="text-align:right">₱${tx.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>${tx.merchant || ''}</td>
+            <td>${tx.description || ''}</td>
             <td>${tx.paymentMethod}</td>
-            <td>${tx.notes}</td>
+            <td>${tx.notes || ''}</td>
           </tr>`
       )
       .join('');
@@ -99,9 +159,9 @@ export default function TransactionsPage() {
       <h1>Expense Tracker — Transactions</h1>
       <p>Exported on ${format(new Date(), 'MMMM d, yyyy')} · ${filtered.length} transactions</p>
       <table>
-        <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Payment</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Date</th><th>Category</th><th>Sub-cat</th><th>Amount</th><th>Merchant</th><th>Description</th><th>Payment</th><th>Notes</th></tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="2">Total</td><td style="text-align:right">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td colspan="2"></td></tr></tfoot>
+        <tfoot><tr><td colspan="3">Total</td><td style="text-align:right">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td colspan="4"></td></tr></tfoot>
       </table>
       <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
       </body></html>`;
@@ -116,7 +176,11 @@ export default function TransactionsPage() {
     if (search) {
       const q = search.toLowerCase();
       return (
-        tx.notes.toLowerCase().includes(q) ||
+        (tx.description || '').toLowerCase().includes(q) ||
+        (tx.merchant || '').toLowerCase().includes(q) ||
+        (tx.notes || '').toLowerCase().includes(q) ||
+        (tx.subCategory || '').toLowerCase().includes(q) ||
+        (tx.tags || []).some((tag) => tag.toLowerCase().includes(q)) ||
         tx.category.toLowerCase().includes(q) ||
         tx.amount.toString().includes(q)
       );
@@ -131,7 +195,7 @@ export default function TransactionsPage() {
   return (
     <>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Transactions</h1>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -141,7 +205,8 @@ export default function TransactionsPage() {
               Page {page} of {totalPages}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="hidden sm:flex items-center gap-2">
             <button
               onClick={handleExportCSV}
               title="Export CSV"
@@ -158,6 +223,50 @@ export default function TransactionsPage() {
               <Download size={13} />
               PDF
             </button>
+          </div>
+
+          <div ref={exportMenuRef} className="relative sm:hidden self-start">
+            <button
+              type="button"
+              onClick={() => setShowExportMenu((prev) => !prev)}
+              aria-expanded={showExportMenu}
+              aria-haspopup="menu"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl transition-colors"
+            >
+              <Download size={14} />
+              Export
+              <ChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showExportMenu && (
+              <div
+                role="menu"
+                className="absolute left-0 mt-2 w-44 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg p-1.5 z-20"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    handleExportCSV();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    handleExportPDF();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Export PDF
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
