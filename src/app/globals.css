@@ -53,6 +53,17 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@media (max-width: 639px) {
+  /* Keep mobile content and FAB above the nav + iOS home indicator area. */
+  .mobile-nav-offset {
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+
+  .mobile-fab-offset {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+}
+
 /* Slide-up animation for modals */
 @keyframes slide-up {
   from {

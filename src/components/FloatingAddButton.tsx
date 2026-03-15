@@ -61,7 +61,7 @@ export default function FloatingAddButton({ onClick }: FABProps) {
   };
 
   return (
-    <div className="fixed bottom-20 right-4 sm:bottom-8 sm:right-8 z-30 flex flex-col items-end gap-2">
+    <div className="fixed bottom-20 mobile-fab-offset right-4 sm:bottom-8 sm:right-8 z-30 flex flex-col items-end gap-2">
       {showTooltip && (
         <button
           type="button"

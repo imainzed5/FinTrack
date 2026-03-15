@@ -414,7 +414,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar user={session.user} onLoggedOut={handleLoggedOut} />
-      <main className="sm:ml-64 pb-20 sm:pb-0 min-h-screen">{children}</main>
+      <main className="sm:ml-64 pb-20 mobile-nav-offset sm:pb-0 min-h-screen">{children}</main>
       <BottomNav />
       <ConsentModal
         open={shouldShowConsentModal}
