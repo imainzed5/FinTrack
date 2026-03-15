@@ -448,7 +448,7 @@ export default function TransactionsPage() {
               <div
                 ref={categoryFiltersScrollerRef}
                 onWheel={handleCategoryFiltersWheel}
-                className="mt-3 -mx-1 px-1 flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:thin]"
+                className="mt-3 -mx-1 px-1 flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:thin] category-filter-scrollbar"
               >
                 <button
                   type="button"

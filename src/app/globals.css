@@ -97,3 +97,14 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* Hide scrollbar on mobile for category filter, show on desktop */
+@media (max-width: 640px) {
+  .category-filter-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .category-filter-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

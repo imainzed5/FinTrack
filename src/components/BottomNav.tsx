@@ -8,10 +8,7 @@ import {
   Lightbulb,
   Clock,
   Settings,
-  Sun,
-  Moon,
 } from 'lucide-react';
-import { useTheme } from './ThemeProvider';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,7 +20,6 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { theme, toggle } = useTheme();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 sm:hidden safe-area-bottom">
@@ -46,14 +42,6 @@ export default function BottomNav() {
             </Link>
           );
         })}
-        <button
-          onClick={toggle}
-          className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? <Sun size={20} strokeWidth={1.5} /> : <Moon size={20} strokeWidth={1.5} />}
-          <span className="text-[11px] leading-none font-medium">Theme</span>
-        </button>
       </div>
     </nav>
   );

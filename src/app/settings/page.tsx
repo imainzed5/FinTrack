@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
-import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload } from 'lucide-react';
+import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 import type { Budget, Category, Transaction } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -11,6 +12,7 @@ import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
 import { SettingsSkeleton } from '@/components/SkeletonLoaders';
 
 export default function SettingsPage() {
+  const { theme, toggle } = useTheme();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddBudget, setShowAddBudget] = useState(false);
@@ -405,6 +407,24 @@ export default function SettingsPage() {
         {importStatus && (
           <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">{importStatus}</p>
         )}
+      </div>
+
+      {/* Theme Preferences */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
+        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-4">Theme</h3>
+        <button
+          onClick={toggle}
+          className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl border border-zinc-200 dark:border-zinc-700 transition-colors"
+        >
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+          </span>
+          {theme === 'dark' ? (
+            <Moon size={18} className="text-zinc-500 dark:text-zinc-400" />
+          ) : (
+            <Sun size={18} className="text-zinc-500" />
+          )}
+        </button>
       </div>
     </div>
   );

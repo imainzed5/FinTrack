@@ -12,11 +12,8 @@ import {
   Clock,
   Settings,
   Wallet,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import type { SessionUser } from '@/lib/auth-contract';
-import { useTheme } from './ThemeProvider';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -53,7 +50,6 @@ function getInitials(name: string): string {
 export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, toggle } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -207,19 +203,6 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
           </button>
         </div>
 
-        <button
-          onClick={toggle}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-        >
-          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-            {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-          </span>
-          {theme === 'dark' ? (
-            <Moon size={14} className="text-zinc-500 dark:text-zinc-400" />
-          ) : (
-            <Sun size={14} className="text-zinc-500" />
-          )}
-        </button>
         <p className="text-xs text-zinc-400 dark:text-zinc-600 text-center">
           Personal Financial Intelligence
         </p>
