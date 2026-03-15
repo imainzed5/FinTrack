@@ -414,10 +414,16 @@ export default function LandingPage() {
             <Link href="/auth/signup" className="hover:text-teal-700 dark:hover:text-teal-300">
               Sign Up
             </Link>
-            <Link href="/auth/terms" className="hover:text-teal-700 dark:hover:text-teal-300">
+            <Link
+              href="/auth/terms?returnTo=%2F"
+              className="hover:text-teal-700 dark:hover:text-teal-300"
+            >
               Terms of Service
             </Link>
-            <Link href="/auth/privacy" className="hover:text-teal-700 dark:hover:text-teal-300">
+            <Link
+              href="/auth/privacy?returnTo=%2F"
+              className="hover:text-teal-700 dark:hover:text-teal-300"
+            >
               Privacy Policy
             </Link>
           </div>

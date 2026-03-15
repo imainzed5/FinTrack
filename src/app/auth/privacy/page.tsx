@@ -4,7 +4,43 @@ import {
   PRIVACY_POLICY_VERSION,
 } from '@/lib/policy';
 
-export default function PrivacyPolicyPage() {
+interface PolicyPageProps {
+  searchParams?: Promise<{
+    returnTo?: string | string[];
+  }>;
+}
+
+function resolveReturnTo(value: string | string[] | undefined): string {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (!candidate) {
+    return '/';
+  }
+
+  const normalized = candidate.trim();
+  if (!normalized.startsWith('/') || normalized.startsWith('//')) {
+    return '/';
+  }
+
+  return normalized;
+}
+
+function getBackLabel(returnTo: string): string {
+  if (returnTo === '/auth/signup') {
+    return 'Back to sign up';
+  }
+
+  if (returnTo === '/') {
+    return 'Back to home';
+  }
+
+  return 'Back';
+}
+
+export default async function PrivacyPolicyPage({ searchParams }: PolicyPageProps) {
+  const params: { returnTo?: string | string[] } = (await searchParams) ?? {};
+  const returnTo = resolveReturnTo(params.returnTo);
+  const termsHref = `/auth/terms?returnTo=${encodeURIComponent(returnTo)}`;
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white px-4 py-10 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 sm:px-6">
       <article className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_20px_45px_-24px_rgba(15,23,42,0.4)] dark:border-zinc-800 dark:bg-zinc-900/95 sm:p-8">
@@ -161,13 +197,13 @@ export default function PrivacyPolicyPage() {
 
         <footer className="mt-8 flex flex-wrap items-center gap-4 border-t border-slate-200 pt-4 text-sm dark:border-zinc-800">
           <Link
-            href="/auth/signup"
+            href={returnTo}
             className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
           >
-            Back to sign up
+            {getBackLabel(returnTo)}
           </Link>
           <Link
-            href="/auth/terms"
+            href={termsHref}
             className="text-slate-700 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-zinc-100"
           >
             View Terms of Service

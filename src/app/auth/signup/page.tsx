@@ -305,7 +305,7 @@ export default function SignupPage() {
             <span>
               I agree to the{' '}
               <Link
-                href="/auth/terms"
+                href="/auth/terms?returnTo=%2Fauth%2Fsignup"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
@@ -314,7 +314,7 @@ export default function SignupPage() {
               </Link>{' '}
               and{' '}
               <Link
-                href="/auth/privacy"
+                href="/auth/privacy?returnTo=%2Fauth%2Fsignup"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import type { ConsentCheckResponse } from '@/lib/policy';
 
@@ -40,6 +41,10 @@ function ConsentModalContent({
   onAccept,
 }: Omit<ConsentModalProps, 'open'>) {
   const [confirmed, setConfirmed] = useState(false);
+  const pathname = usePathname();
+  const returnTo = pathname && pathname.startsWith('/') ? pathname : '/';
+  const termsHref = `/auth/terms?returnTo=${encodeURIComponent(returnTo)}`;
+  const privacyHref = `/auth/privacy?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
     <div
@@ -83,7 +88,7 @@ function ConsentModalContent({
         <p className="mt-4 text-sm text-slate-700 dark:text-zinc-200">
           Review the current documents:{' '}
           <Link
-            href="/auth/terms"
+            href={termsHref}
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
@@ -92,7 +97,7 @@ function ConsentModalContent({
           </Link>{' '}
           and{' '}
           <Link
-            href="/auth/privacy"
+            href={privacyHref}
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
