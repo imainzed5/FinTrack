@@ -103,8 +103,8 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-zinc-50">7. Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, FinTrack is provided on an "as is" and "as
-              available" basis without warranties of any kind. We are not liable for indirect,
+              To the maximum extent permitted by law, FinTrack is provided on an &quot;as is&quot; and &quot;as
+              available&quot; basis without warranties of any kind. We are not liable for indirect,
               incidental, consequential, special, or punitive damages, including loss of profits,
               data, or goodwill, resulting from your use of or inability to use the service.
             </p>

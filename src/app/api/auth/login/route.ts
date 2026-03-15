@@ -4,6 +4,11 @@ import {
   normalizeEmailAddress,
   validateLoginPayload,
 } from '@/lib/auth-contract';
+import {
+  AUTH_SESSION_COOKIE_NAME,
+  ensureTrackedSession,
+  getAuthSessionCookieOptions,
+} from '@/lib/auth-session-tracking';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
   REMEMBER_ME_COOKIE_MAX_AGE_SECONDS,
@@ -97,6 +102,31 @@ export async function POST(request: NextRequest) {
   };
 
   const nextResponse = NextResponse.json(response, { status: 200 });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user?.id) {
+    try {
+      const trackedSession = await ensureTrackedSession({
+        supabase,
+        userId: user.id,
+        headers: request.headers,
+      });
+
+      if (trackedSession.trackingAvailable) {
+        nextResponse.cookies.set(
+          AUTH_SESSION_COOKIE_NAME,
+          trackedSession.sessionToken,
+          getAuthSessionCookieOptions(payload.rememberMe)
+        );
+      }
+    } catch {
+      // Session tracking is best-effort and should not block sign-in.
+    }
+  }
+
   nextResponse.cookies.set(REMEMBER_ME_COOKIE_NAME, payload.rememberMe ? '1' : '0', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

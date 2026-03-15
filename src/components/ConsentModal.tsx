@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ConsentCheckResponse } from '@/lib/policy';
 
 interface ConsentModalProps {
@@ -19,17 +19,27 @@ export default function ConsentModal({
   errorMessage,
   onAccept,
 }: ConsentModalProps) {
-  const [confirmed, setConfirmed] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setConfirmed(false);
-    }
-  }, [open]);
-
   if (!open) {
     return null;
   }
+
+  return (
+    <ConsentModalContent
+      policies={policies}
+      isSubmitting={isSubmitting}
+      errorMessage={errorMessage}
+      onAccept={onAccept}
+    />
+  );
+}
+
+function ConsentModalContent({
+  policies,
+  isSubmitting,
+  errorMessage,
+  onAccept,
+}: Omit<ConsentModalProps, 'open'>) {
+  const [confirmed, setConfirmed] = useState(false);
 
   return (
     <div
