@@ -16,62 +16,37 @@ import { DashboardSkeleton } from '@/components/SkeletonLoaders';
 
 const SAVINGS_PER_PAGE = 12;
 
-interface DashboardClientPageProps {
-  initialData: DashboardData | null;
-  initialSavings: MonthlySavings[];
-}
-
-export default function DashboardClientPage({
-  initialData,
-  initialSavings,
-}: DashboardClientPageProps) {
-  const [data, setData] = useState<DashboardData | null>(initialData);
-  const [savings, setSavings] = useState<MonthlySavings[]>(initialSavings);
-  const [loading, setLoading] = useState(!initialData);
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [savings, setSavings] = useState<MonthlySavings[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [savingsPage, setSavingsPage] = useState(0); // 0 = most recent page
 
-  const fetchDashboard = useCallback(async (showLoader: boolean) => {
-    if (showLoader) {
-      setLoading(true);
-    }
-
+  const fetchDashboard = useCallback(async () => {
     try {
       const [res, savingsRes] = await Promise.all([
         fetch('/api/dashboard'),
         fetch('/api/savings'),
       ]);
-
-      if (!res.ok || !savingsRes.ok) {
-        return;
-      }
-
       const json = await res.json();
       const savingsJson = await savingsRes.json();
-
-      if (json && typeof json === 'object' && !('error' in (json as Record<string, unknown>))) {
-        setData(json as DashboardData);
-      }
-
-      if (Array.isArray(savingsJson)) {
-        setSavings(savingsJson as MonthlySavings[]);
-      }
+      setData(json);
+      setSavings(savingsJson);
     } catch {
       // offline
     } finally {
-      if (showLoader) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchDashboard(!initialData);
-  }, [fetchDashboard, initialData]);
+    fetchDashboard();
+  }, [fetchDashboard]);
 
   useEffect(() => {
     const unsubscribe = subscribeAppUpdates(() => {
-      void fetchDashboard(false);
+      void fetchDashboard();
     });
 
     return unsubscribe;
@@ -105,7 +80,7 @@ export default function DashboardClientPage({
   // Reset to most-recent page whenever savings data is refreshed
   useEffect(() => { setSavingsPage(0); }, [savings]);
 
-  if (loading && !data) {
+  if (loading) {
     return <DashboardSkeleton />;
   }
 
@@ -425,7 +400,7 @@ export default function DashboardClientPage({
       <AddExpenseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onAdded={() => void fetchDashboard(false)}
+        onAdded={fetchDashboard}
       />
     </>
   );

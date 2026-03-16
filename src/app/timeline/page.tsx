@@ -1,28 +1,60 @@
-import { redirect } from 'next/navigation';
-import TimelineClientPage from '@/components/pages/TimelineClientPage';
-import { getBudgets, getTransactions } from '@/lib/db';
-import { detectSubscriptions, generateTimelineEvents } from '@/lib/insights-engine';
-import { scheduleRecurringProcessing } from '@/lib/recurring-scheduler';
-import { isAuthRequiredError } from '@/lib/supabase/server';
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Clock } from 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
+import TimelineView from '@/components/TimelineView';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 
-export default async function TimelinePage() {
-  let initialEvents: TimelineEvent[] = [];
+export default function TimelinePage() {
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  try {
-    void scheduleRecurringProcessing();
-
-    const [transactions, budgets] = await Promise.all([
-      getTransactions(),
-      getBudgets(),
-    ]);
-    const subscriptions = detectSubscriptions(transactions);
-    initialEvents = generateTimelineEvents(transactions, subscriptions, budgets);
-  } catch (error) {
-    if (isAuthRequiredError(error)) {
-      redirect('/auth/login?next=%2Ftimeline');
+  const fetchTimeline = useCallback(async () => {
+    try {
+      const res = await fetch('/api/timeline');
+      const json = await res.json();
+      setEvents(json);
+    } catch {
+      // offline
+    } finally {
+      setLoading(false);
     }
-  }
+  }, []);
 
-  return <TimelineClientPage initialEvents={initialEvents} />;
+  useEffect(() => {
+    void fetchTimeline();
+  }, [fetchTimeline]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchTimeline();
+    });
+
+    return unsubscribe;
+  }, [fetchTimeline]);
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center">
+          <Clock size={20} className="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Financial Timeline</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Your financial life milestones
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <TimelineView events={events} />
+      )}
+    </div>
+  );
 }

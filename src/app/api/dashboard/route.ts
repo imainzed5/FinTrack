@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import {
   getTransactions,
   getBudgets,
+  processRecurringTransactions,
   saveBudgets,
   saveBudgetThresholdAlerts,
 } from '@/lib/db';
 import { buildDashboardData, mergeTriggeredBudgetThresholds } from '@/lib/insights-engine';
-import { scheduleRecurringProcessing } from '@/lib/recurring-scheduler';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
-    void scheduleRecurringProcessing();
+    await processRecurringTransactions();
     const transactions = await getTransactions();
     const budgets = await getBudgets();
     const dashboard = buildDashboardData(transactions, budgets);

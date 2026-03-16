@@ -125,20 +125,10 @@ function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
   );
 }
 
-interface InsightsClientPageProps {
-  initialTransactions: Transaction[];
-  initialBudgets: Budget[];
-}
-
-export default function InsightsClientPage({
-  initialTransactions,
-  initialBudgets,
-}: InsightsClientPageProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
-  const [loading, setLoading] = useState(
-    initialTransactions.length === 0 && initialBudgets.length === 0
-  );
+export default function InsightsPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<InsightFilter>('all');
 
@@ -175,8 +165,8 @@ export default function InsightsClientPage({
   }, []);
 
   useEffect(() => {
-    void fetchInsightsData(initialTransactions.length === 0 && initialBudgets.length === 0);
-  }, [fetchInsightsData, initialBudgets.length, initialTransactions.length]);
+    void fetchInsightsData(true);
+  }, [fetchInsightsData]);
 
   useEffect(() => {
     const unsubscribe = subscribeAppUpdates(() => {
@@ -416,7 +406,7 @@ export default function InsightsClientPage({
         ))}
       </div>
 
-      {loading && transactions.length === 0 && budgets.length === 0 ? (
+      {loading ? (
         <InsightsSkeleton />
       ) : (
         <div className="space-y-7">

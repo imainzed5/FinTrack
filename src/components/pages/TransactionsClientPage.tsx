@@ -20,15 +20,9 @@ function isCategory(value: string): value is Category {
   return CATEGORIES.includes(value as Category);
 }
 
-interface TransactionsClientPageProps {
-  initialTransactions: Transaction[];
-}
-
-export default function TransactionsClientPage({
-  initialTransactions,
-}: TransactionsClientPageProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [loading, setLoading] = useState(false);
+export default function TransactionsPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -84,10 +78,8 @@ export default function TransactionsClientPage({
     scroller.scrollLeft = boundedScrollLeft;
   };
 
-  const fetchTransactions = useCallback(async (showLoader: boolean) => {
-    if (showLoader) {
-      setLoading(true);
-    }
+  const fetchTransactions = useCallback(async () => {
+    setLoading(true);
 
     try {
       const params = new URLSearchParams();
@@ -106,14 +98,12 @@ export default function TransactionsClientPage({
     } catch {
       // offline
     } finally {
-      if (showLoader) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, [selectedCategories]);
 
   useEffect(() => {
-    void fetchTransactions(false);
+    fetchTransactions();
   }, [fetchTransactions]);
 
   useEffect(() => {
@@ -129,7 +119,7 @@ export default function TransactionsClientPage({
 
   useEffect(() => {
     const unsubscribe = subscribeTransactionUpdates(() => {
-      void fetchTransactions(false);
+      void fetchTransactions();
     });
 
     return unsubscribe;
@@ -179,7 +169,7 @@ export default function TransactionsClientPage({
       }
 
       setPendingDeleteId(null);
-      void fetchTransactions(false);
+      void fetchTransactions();
     } catch {
       // offline
     } finally {
@@ -713,12 +703,12 @@ export default function TransactionsClientPage({
       <AddExpenseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onAdded={() => void fetchTransactions(false)}
+        onAdded={fetchTransactions}
       />
       <EditTransactionModal
         transaction={editingTransaction}
         onClose={() => setEditingTransaction(null)}
-        onUpdated={() => void fetchTransactions(false)}
+        onUpdated={fetchTransactions}
       />
     </>
   );

@@ -6,45 +6,29 @@ import type { TimelineEvent } from '@/lib/types';
 import TimelineView from '@/components/TimelineView';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
 
-interface TimelineClientPageProps {
-  initialEvents: TimelineEvent[];
-}
+export default function TimelinePage() {
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default function TimelineClientPage({ initialEvents }: TimelineClientPageProps) {
-  const [events, setEvents] = useState<TimelineEvent[]>(initialEvents);
-  const [loading, setLoading] = useState(initialEvents.length === 0);
-
-  const fetchTimeline = useCallback(async (showLoader: boolean) => {
-    if (showLoader) {
-      setLoading(true);
-    }
-
+  const fetchTimeline = useCallback(async () => {
     try {
       const res = await fetch('/api/timeline');
-      if (!res.ok) {
-        return;
-      }
       const json = await res.json();
-
-      if (Array.isArray(json)) {
-        setEvents(json as TimelineEvent[]);
-      }
+      setEvents(json);
     } catch {
       // offline
     } finally {
-      if (showLoader) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchTimeline(initialEvents.length === 0);
-  }, [fetchTimeline, initialEvents.length]);
+    void fetchTimeline();
+  }, [fetchTimeline]);
 
   useEffect(() => {
     const unsubscribe = subscribeAppUpdates(() => {
-      void fetchTimeline(false);
+      void fetchTimeline();
     });
 
     return unsubscribe;
@@ -64,7 +48,7 @@ export default function TimelineClientPage({ initialEvents }: TimelineClientPage
         </div>
       </div>
 
-      {loading && events.length === 0 ? (
+      {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
