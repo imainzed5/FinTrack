@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getTransactions, getBudgets, processRecurringTransactions } from '@/lib/db';
+import { getTransactions, getBudgets } from '@/lib/db';
 import { detectSubscriptions, generateTimelineEvents } from '@/lib/insights-engine';
+import { scheduleRecurringProcessing } from '@/lib/recurring-scheduler';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
-    await processRecurringTransactions();
+    void scheduleRecurringProcessing();
     const [transactions, budgets] = await Promise.all([getTransactions(), getBudgets()]);
     const subscriptions = detectSubscriptions(transactions);
     const events = generateTimelineEvents(transactions, subscriptions, budgets);

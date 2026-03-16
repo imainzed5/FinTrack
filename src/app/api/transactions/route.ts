@@ -5,12 +5,12 @@ import {
   addTransaction,
   deleteTransaction,
   updateTransaction,
-  processRecurringTransactions,
   buildRecurringConfig,
 } from '@/lib/db';
 import { broadcastTransactionEvent } from '@/lib/transaction-ws-server';
 import type { Category, Transaction, TransactionInput, TransactionSplit } from '@/lib/types';
 import { CATEGORIES, PAYMENT_METHODS, RECURRING_FREQUENCIES } from '@/lib/types';
+import { scheduleRecurringProcessing } from '@/lib/recurring-scheduler';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 function handleRouteError(error: unknown, fallbackMessage: string): NextResponse {
@@ -103,7 +103,7 @@ function parseCategoryFilters(searchParams: URLSearchParams): Category[] {
 
 export async function GET(request: NextRequest) {
   try {
-    await processRecurringTransactions();
+    void scheduleRecurringProcessing();
     const transactions = await getTransactions();
     const { searchParams } = request.nextUrl;
 
@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
 
     const created = await addTransaction(transaction);
     broadcastTransactionEvent('transaction:add', created);
+    void scheduleRecurringProcessing({ force: true });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     return handleRouteError(error, 'Failed to add transaction.');
@@ -226,6 +227,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     broadcastTransactionEvent('transaction:delete', { id });
+    void scheduleRecurringProcessing({ force: true });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -368,6 +370,7 @@ export async function PUT(request: NextRequest) {
     }
 
     broadcastTransactionEvent('transaction:edit', updated);
+    void scheduleRecurringProcessing({ force: true });
 
     return NextResponse.json(updated);
   } catch (error) {

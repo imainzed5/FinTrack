@@ -1,0 +1,76 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Clock } from 'lucide-react';
+import type { TimelineEvent } from '@/lib/types';
+import TimelineView from '@/components/TimelineView';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
+
+interface TimelineClientPageProps {
+  initialEvents: TimelineEvent[];
+}
+
+export default function TimelineClientPage({ initialEvents }: TimelineClientPageProps) {
+  const [events, setEvents] = useState<TimelineEvent[]>(initialEvents);
+  const [loading, setLoading] = useState(initialEvents.length === 0);
+
+  const fetchTimeline = useCallback(async (showLoader: boolean) => {
+    if (showLoader) {
+      setLoading(true);
+    }
+
+    try {
+      const res = await fetch('/api/timeline');
+      if (!res.ok) {
+        return;
+      }
+      const json = await res.json();
+
+      if (Array.isArray(json)) {
+        setEvents(json as TimelineEvent[]);
+      }
+    } catch {
+      // offline
+    } finally {
+      if (showLoader) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchTimeline(initialEvents.length === 0);
+  }, [fetchTimeline, initialEvents.length]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchTimeline(false);
+    });
+
+    return unsubscribe;
+  }, [fetchTimeline]);
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center">
+          <Clock size={20} className="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Financial Timeline</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Your financial life milestones
+          </p>
+        </div>
+      </div>
+
+      {loading && events.length === 0 ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <TimelineView events={events} />
+      )}
+    </div>
+  );
+}
