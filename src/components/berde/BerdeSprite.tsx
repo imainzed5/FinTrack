@@ -33,11 +33,17 @@ function baseBody(): Pixel[] {
   for (let y = 3; y <= 20; y++) {
     for (let x = 3; x <= 20; x++) p.push([x, y, 'W']);
   }
-  ([[5,2],[6,2],[7,2],[4,3],[5,3],[6,3],[3,4],[4,4],[5,4],[3,5],[4,5]] as Pixel[])
-    .forEach(([x,y]) => p.push([x, y, 'L']));
+  const bodyHighlights: Array<[number, number]> = [
+    [5, 2], [6, 2], [7, 2], [4, 3], [5, 3], [6, 3],
+    [3, 4], [4, 4], [5, 4], [3, 5], [4, 5],
+  ];
+  bodyHighlights.forEach(([x, y]) => p.push([x, y, 'L']));
   p.push([11,0,'g'],[12,0,'g'],[11,1,'g'],[12,1,'g']);
-  ([[2,12],[3,12],[4,12],[2,13],[3,13],[19,12],[20,12],[21,12],[20,13],[21,13]] as Pixel[])
-    .forEach(([x,y]) => p.push([x, y, 'X']));
+  const sideAccents: Array<[number, number]> = [
+    [2, 12], [3, 12], [4, 12], [2, 13], [3, 13],
+    [19, 12], [20, 12], [21, 12], [20, 13], [21, 13],
+  ];
+  sideAccents.forEach(([x, y]) => p.push([x, y, 'X']));
   return p;
 }
 
