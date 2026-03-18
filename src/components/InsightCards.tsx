@@ -34,8 +34,8 @@ export default function InsightCards({ insights, compact = false }: InsightCards
     return (
       <EmptyState
         icon={BarChart2}
-        headline="Berde's still studying your habits."
-        subtext="Log a few more transactions and insights will start appearing."
+        headline="Not enough data yet."
+        subtext="Log transactions across a few categories and patterns will start to emerge."
       />
     );
   }
