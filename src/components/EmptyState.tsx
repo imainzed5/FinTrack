@@ -1,8 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
+import BerdeSprite from '@/components/berde/BerdeSprite';
 
 interface EmptyStateProps {
   icon: LucideIcon | 'berde';
@@ -56,13 +56,7 @@ export default function EmptyState({
       <div className="flex w-full max-w-md flex-col items-center">
         <div className="mb-4">
           {icon === 'berde' ? (
-            <Image
-              src="/icons/icon-192.png"
-              alt="Berde mascot"
-              width={64}
-              height={64}
-              className="h-16 w-16"
-            />
+            <BerdeSprite state="neutral" size={64} />
           ) : (
             Icon && <Icon size={40} className="text-zinc-400 dark:text-zinc-500" />
           )}
