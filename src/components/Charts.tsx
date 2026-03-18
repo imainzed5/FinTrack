@@ -83,7 +83,7 @@ export function CategoryPieChart({ data }: CategoryChartProps) {
   };
 
   return (
-    <div className="h-64 sm:h-56 flex items-center justify-center">
+    <div className="h-48 flex items-center justify-center">
       <Pie
         data={chartData}
         options={{

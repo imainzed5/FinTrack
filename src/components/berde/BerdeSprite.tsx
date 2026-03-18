@@ -166,6 +166,7 @@ export default function BerdeSprite({ size = 64, state, animated = true }: Berde
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef(state);
   const rafRef = useRef<number>(0);
+  const fallbackPixelRatio = 2;
 
   const scale = size / GRID;
 
@@ -173,6 +174,12 @@ export default function BerdeSprite({ size = 64, state, animated = true }: Berde
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
+    const pixelRatio = Math.max(window.devicePixelRatio || 1, fallbackPixelRatio);
+
+    canvas.width = Math.max(1, Math.round(size * pixelRatio));
+    canvas.height = Math.max(1, Math.round(size * pixelRatio));
+    ctx.imageSmoothingEnabled = false;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
     let blinkTimer = 0;
     let blinkPhase: 'open' | 'closing' | 'opening' = 'open';
@@ -229,7 +236,7 @@ export default function BerdeSprite({ size = 64, state, animated = true }: Berde
 
     rafRef.current = requestAnimationFrame(ts => { lastTs = ts; loop(ts); });
     return () => cancelAnimationFrame(rafRef.current);
-  }, [scale, animated]);
+  }, [size, scale, animated]);
 
   // Update state ref without restarting the animation loop
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -237,8 +244,8 @@ export default function BerdeSprite({ size = 64, state, animated = true }: Berde
   return (
     <canvas
       ref={canvasRef}
-      width={size}
-      height={size}
+      width={Math.max(1, Math.round(size * fallbackPixelRatio))}
+      height={Math.max(1, Math.round(size * fallbackPixelRatio))}
       style={{ width: size, height: size, imageRendering: 'pixelated' }}
       aria-label={`Berde is ${state}`}
     />

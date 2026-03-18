@@ -49,7 +49,7 @@ export default function BerdeCard({ inputs, className = '' }: BerdeCardProps) {
 
       <div className="relative z-10 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="shrink-0">
-          <BerdeSprite state={state} size={64} animated />
+          <BerdeSprite state={state} size={88} animated />
         </div>
 
         <div className="w-full min-w-0 flex-1">
