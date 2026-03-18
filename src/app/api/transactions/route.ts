@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
       merchant,
       description,
       date: normalizedDate,
-      paymentMethod: body.paymentMethod || 'Cash',
+      paymentMethod: body.paymentMethod || 'Bank Transfer',
       notes,
       tags,
       attachmentBase64,

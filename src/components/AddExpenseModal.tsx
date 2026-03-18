@@ -93,7 +93,7 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
   const [subCategory, setSubCategory] = useState('');
   const [description, setDescription] = useState('');
   const [merchant, setMerchant] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Bank Transfer');
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [attachmentBase64, setAttachmentBase64] = useState<string | undefined>(undefined);
@@ -185,7 +185,7 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
     setSubCategory('');
     setDescription('');
     setMerchant('');
-    setPaymentMethod('Cash');
+    setPaymentMethod('Bank Transfer');
     setNotes('');
     setTagsInput('');
     setAttachmentBase64(undefined);
@@ -297,8 +297,8 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
       merchant: merchant.trim() || undefined,
       description: descriptionValue,
       date: normalizedDate,
-      paymentMethod: isIncomeEntry ? 'Cash' : paymentMethod,
-      notes: isIncomeEntry ? undefined : (notes.trim() || undefined),
+      paymentMethod: paymentMethod,
+      notes: notes.trim() || undefined,
       tags: isIncomeEntry ? [] : tags,
       attachmentBase64: isIncomeEntry ? undefined : attachmentBase64,
       split: isIncomeEntry ? undefined : normalizedSplit,
@@ -335,8 +335,8 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
         merchant: input.merchant,
         description: input.description,
         date: normalizedDate,
-        paymentMethod: isIncomeEntry ? 'Cash' : (input.paymentMethod || 'Cash'),
-        notes: isIncomeEntry ? '' : (input.notes || ''),
+        paymentMethod: input.paymentMethod || 'Bank Transfer',
+        notes: input.notes || '',
         tags: isIncomeEntry ? [] : (input.tags || []),
         attachmentBase64: isIncomeEntry ? undefined : input.attachmentBase64,
         split: isIncomeEntry ? undefined : (input.split as Transaction['split']),
@@ -505,18 +505,42 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
           )}
 
           {isIncomeEntry && (
-            <div>
-              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Income Category</label>
-              <select
-                value={incomeCategory}
-                onChange={(e) => setIncomeCategory(e.target.value as IncomeCategory)}
-                className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-              >
-                {INCOME_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Income Category</label>
+                <select
+                  value={incomeCategory}
+                  onChange={(e) => setIncomeCategory(e.target.value as IncomeCategory)}
+                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+                >
+                  {INCOME_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Received via</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+                >
+                  {PAYMENT_METHODS.map((pm) => (
+                    <option key={pm} value={pm}>{pm}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Optional notes for context"
+                  rows={2}
+                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+            </>
           )}
 
           {!isIncomeEntry && (
