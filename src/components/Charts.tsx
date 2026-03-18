@@ -15,7 +15,7 @@ import {
 } from 'chart.js';
 import type { Plugin } from 'chart.js';
 import { Pie, Line, Bar, Chart } from 'react-chartjs-2';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, PieChart, PiggyBank, Calendar } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 
 function peso(value: number) {
@@ -67,7 +67,7 @@ export function CategoryPieChart({ data }: CategoryChartProps) {
   if (data.length === 0) {
     return (
       <EmptyState
-        icon="berde"
+        icon={PieChart}
         headline="Nothing spent yet."
         subtext="Add a transaction and Berde will break it down by category."
       />
@@ -191,12 +191,15 @@ interface DailyChartProps {
 
 export function DailySpendingChart({ data }: DailyChartProps) {
   const isCompactViewport = useIsCompactViewport();
+  const hasDailyActivity = data.some((entry) => entry.amount > 0);
 
-  if (data.length === 0) {
+  if (!hasDailyActivity) {
     return (
-      <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
-        No daily data yet
-      </div>
+      <EmptyState
+        icon={Calendar}
+        headline="No activity in the last 7 days."
+        subtext="Your daily spending will appear here as you log transactions."
+      />
     );
   }
 
@@ -298,7 +301,7 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
   if (data.length === 0) {
     return (
       <EmptyState
-        icon="berde"
+        icon={PiggyBank}
         headline="No savings history yet."
         subtext="Set an Overall budget and Berde will track what you save each month."
       />

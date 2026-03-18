@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Info, TrendingUp, CreditCard, Zap } from 'lucide-react';
+import { AlertTriangle, Info, TrendingUp, CreditCard, Zap, BarChart2 } from 'lucide-react';
 import type { Insight } from '@/lib/types';
 import EmptyState from '@/components/EmptyState';
 
@@ -33,7 +33,7 @@ export default function InsightCards({ insights, compact = false }: InsightCards
   if (insights.length === 0) {
     return (
       <EmptyState
-        icon="berde"
+        icon={BarChart2}
         headline="Berde's still studying your habits."
         subtext="Log a few more transactions and insights will start appearing."
       />
