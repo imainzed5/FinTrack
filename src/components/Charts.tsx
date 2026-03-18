@@ -13,6 +13,7 @@ import {
   BarElement,
   Filler,
 } from 'chart.js';
+import type { Plugin } from 'chart.js';
 import { Pie, Line, Bar, Chart } from 'react-chartjs-2';
 
 function peso(value: number) {
@@ -200,43 +201,77 @@ export function DailySpendingChart({ data }: DailyChartProps) {
         data: data.map((d) => d.amount),
         backgroundColor: '#10b981',
         borderRadius: 6,
-        barThickness: isCompactViewport ? 12 : 20,
-        maxBarThickness: isCompactViewport ? 14 : 24,
+        barThickness: isCompactViewport ? 10 : 14,
+        maxBarThickness: isCompactViewport ? 12 : 16,
       },
     ],
+  };
+
+  const rightValueLabelPlugin: Plugin<'bar'> = {
+    id: 'rightValueLabelPlugin',
+    afterDatasetsDraw: (chart) => {
+      const dataset = chart.data.datasets[0];
+      if (!dataset || !Array.isArray(dataset.data)) return;
+
+      const meta = chart.getDatasetMeta(0);
+      const { ctx, chartArea } = chart;
+
+      ctx.save();
+      ctx.fillStyle = '#71717a';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.font = `${isCompactViewport ? 10 : 11}px system-ui, -apple-system, Segoe UI, sans-serif`;
+
+      meta.data.forEach((bar, index) => {
+        const rawValue = dataset.data[index];
+        const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+        if (!Number.isFinite(value)) return;
+
+        const y = (bar as { y: number }).y;
+        ctx.fillText(peso(value), chartArea.right + 8, y);
+      });
+
+      ctx.restore();
+    },
   };
 
   return (
     <div className="h-48">
       <Bar
         data={chartData}
+        plugins={[rightValueLabelPlugin]}
         options={{
           responsive: true,
           maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              grid: { color: 'rgba(0,0,0,0.05)' },
-              ticks: {
-                font: { size: 10 },
-                maxTicksLimit: isCompactViewport ? 5 : 8,
-                callback: (value) => peso(Number(value)),
-              },
+          indexAxis: 'y',
+          layout: {
+            padding: {
+              right: isCompactViewport ? 84 : 110,
             },
+          },
+          scales: {
             x: {
+              beginAtZero: true,
               grid: { display: false },
               ticks: {
-                font: { size: isCompactViewport ? 9 : 10 },
-                maxRotation: isCompactViewport ? 0 : 45,
-                minRotation: 0,
+                display: false,
               },
+              border: { display: false },
+            },
+            y: {
+              grid: { display: false },
+              ticks: {
+                font: { size: isCompactViewport ? 10 : 11 },
+                color: '#3f3f46',
+              },
+              border: { display: false },
             },
           },
           plugins: {
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${peso(ctx.parsed.y ?? 0)}`,
+                label: (ctx) => ` ${peso(ctx.parsed.x ?? 0)}`,
               },
             },
           },

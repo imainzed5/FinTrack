@@ -13,8 +13,26 @@ import { formatCurrency } from '@/lib/utils';
 import { AlertTriangle } from 'lucide-react';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import { DashboardSkeleton } from '@/components/SkeletonLoaders';
+import BerdeCard from '@/components/berde/BerdeCard';
+import { useBerdeInputs } from '@/components/berde/useBerdeInputs';
 
 const SAVINGS_PER_PAGE = 12;
+
+const EMPTY_DASHBOARD_DATA: DashboardData = {
+  totalSpentThisMonth: 0,
+  totalSpentLastMonth: 0,
+  remainingBudget: 0,
+  monthlyBudget: 0,
+  savingsRate: 0,
+  expenseGrowthRate: 0,
+  budgetStatuses: [],
+  budgetAlerts: [],
+  categoryBreakdown: [],
+  weeklySpending: [],
+  dailySpending: [],
+  recentTransactions: [],
+  insights: [],
+};
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -77,6 +95,17 @@ export default function DashboardPage() {
       });
   }, [data]);
 
+  // Fallback heuristic until payroll settings exist: treat month-end as payday.
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysUntilPayday = Math.max(0, daysInMonth - now.getDate());
+  const dashboardForBerde = data ?? EMPTY_DASHBOARD_DATA;
+  const berdeInputs = useBerdeInputs(
+    dashboardForBerde,
+    dashboardForBerde.recentTransactions,
+    daysUntilPayday,
+  );
+
   // Reset to most-recent page whenever savings data is refreshed
   useEffect(() => { setSavingsPage(0); }, [savings]);
 
@@ -137,6 +166,7 @@ export default function DashboardPage() {
           <p className="font-body text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             {format(new Date(), 'MMMM yyyy')} Overview
           </p>
+          <BerdeCard inputs={berdeInputs} className="mt-4" />
         </div>
 
         {(data.budgetAlerts.length > 0 || projectedWarnings.length > 0) && (
