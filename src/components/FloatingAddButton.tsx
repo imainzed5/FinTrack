@@ -68,7 +68,7 @@ export default function FloatingAddButton({ onClick }: FABProps) {
           onClick={dismissTooltip}
           className="rounded-xl bg-zinc-900 text-white px-3 py-2 text-xs font-semibold shadow-lg shadow-zinc-900/20"
         >
-          + Transaction
+          Transaction
         </button>
       )}
 
@@ -78,7 +78,7 @@ export default function FloatingAddButton({ onClick }: FABProps) {
         aria-label="Add transaction"
       >
         <Plus size={22} strokeWidth={2.5} />
-        <span className="text-sm font-semibold">+ Transaction</span>
+        <span className="text-sm font-semibold">Transaction</span>
       </button>
     </div>
   );
