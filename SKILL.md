@@ -62,66 +62,97 @@ Moneda is a PWA-based personal financial intelligence dashboard that helps freel
 
 ### Data Flow Pattern
 
-**Problem:** Client-side data fetching in useEffect causes slow first paint.  
-**Current Solution:** Hybrid Server/Client Components (migration in progress).
+**Current Architecture:** Full Client-Side Fetching via useEffect
 
-1. **Server Components** render initial data on the server.
-2. **Client Components** (small, focused) handle interactivity (modals, live updates, filters).
-3. **API Routes** (`/api/*`) fetch data from Supabase on behalf of clients.
+1. **Client Components** (all pages use `'use client'`) render immediately.
+2. **useEffect hooks** fetch data from API routes after mount (with loading skeleton).
+3. **API Routes** (`/api/*`) validate auth and query Supabase.
 4. **Supabase** provides auth, database, and session tracking.
+5. **WebSocket subscriptions** (`transaction-ws.ts`) refresh data on real-time updates from other tabs/devices.
+6. **IndexedDB** queues transactions when offline; synced on reconnect.
 
 ### File Structure
 
 ```
 src/
   app/
-    api/                    # Server-side API routes (fetch from Supabase)
+    api/                    # Server-side API routes (auth & data queries)
       auth/                 # Auth endpoints (login, signup, consent, sessions)
       dashboard/route.ts    # Dashboard data (processes recurring txns)
-      transactions/route.ts # Transaction queries with auth checks
-      budgets/route.ts
-      insights/route.ts
-      savings/route.ts
-      timeline/route.ts
-      ...
-    dashboard/page.tsx      # Server Component → fetches via lib/db
-    insights/page.tsx
-    timeline/page.tsx
-    transactions/page.tsx
-    settings/page.tsx       # Budget management (first in order)
+      transactions/route.ts # Transaction CRUD with auth checks
+      budgets/route.ts      # Budget CRUD
+      insights/route.ts     # Computed insights
+      savings/route.ts      # Savings history
+      timeline/route.ts     # Timeline events
+      sync/route.ts         # Offline transaction queue sync
+    dashboard/page.tsx      # Client Component (fetches in useEffect)
+    insights/page.tsx       # Client Component
+    timeline/page.tsx       # Client Component
+    transactions/page.tsx   # Client Component (with search, filters, modals)
+    settings/page.tsx       # Client Component (budgets first, theme toggle)
     auth/
       login/page.tsx        # Client Component
       signup/page.tsx       # Client Component
       forgot-password/page.tsx
+      terms/page.tsx
+      privacy/page.tsx
   components/
+    EmptyState.tsx          # Shared empty-state UI (Berde mascot or Lucide icon)
+    AddExpenseModal.tsx     # Add transaction modal
+    EditTransactionModal.tsx# Edit transaction modal
+    Charts.tsx              # CategoryPieChart, WeeklySpendingChart, etc.
+    DashboardWidgets.tsx    # StatsCards, BudgetProgress
+    InsightCards.tsx        # Insight card list
+    TransactionList.tsx     # Transaction list with swipe actions
+    TimelineView.tsx        # Timeline event list
+    FloatingAddButton.tsx   # FAB for adding transactions
+    BottomNav.tsx           # Floating island bottom navigation
+    ThemeProvider.tsx       # Dark/light mode context
+    ServiceWorkerRegistration.tsx
+    berde/
+      BerdeCard.tsx         # Berde mascot with state & quote
+      BerdeSprite.tsx       # Pixel-art Berde sprite (canvas-based)
+      useBerdeInputs.ts     # Hook to compute Berde state from data
+      berde.logic.ts        # State & quote logic
+      berde.types.ts        # Berde type definitions
+    auth/
+      AuthCardShell.tsx
+      AuthTextField.tsx
+      AuthPasswordField.tsx
     pages/
-      DashboardClientPage.tsx    # Interactive parts (modals, FAB, live updates)
+      DashboardClientPage.tsx    # (deprecated; logic moved to dashboard/page.tsx)
       InsightsClientPage.tsx
       TimelineClientPage.tsx
       TransactionsClientPage.tsx
-    # UI components (BottomNav, Sidebar, Charts, Modals, etc.)
+    settings/
+      AccountSecuritySection.tsx
   lib/
-    db.ts                   # Main DB query layer (server-side only)
-    types.ts                # Shared TypeScript types
+    db.ts                   # Server-side DB queries (called from API routes)
+    types.ts                # Shared TypeScript types (Transaction, Budget, etc.)
     utils.ts                # Utilities (formatCurrency, etc.)
     supabase/
-      client.ts             # Browser client (limited)
-      server.ts             # Server client (full access)
+      client.ts             # Browser Supabase client (limited anon)
+      server.ts             # Server Supabase client (full access)
       config.ts             # Runtime config
-      auth-state.ts         # Auth state & cookies
-    transaction-ws.ts       # WebSocket client for app updates
-    indexeddb.ts            # Offline queue management
-    auth-session-tracking.ts # Session tracking helpers
+      auth-state.ts         # Auth state & cookie helpers
+    transaction-ws.ts       # WebSocket client for real-time app updates
+    indexeddb.ts            # Offline queue (pending transactions)
+    auth-session-tracking.ts # Session tracking (device, browser, OS, IP)
+    auth-contract.ts        # Auth payload/response types
     policy.ts               # Consent policy checks
+    useScrollbarVisibility.ts # Custom scrollbar hook
 public/
   manifest.json             # PWA manifest
-  sw.js                     # Service Worker
+  sw.js                     # Service Worker (offline & caching)
   icons/
     icon-192.png
     icon-512.png
 supabase/
-  migrations/               # PostgreSQL migrations
+  migrations/               # PostgreSQL migrations (schema, RLS, functions)
   config.toml
+ws-server/
+  server.mjs                # WebSocket server for real-time updates (optional demo)
+  example-client.mjs        # WebSocket client example
 ```
 
 ### Key Libraries & Functions
@@ -141,45 +172,93 @@ supabase/
 
 #### Types (`src/lib/types.ts`)
 ```typescript
-export type Category = 'Food' | 'Transport' | 'Subscription' | 'Entertainment' | ...;
-export interface Transaction {
+export const CATEGORIES = [
+  'Food', 'Transportation', 'Subscriptions', 'Utilities', 'Shopping',
+  'Entertainment', 'Health', 'Education', 'Miscellaneous'
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export type TransactionType = 'expense' | 'income';
+
+export type IncomeCategory = 
+  | 'Freelance' | 'Side Job' | 'Salary' | 'Part-time' | 'Bonus' | 'Refund' | 'Gift' | 'Other Income';
+
+export type PaymentMethod = 'Cash' | 'Credit Card' | 'Debit Card' | 'GCash' | 'Maya' | 'Bank Transfer' | 'Other';
+
+export interface RecurringConfig {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number;
+  nextRunDate: string; // ISO
+  endDate?: string; // ISO
+}
+
+export interface TransactionSplit {
   id: string;
-  userId: string;
-  amount: number;
   category: Category;
   subCategory?: string;
-  date: string;
+  amount: number;
+}
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  type: TransactionType; // 'expense' or 'income'
+  incomeCategory?: IncomeCategory; // For income transactions
+  category: Category;
+  subCategory?: string;
   merchant?: string;
   description?: string;
-  paymentMethod: 'Cash' | 'Credit Card' | 'Debit Card' | 'Mobile Wallet' | 'Bank Transfer';
+  date: string; // ISO
+  paymentMethod: PaymentMethod;
   notes?: string;
   tags?: string[];
-  recurring?: RecurringConfig;
-  split?: TransactionSplit[];
   attachmentBase64?: string;
+  split?: TransactionSplit[]; // For shared expenses
+  recurring?: RecurringConfig;
+  recurringOriginId?: string;
+  isAutoGenerated?: boolean; // For recurring instances
+  synced?: boolean; // Offline sync status
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Budget {
   id: string;
-  userId: string;
   category: Category | 'Overall';
   subCategory?: string;
   monthlyLimit: number;
   month: string; // 'YYYY-MM'
-  rollover: boolean;
-  alertThresholdsTriggered: string[];
+  rollover?: boolean;
+  alertThresholdsTriggered?: number[];
+}
+
+export interface TimelineEvent {
+  id: string;
+  eventType: 'started_tracking' | 'subscription_detected' | 'spending_spike' | 
+             'highest_savings' | 'budget_exceeded' | 'milestone' | 
+             'spending_improvement' | 'savings_streak' | 'savings_milestone' | 
+             'best_savings_rate' | 'low_spend_month';
+  description: string;
+  date: string; // ISO
+  metadata: Record<string, unknown>;
+  context?: string; // Explanation
+  advice?: string; // Recommendation
 }
 
 export interface DashboardData {
+  totalSpentThisMonth: number;
+  totalSpentLastMonth: number;
+  remainingBudget: number;
+  monthlyBudget: number;
+  savingsRate: number;
+  expenseGrowthRate: number;
   budgetStatuses: BudgetStatus[];
-  budgetAlerts: BudgetAlert[];
-  categoryBreakdown: CategorySpending[];
-  weeklySpending: DailySpendingData[];
-  dailySpending: DailySpendingData[];
-  insights: Insight[];
+  budgetAlerts: BudgetThresholdAlert[];
+  categoryBreakdown: { category: string; amount: number }[];
+  weeklySpending: { week: string; amount: number }[];
+  dailySpending: { day: string; amount: number }[];
   recentTransactions: Transaction[];
+  insights: Insight[];
 }
 ```
 
@@ -187,32 +266,98 @@ export interface DashboardData {
 
 ## Patterns & Conventions
 
-### Server Component Pattern
+### Client Component Data Fetching Pattern
 ```typescript
-// src/app/dashboard/page.tsx (Server Component)
-export default async function DashboardPage() {
-  const dashboard = await getAuthedDashboardData(); // Server-side fetch
+// src/app/dashboard/page.tsx (Client Component)
+'use client';
+import { useEffect, useState, useCallback } from 'react';
+import type { DashboardData } from '@/lib/types';
+
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard');
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      // Offline or error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchDashboard();
+  }, [fetchDashboard]);
+
+  // WebSocket real-time updates
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchDashboard();
+    });
+    return unsubscribe;
+  }, [fetchDashboard]);
+
+  if (loading) return <DashboardSkeleton />;
+
   return (
     <>
-      <div className="...">
-        {/* Static/server-rendered content */}
-      </div>
-      <DashboardClientPage data={dashboard} /> {/* Pass to client component */}
+      <main>{/* Render data */}</main>
+      <FloatingAddButton onClick={() => setShowAddModal(true)} />
+      <AddExpenseModal open={showAddModal} onClose={() => setShowAddModal(false)} onAdded={() => fetchDashboard()} />
     </>
   );
 }
+```
 
-// src/components/pages/DashboardClientPage.tsx (Client Component – interactivity)
-'use client';
-export default function DashboardClientPage({ data }: { data: DashboardData }) {
-  const [showAddModal, setShowAddModal] = useState(false);
-  // Local state, modals, live updates, Web Socket subscriptions
+### EmptyState Component (Shared UI)
+```typescript
+// Any empty data condition → use EmptyState component
+import EmptyState from '@/components/EmptyState';
+
+// Example 1: Berde mascot (icon='berde')
+if (budgets.length === 0) {
   return (
-    <>
-      {/* Interactive UI */}
-      <FloatingAddButton onClick={() => setShowAddModal(true)} />
-      <AddExpenseModal open={showAddModal} onClose={() => setShowAddModal(false)} />
-    </>
+    <EmptyState
+      icon="berde"
+      headline="No budget set yet."
+      subtext="Berde can't guard what doesn't exist."
+      cta={{
+        label: 'Set a Budget',
+        action: 'go-to-settings'
+      }}
+    />
+  );
+}
+
+// Example 2: Lucide icon + modal handler
+if (transactions.length === 0) {
+  return (
+    <EmptyState
+      icon={TrendingUp}
+      headline="No transactions yet."
+      subtext="Berde's waiting. Add your first one."
+      cta={{
+        label: 'Add Transaction',
+        action: 'add-transaction'
+      }}
+      onAddTransaction={handleAddClick}
+    />
+  );
+}
+
+// Example 3: No CTA
+if (insights.length === 0) {
+  return (
+    <EmptyState
+      icon="berde"
+      headline="Berde's still studying your habits."
+      subtext="Log a few more transactions and insights will start appearing."
+    />
   );
 }
 ```
@@ -307,6 +452,34 @@ When installed on iOS home screen, the app adds bottom safe-area inset for the h
 
 ---
 
+## UI Components Reference
+
+### EmptyState Component
+- **File:** `src/components/EmptyState.tsx`
+- **Usage:** Shared component for all empty data states
+- **Props:**
+  - `icon: LucideIcon | 'berde'` – Lucide icon component or 'berde' for mascot sprite
+  - `headline: string` – Main message
+  - `subtext: string` – Supporting message
+  - `cta?: { label, action }` – Call-to-action button. Actions: 'add-transaction' | 'go-to-settings' | 'clear-filters'
+  - `onAddTransaction?: () => void` – Handler for 'add-transaction' action
+  - `onClearFilters?: () => void` – Handler for 'clear-filters' action
+  - Renders BerdeSprite (mascot) when `icon='berde'`
+
+### BerdeCard Component
+- **File:** `src/components/berde/BerdeCard.tsx`
+- **Usage:** Dashboard mascot card with emotional state and quote
+- **Props:**
+  - `inputs: BerdeInputs` – Data to compute Berde's state (budget %, transactions, etc.)
+  - `className?: string`
+- **States:** neutral, proud, worried, hype, sarcastic (based on financial conditions)
+
+### Bottom Navigation
+- **File:** `src/components/BottomNav.tsx`
+- **Design:** Floating island at bottom of screen with home indicator safe-area on iOS
+- **Routes:** Dashboard, Transactions, Insights, Timeline, Settings
+- **Mobile-first:** Responsive, includes safe-area inset
+
 ## Development Workflows
 
 ### Running the App
@@ -315,7 +488,8 @@ npm run dev      # Start Next.js dev server on :3000
 npm run build    # Build for production
 npm run start    # Run production server
 npm run lint     # Run ESLint
-npm run ws:server # Start WebSocket server (optional, for real-time demo)
+npm run ws:server # Start WebSocket server (optional, for real-time updates)
+npm run ws:client-example # Run WebSocket client demo
 ```
 
 ### Database Migrations
@@ -325,59 +499,78 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ```
 
 ### Creating a New Expense
-1. User clicks "Add Transaction" (FAB or button).
-2. `AddExpenseModal` opens (Client Component).
-3. Form submitted → `POST /api/transactions`.
-4. API validates, calls `db.upsertTransaction()`.
-5. Supabase RLS checks user_id and inserts.
-6. WebSocket broadcast notifies other tabs/devices.
-7. Dashboard refetches and displays updated data.
+1. User clicks "+ Transaction" (FAB at bottom right).
+2. `AddExpenseModal` opens (with type selector: expense or income).
+3. For **expense:** select category, sub-category, amount, payment method, date, notes.
+4. For **income:** select income category, amount, payment method, date, notes.
+5. (Optional) Add transaction split or mark as recurring.
+6. Form submitted → `POST /api/transactions`.
+7. API validates, calls `db.upsertTransaction()`.
+8. Supabase RLS enforces user_id isolation and inserts row.
+9. WebSocket notifies subscribed clients (other tabs/devices).
+10. All subscribed pages (dashboard, transactions, insights, timeline) auto-refresh.
 
 ### Managing Budgets
-1. Navigate to Settings (bottom nav).
-2. Budget Management section is **first**.
-3. Select month, category, sub-category, limit, and rollover toggle.
+1. Navigate to **Settings** (bottom nav).
+2. **Budget Management section is first** – encourages upfront financial planning.
+3. Select month (YYYY-MM), category or 'Overall', sub-category (optional), limit, and rollover toggle.
 4. Submit → `POST /api/budgets`.
-5. Budget saved and displayed in dashboard alerts.
+5. Budget saved; dashboard immediately shows budget progress bars and alerts.
+6. **Overall budget:** If income transactions exist, boosts the budget by income amount (tracked in `incomeBoost` field).
 
 ### Data Export & Import
-- **Export:** Settings → "Data Management" → "Export JSON Backup".
-- **Import:** Settings → "Import JSON Backup" → select file.
-- Transactions bulk-inserted server-side.
+- **Export:** Settings → "Data Management" → "Export JSON Backup" → downloads all transactions & budgets as JSON.
+- **Import:** Settings → "Import JSON Backup" → select JSON file → bulk-inserts transactions & budgets server-side.
+- Used for data migration or backup restore.
+
+### Offline Support
+- **Pending transactions:** Queued in IndexedDB when offline.
+- **Sync:** Auto-syncs when back online via `/api/sync`.
+- **Indicators:** Online/offline status shown in Settings.
+- **Service Worker:** Enables offline browsing and caches app shell.
 
 ---
 
 ## Common Issues & Solutions
 
-### TypeScript Import Errors (`Cannot find module '@supabase/supabase-js'`)
-- **Cause:** Supabase packages missing from package.json.
-- **Solution:** Run `npm install` after restoring dependencies in package.json.
-- **Key packages:** `@supabase/ssr`, `@supabase/supabase-js`, `@types/ws`, `supabase`.
+### Data Not Refreshing After Transaction Added
+- **Cause:** WebSocket subscription not active or fetch hook not triggered.
+- **Solution:** Ensure `onAdded` callback calls `fetchDashboard()` in AddExpenseModal. Check WebSocket connection in browser DevTools → Application → WebSocket.
 
-### Slow Initial Page Load
-- **Cause:** Client-side data fetching in useEffect.
-- **Solution:** Migrate page to Server Component → fetch on server → pass data to Client Component.
-- **Priority:** Dashboard > Insights/Timeline > Transactions.
+### EmptyState Showing App Icon Instead of Berde
+- **Cause:** EmptyState component rendering wrong icon.
+- **Solution:** Verify `icon="berde"` is passed (not misspelled). Check BerdeSprite import in EmptyState.tsx.
 
-### Recurring Transactions Not Processing
-- **Cause:** `processRecurringTransactions()` may not be called on every request.
-- **Solution:** Move to background job or cron; call on user action (add/edit transaction).
+### Income Transactions Not Showing Payment Method
+- **Cause:** Income transactions require explicit payment method selection.
+- **Solution:** In AddExpenseModal, verify payment method selector is visible for `type='income'`. Select from 'Cash', 'Credit Card', 'Debit Card', 'GCash', 'Maya', 'Bank Transfer', 'Other'.
+
+### Offline Transactions Not Syncing
+- **Cause:** IndexedDB queue not flushing or `/api/sync` not responding.
+- **Solution:** Check browser DevTools → Application → IndexedDB → pending transactions count. Verify network is back online. Manual refresh of page triggers sync.
 
 ### iOS App Not Showing Safe-Area Padding
 - **Cause:** Fixed bottom nav extends into home indicator.
-- **Solution:** Use `.mobile-nav-offset` class or `calc(navHeight + env(safe-area-inset-bottom))` in CSS.
+- **Solution:** BottomNav uses `env(safe-area-inset-bottom)` in Tailwind utilities (mb-safe, pb-safe). Verify viewport-fit=cover in meta tag.
+
+### Berde State Not Changing
+- **Cause:** useBerdeInputs hook not receiving updated budget/transaction data.
+- **Solution:** Verify data is refetched after transaction add. Berde state depends on: budget usage %, transaction count, savings rate, expense growth.
 
 ---
 
 ## Key Insights
 
-1. **Server Components first** – Improves first paint and reduces JS bundle.
-2. **API routes as middleware** – Centralize auth checks and Supabase queries.
-3. **RLS as security layer** – Never rely on client-side filtering; use RLS.
-4. **Hybrid architecture** – Server for data, Client for interactivity (modals, filters, live updates).
-5. **Offline-first mindset** – Transactions queued locally before sync.
-6. **Settings prioritization** – Budgets first in settings encourages upfront planning.
-7. **PWA polish** – iOS safe-area, icon assets, manifest all matter for native feel.
+1. **Client-first architecture** – All pages use 'use client' with data fetching in useEffect + skeleton loaders.
+2. **API routes as security layer** – Centralize auth checks (`requireSupabaseUser()`) and Supabase queries in `/api/*` routes.
+3. **RLS enforces data isolation** – Database Row-Level Security prevents unauthorized user data access even if API is compromised.
+4. **WebSocket real-time sync** – Multiple tabs/devices stay in sync via subscriptions; auto-refetch on app updates.
+5. **Shared EmptyState component** – Centralized empty-state UI (Berde mascot or Lucide icon) with optional CTA actions.
+6. **Offline-first IndexedDB** – Transactions queued locally; auto-sync via `/api/sync` when reconnected.
+7. **Settings prioritization** – Budgets section first (before account settings) encourages upfront financial planning.
+8. **Income transactions** – Separate transaction type with dynamic budget boost when Overall budget exists.
+9. **Berde emotional intelligence** – Mascot state changes based on financial data (proud if saving, worried if over-budget).
+10. **PWA experience** – iOS safe-area insets, installable manifest, Service Worker offline support, HiDPI pixel-art Berde sprite.
 
 ---
 
@@ -390,18 +583,39 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 | Lint | `npm run lint` |
 | Format date | `format(date, 'PPP')` from date-fns |
 | Format currency | `formatCurrency(amount)` from utils |
-| Fetch transactions | `getTransactions()` from db.ts (server-side) |
-| Get current user | `requireSupabaseUser()` from supabase/server.ts |
-| WebSocket subscribe | `subscribeAppUpdates(callback)` from transaction-ws.ts |
-| Check offline queue | `getPendingTransactions()` from indexeddb.ts |
+| Fetch transactions (server-side) | `getTransactions()` from lib/db.ts |
+| Fetch transactions (client) | `fetch('/api/transactions')` then `response.json()` |
+| Auth check in API route | `await requireSupabaseUser()` from lib/supabase/server.ts |
+| WebSocket app updates | `subscribeAppUpdates(callback)` from lib/transaction-ws.ts |
+| WebSocket budget updates | `subscribeBudgetUpdates(callback)` from lib/transaction-ws.ts |
+| WebSocket transactions | `subscribeTransactionUpdates(callback)` from lib/transaction-ws.ts |
+| Check offline queue | `getPendingTransactions()` from lib/indexeddb.ts |
+| Push offline txns | `syncPendingTransactions()` from lib/indexeddb.ts |
+| Render EmptyState | `<EmptyState icon="berde" headline="..." subtext="..." />` from components/EmptyState.tsx |
+| Convert transaction date | `parseISO(transaction.date)` for Date object |
+| Check if income | `transaction.type === 'income'` |
 
 ---
 
+## Recent Changes (Git Log)
+
+- **279f453** – Fix: EmptyState renders BerdeSprite for icon='berde' (restores mascot visuals)
+- **ec1d273** – Refactor all empty-state UI to shared EmptyState component (dashboard, transactions, insights, timeline)
+- **94f4a45** – Allow income payment method selection and notes
+- **12a1983** – Add income transactions with dynamic Overall budget boost
+- **5445e27** – Update FAB text to '+ Transaction'
+- **637f6fd** – Redesign bottom nav as floating island
+- **cdd34fa** – Visual polish: HiDPI Berde sprite, larger size, balanced pie chart
+- **7c7f522** – Refactor app pages toward server-rendered data flow
+- **badc250** – Reorder settings to show budget management first
+- **9da48c3** – Fix iOS PWA safe-area spacing for nav and FAB
+
 ## References
 
-- **Next.js Docs:** https://nextjs.org/docs
-- **Supabase Docs:** https://supabase.com/docs
-- **React Docs:** https://react.dev
-- **Tailwind CSS:** https://tailwindcss.com
-- **Chart.js:** https://www.chartjs.org
-- **date-fns:** https://date-fns.org
+- **Next.js Docs:** https://nextjs.org/docs (App Router, Client Components)
+- **Supabase Docs:** https://supabase.com/docs (Auth, PostgreSQL, RLS)
+- **React Docs:** https://react.dev (Hooks, Client Components)
+- **Tailwind CSS:** https://tailwindcss.com (Utility-first styling)
+- **Chart.js:** https://www.chartjs.org (Data visualization)
+- **date-fns:** https://date-fns.org (Date manipulation)
+- **Lucide React:** https://lucide.dev (Icon components)
