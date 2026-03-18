@@ -21,6 +21,7 @@ import {
 import type { PaymentMethod, Transaction } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { isToday, isYesterday } from 'date-fns';
+import EmptyState from '@/components/EmptyState';
 
 const categoryColors: Record<string, string> = {
   Food: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400',
@@ -484,10 +485,11 @@ export default function TransactionList({
 
   if (transactions.length === 0) {
     return (
-      <div className="text-center py-10 text-zinc-400 dark:text-zinc-600">
-        <p className="text-sm">No transactions yet.</p>
-        <p className="text-[13px] sm:text-xs mt-1">Tap the + button to add your first expense.</p>
-      </div>
+      <EmptyState
+        icon="berde"
+        headline="No transactions yet."
+        subtext="Berde's waiting. Add your first one."
+      />
     );
   }
 

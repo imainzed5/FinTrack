@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Search, Filter, Download, ChevronDown, Receipt, X } from 'lucide-react';
+import { Search, Filter, Download, ChevronDown, X, Wallet, SearchX } from 'lucide-react';
 import type { WheelEvent as ReactWheelEvent } from 'react';
 import type { Transaction, Category } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -13,6 +13,7 @@ import AddExpenseModal from '@/components/AddExpenseModal';
 import EditTransactionModal from '@/components/EditTransactionModal';
 import { subscribeTransactionUpdates } from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
+import EmptyState from '@/components/EmptyState';
 
 const CATEGORY_FILTERS_STORAGE_KEY = 'transactions:selected-categories';
 type CategoryFilter = Category | 'Income';
@@ -24,6 +25,7 @@ function isCategoryFilter(value: string): value is CategoryFilter {
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totalTransactionCount, setTotalTransactionCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -89,14 +91,28 @@ export default function TransactionsPage() {
         params.set('categories', selectedCategories.join(','));
       }
       const query = params.toString();
-      const res = await fetch(query ? `/api/transactions?${query}` : '/api/transactions');
+      const endpoint = query ? `/api/transactions?${query}` : '/api/transactions';
+      const [res, totalRes] = await Promise.all([
+        fetch(endpoint),
+        query ? fetch('/api/transactions') : Promise.resolve<Response | null>(null),
+      ]);
 
-      if (!res.ok) {
+      if (!res.ok || (totalRes && !totalRes.ok)) {
         throw new Error('Failed to fetch transactions');
       }
 
-      const json = await res.json();
-      setTransactions(Array.isArray(json) ? json : []);
+      const [json, totalJson] = await Promise.all([
+        res.json() as Promise<Transaction[]>,
+        totalRes ? (totalRes.json() as Promise<Transaction[]>) : Promise.resolve<Transaction[] | null>(null),
+      ]);
+
+      const nextTransactions = Array.isArray(json) ? json : [];
+      setTransactions(nextTransactions);
+      setTotalTransactionCount(
+        totalJson && Array.isArray(totalJson)
+          ? totalJson.length
+          : nextTransactions.length
+      );
     } catch {
       // offline
     } finally {
@@ -307,8 +323,8 @@ export default function TransactionsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const activeFilterCount = selectedCategories.length;
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const hasNoTransactions = !loading && transactions.length === 0;
-  const hasNoMatches = !loading && transactions.length > 0 && filtered.length === 0;
+  const hasNoTransactions = !loading && totalTransactionCount === 0;
+  const hasNoMatches = !loading && totalTransactionCount > 0 && filtered.length === 0;
 
   useEffect(() => {
     setPage((currentPage) => Math.min(currentPage, totalPages));
@@ -333,6 +349,10 @@ export default function TransactionsPage() {
     setSearch('');
     setSelectedCategories([]);
     setPage(1);
+  };
+
+  const openAddTransactionModal = () => {
+    setShowAddModal(true);
   };
 
   const pendingDeleteTransaction = transactions.find((tx) => tx.id === pendingDeleteId) ?? null;
@@ -564,37 +584,21 @@ export default function TransactionsPage() {
         {loading ? (
           <TransactionsSkeleton />
         ) : hasNoTransactions ? (
-          <div className="rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white/80 dark:bg-zinc-900/60 p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
-              <Receipt size={24} />
-            </div>
-            <h2 className="font-display text-xl font-bold text-zinc-900 dark:text-white">No transactions yet</h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Start tracking expenses to unlock insights and spending trends.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="mt-5 inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors"
-            >
-              Add your first transaction →
-            </button>
-          </div>
+          <EmptyState
+            icon={Wallet}
+            headline="No transactions yet."
+            subtext="Start logging your expenses and income here."
+            cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
+            onAddTransaction={openAddTransactionModal}
+          />
         ) : hasNoMatches ? (
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-8 text-center">
-            <h2 className="font-display text-xl font-bold text-zinc-900 dark:text-white">No matching transactions</h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Try a different search phrase or clear your filters.
-            </p>
-            <button
-              type="button"
-              onClick={clearSearchAndFilters}
-              className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-            >
-              <X size={14} />
-              Reset search and filters
-            </button>
-          </div>
+          <EmptyState
+            icon={SearchX}
+            headline="No results found."
+            subtext="Try adjusting your search or filters."
+            cta={{ label: 'Clear Filters', action: 'clear-filters' }}
+            onClearFilters={clearSearchAndFilters}
+          />
         ) : (
           <>
             <TransactionList
@@ -703,7 +707,7 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      <FloatingAddButton onClick={() => setShowAddModal(true)} />
+      <FloatingAddButton onClick={openAddTransactionModal} />
       <AddExpenseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

@@ -6,10 +6,11 @@ import { format, parseISO } from 'date-fns';
 import {
   Play, CreditCard, TrendingUp, TrendingDown,
   PiggyBank, AlertTriangle, Star, Trophy, Flame,
-  Zap, ExternalLink, Lightbulb, Info,
+  Zap, ExternalLink, Lightbulb, Info, CalendarX,
 } from 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 type IconType = typeof Play;
@@ -53,9 +54,10 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 
 interface TimelineViewProps {
   events: TimelineEvent[];
+  onAddTransaction?: () => void;
 }
 
-export default function TimelineView({ events }: TimelineViewProps) {
+export default function TimelineView({ events, onAddTransaction }: TimelineViewProps) {
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
@@ -70,10 +72,13 @@ export default function TimelineView({ events }: TimelineViewProps) {
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-16 text-zinc-400 dark:text-zinc-600">
-        <p className="text-sm">No timeline events yet.</p>
-        <p className="text-xs mt-1">Start adding expenses to build your financial timeline.</p>
-      </div>
+      <EmptyState
+        icon={CalendarX}
+        headline="Nothing here yet."
+        subtext="Your transactions will appear here in chronological order."
+        cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
+        onAddTransaction={onAddTransaction}
+      />
     );
   }
 

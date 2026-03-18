@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Info, TrendingUp, CreditCard, Zap } from 'lucide-react';
 import type { Insight } from '@/lib/types';
+import EmptyState from '@/components/EmptyState';
 
 const insightIcons: Record<string, typeof Info> = {
   spending_spike: TrendingUp,
@@ -31,10 +32,11 @@ interface InsightCardsProps {
 export default function InsightCards({ insights, compact = false }: InsightCardsProps) {
   if (insights.length === 0) {
     return (
-      <div className="text-center py-8 text-zinc-400 dark:text-zinc-600">
-        <Info size={32} className="mx-auto mb-2 opacity-50" />
-        <p className="text-sm">No insights yet. Add more transactions to get financial intelligence.</p>
-      </div>
+      <EmptyState
+        icon="berde"
+        headline="Berde's still studying your habits."
+        subtext="Log a few more transactions and insights will start appearing."
+      />
     );
   }
 

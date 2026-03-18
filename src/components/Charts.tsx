@@ -15,6 +15,8 @@ import {
 } from 'chart.js';
 import type { Plugin } from 'chart.js';
 import { Pie, Line, Bar, Chart } from 'react-chartjs-2';
+import { TrendingUp } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 
 function peso(value: number) {
   return `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -64,9 +66,11 @@ export function CategoryPieChart({ data }: CategoryChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
-        No spending data yet
-      </div>
+      <EmptyState
+        icon="berde"
+        headline="Nothing spent yet."
+        subtext="Add a transaction and Berde will break it down by category."
+      />
     );
   }
 
@@ -117,12 +121,15 @@ interface WeeklyChartProps {
 
 export function WeeklySpendingChart({ data }: WeeklyChartProps) {
   const isCompactViewport = useIsCompactViewport();
+  const hasWeeklySpending = data.some((entry) => entry.amount > 0);
 
-  if (data.length === 0) {
+  if (!hasWeeklySpending) {
     return (
-      <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
-        No weekly data yet
-      </div>
+      <EmptyState
+        icon={TrendingUp}
+        headline="No spending pattern yet."
+        subtext="Your weekly trend will appear once you start logging."
+      />
     );
   }
 
@@ -290,9 +297,11 @@ export function MonthlySavingsChart({ data }: MonthlySavingsChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-zinc-400 dark:text-zinc-600 text-sm">
-        No savings data yet. Set an Overall monthly budget to start tracking.
-      </div>
+      <EmptyState
+        icon="berde"
+        headline="No savings history yet."
+        subtext="Set an Overall budget and Berde will track what you save each month."
+      />
     );
   }
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { DashboardData, BudgetStatus } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 interface StatsCardsProps {
   data: DashboardData;
@@ -86,9 +87,12 @@ interface BudgetProgressProps {
 export function BudgetProgress({ budgets }: BudgetProgressProps) {
   if (budgets.length === 0) {
     return (
-      <div className="text-center py-6 text-zinc-400 dark:text-zinc-600 text-sm">
-        No budgets set. Go to Settings to add budgets.
-      </div>
+      <EmptyState
+        icon="berde"
+        headline="No budget set yet."
+        subtext="Berde can't guard what doesn't exist."
+        cta={{ label: 'Set a Budget', action: 'go-to-settings' }}
+      />
     );
   }
 

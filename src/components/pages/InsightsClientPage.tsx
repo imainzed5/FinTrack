@@ -12,8 +12,10 @@ import {
 } from 'date-fns';
 import type { Budget, PaymentMethod, Transaction } from '@/lib/types';
 import { InsightsSkeleton } from '@/components/SkeletonLoaders';
-import { Lightbulb, TrendingUp } from 'lucide-react';
+import { Lightbulb, TrendingUp, BarChart2 } from 'lucide-react';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import AddExpenseModal from '@/components/AddExpenseModal';
+import EmptyState from '@/components/EmptyState';
 
 type InsightFilter = 'all' | 'spending_spike' | 'subscription' | 'budget_risk' | 'pattern';
 
@@ -129,8 +131,13 @@ export default function InsightsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<InsightFilter>('all');
+
+  const openAddTransactionModal = useCallback(() => {
+    setShowAddModal(true);
+  }, []);
 
   const fetchInsightsData = useCallback(async (showLoader: boolean) => {
     if (showLoader) {
@@ -373,46 +380,56 @@ export default function InsightsPage() {
       : filter === 'spending_spike'
         ? 'No weekly spending spike detected this month.'
         : 'No active alerts for this month.';
+  const showInsightsEmptyState = transactions.length === 0 && !error;
 
   return (
-    <div className="font-body max-w-3xl mx-auto px-4 sm:px-6 py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center">
-          <Lightbulb size={20} className="text-amber-600 dark:text-amber-400" />
+    <>
+      <div className="font-body max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center">
+            <Lightbulb size={20} className="text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
+              Financial Insights
+            </h1>
+            <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">
+              Smart analysis of your spending behavior
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
-            Financial Insights
-          </h1>
-          <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">
-            Smart analysis of your spending behavior
-          </p>
+
+        <div className="flex flex-wrap gap-2 mb-6">
+          {FILTER_CHIPS.map((type) => (
+            <button
+              key={type.key}
+              onClick={() => setFilter(type.key)}
+              className={`font-body px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                filter === type.key
+                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-emerald-300 dark:hover:border-emerald-600'
+              }`}
+            >
+              {type.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {FILTER_CHIPS.map((type) => (
-          <button
-            key={type.key}
-            onClick={() => setFilter(type.key)}
-            className={`font-body px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-              filter === type.key
-                ? 'bg-emerald-600 border-emerald-600 text-white'
-                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-emerald-300 dark:hover:border-emerald-600'
-            }`}
-          >
-            {type.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <InsightsSkeleton />
-      ) : (
-        <div className="space-y-7">
-          {error && (
-            <p className="font-body text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
+        {loading ? (
+          <InsightsSkeleton />
+        ) : showInsightsEmptyState ? (
+          <EmptyState
+            icon={BarChart2}
+            headline="Not enough data yet."
+            subtext="Log transactions across a few categories and your financial patterns will start to emerge."
+            cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
+            onAddTransaction={openAddTransactionModal}
+          />
+        ) : (
+          <div className="space-y-7">
+            {error && (
+              <p className="font-body text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
 
           {showAlertsSection && (
             <section className="space-y-3">
@@ -704,8 +721,17 @@ export default function InsightsPage() {
               )}
             </section>
           )}
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+
+      <AddExpenseModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdded={() => {
+          void fetchInsightsData(false);
+        }}
+      />
+    </>
   );
 }
