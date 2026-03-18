@@ -12,7 +12,7 @@ import {
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/transactions', label: 'Txns', icon: Receipt },
+  { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/insights', label: 'Insights', icon: Lightbulb },
   { href: '/timeline', label: 'Timeline', icon: Clock },
   { href: '/settings', label: 'Settings', icon: Settings },
