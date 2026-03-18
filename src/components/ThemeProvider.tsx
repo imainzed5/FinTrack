@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useScrollbarVisibility } from '@/lib/useScrollbarVisibility';
 
 type Theme = 'light' | 'dark';
 
@@ -19,6 +20,9 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     const stored = localStorage.getItem('moneda-theme');
     return stored === 'dark' ? 'dark' : 'light';
   });
+
+  // Initialize scrollbar visibility on mount
+  useScrollbarVisibility();
 
   useEffect(() => {
     localStorage.setItem('moneda-theme', theme);

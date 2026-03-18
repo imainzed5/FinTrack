@@ -99,6 +99,45 @@ body {
   scrollbar-width: none;
 }
 
+/* Custom green scrollbar with auto-hide behavior */
+* {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 99px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 99px;
+  transition: background 0.3s ease;
+}
+
+/* Show scrollbar when actively scrolling */
+*.scrolling {
+  scrollbar-color: #1D9E75 #f0faf5;
+}
+
+*.scrolling::-webkit-scrollbar-track {
+  background: #f0faf5;
+}
+
+*.scrolling::-webkit-scrollbar-thumb {
+  background: #1D9E75;
+}
+
+*.scrolling::-webkit-scrollbar-thumb:hover {
+  background: #0F6E56;
+}
+
 /* Number input: hide spin buttons */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
