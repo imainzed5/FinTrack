@@ -15,9 +15,11 @@ import { subscribeTransactionUpdates } from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 
 const CATEGORY_FILTERS_STORAGE_KEY = 'transactions:selected-categories';
+type CategoryFilter = Category | 'Income';
+const CATEGORY_FILTER_OPTIONS: CategoryFilter[] = [...CATEGORIES, 'Income'];
 
-function isCategory(value: string): value is Category {
-  return CATEGORIES.includes(value as Category);
+function isCategoryFilter(value: string): value is CategoryFilter {
+  return value === 'Income' || CATEGORIES.includes(value as Category);
 }
 
 export default function TransactionsPage() {
@@ -28,7 +30,7 @@ export default function TransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<Category[]>(() => {
+  const [selectedCategories, setSelectedCategories] = useState<CategoryFilter[]>(() => {
     if (typeof window === 'undefined') {
       return [];
     }
@@ -45,7 +47,7 @@ export default function TransactionsPage() {
       }
 
       const categories = parsed.filter(
-        (value): value is Category => typeof value === 'string' && isCategory(value)
+        (value): value is CategoryFilter => typeof value === 'string' && isCategoryFilter(value)
       );
 
       return Array.from(new Set(categories));
@@ -194,8 +196,8 @@ export default function TransactionsPage() {
     ];
     const rows = filtered.map((tx) => [
       format(parseISO(tx.date), 'yyyy-MM-dd'),
-      tx.category,
-      tx.subCategory || '',
+      tx.type === 'income' ? 'Income' : tx.category,
+      tx.type === 'income' ? (tx.incomeCategory || '') : (tx.subCategory || ''),
       tx.amount.toFixed(2),
       tx.merchant || '',
       tx.description || '',
@@ -224,8 +226,8 @@ export default function TransactionsPage() {
         (tx) =>
           `<tr>
             <td>${format(parseISO(tx.date), 'MMM d, yyyy')}</td>
-            <td>${tx.category}</td>
-            <td>${tx.subCategory || ''}</td>
+            <td>${tx.type === 'income' ? 'Income' : tx.category}</td>
+            <td>${tx.type === 'income' ? (tx.incomeCategory || '') : (tx.subCategory || '')}</td>
             <td style="text-align:right">₱${tx.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td>${tx.merchant || ''}</td>
             <td>${tx.description || ''}</td>
@@ -268,7 +270,7 @@ export default function TransactionsPage() {
     setPage(1);
   };
 
-  const toggleCategory = (category: Category) => {
+  const toggleCategory = (category: CategoryFilter) => {
     setSelectedCategories((current) => {
       if (current.includes(category)) {
         return current.filter((existing) => existing !== category);
@@ -278,7 +280,7 @@ export default function TransactionsPage() {
     setPage(1);
   };
 
-  const removeCategory = (category: Category) => {
+  const removeCategory = (category: CategoryFilter) => {
     setSelectedCategories((current) => current.filter((existing) => existing !== category));
     setPage(1);
   };
@@ -290,6 +292,8 @@ export default function TransactionsPage() {
         (tx.description || '').toLowerCase().includes(q) ||
         (tx.merchant || '').toLowerCase().includes(q) ||
         (tx.notes || '').toLowerCase().includes(q) ||
+        (tx.incomeCategory || '').toLowerCase().includes(q) ||
+        tx.type.toLowerCase().includes(q) ||
         (tx.subCategory || '').toLowerCase().includes(q) ||
         (tx.tags || []).some((tag) => tag.toLowerCase().includes(q)) ||
         tx.category.toLowerCase().includes(q) ||
@@ -462,7 +466,7 @@ export default function TransactionsPage() {
                   All categories
                 </button>
 
-                {CATEGORIES.map((category) => {
+                {CATEGORY_FILTER_OPTIONS.map((category) => {
                   const checked = selectedCategories.includes(category);
 
                   return (

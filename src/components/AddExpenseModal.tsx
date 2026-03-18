@@ -6,9 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { Plus, Repeat, Trash2, X } from 'lucide-react';
 import {
   CATEGORIES,
+  INCOME_CATEGORIES,
   PAYMENT_METHODS,
   RECURRING_FREQUENCIES,
   type TransactionInput,
+  type TransactionType,
+  type IncomeCategory,
   type Category,
   type PaymentMethod,
   type RecurringFrequency,
@@ -82,6 +85,9 @@ function createSplitDraft(defaultCategory: Category): SplitDraft {
 }
 
 export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseModalProps) {
+  const [entryType, setEntryType] = useState<TransactionType>('expense');
+  const [incomeCategory, setIncomeCategory] = useState<IncomeCategory>('Freelance');
+  const [incomeRecurringMonthly, setIncomeRecurringMonthly] = useState(false);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('Food');
   const [subCategory, setSubCategory] = useState('');
@@ -104,6 +110,7 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
   const [autoFocusAmount, setAutoFocusAmount] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
+  const isIncomeEntry = entryType === 'income';
 
   const amountValue = Number.parseFloat(amount);
   const splitTotal = useMemo(
@@ -129,6 +136,25 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
   }, [open, autoFocusAmount]);
 
   useEffect(() => {
+    if (entryType !== 'income') {
+      return;
+    }
+
+    if (splitEnabled) {
+      setSplitEnabled(false);
+      setSplitRows([]);
+    }
+
+    if (showOptional) {
+      setShowOptional(false);
+    }
+
+    if (recurringFrequency !== 'monthly') {
+      setRecurringFrequency('monthly');
+    }
+  }, [entryType, recurringFrequency, showOptional, splitEnabled]);
+
+  useEffect(() => {
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -151,6 +177,9 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
   if (!open) return null;
 
   const resetForm = () => {
+    setEntryType('expense');
+    setIncomeCategory('Freelance');
+    setIncomeRecurringMonthly(false);
     setAmount('');
     setCategory('Food');
     setSubCategory('');
@@ -204,7 +233,7 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
     }
 
     let normalizedSplit: TransactionSplitInput[] | undefined;
-    if (splitEnabled) {
+    if (!isIncomeEntry && splitEnabled) {
       const parsed = splitRows
         .map((row) => ({
           id: row.id,
@@ -237,27 +266,42 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
 
     const normalizedDate = new Date(date).toISOString();
     const tags = parseTags(tagsInput);
-    const descriptionValue = description.trim() || category;
-    const recurring = recurringEnabled
-      ? {
-          frequency: recurringFrequency,
-          interval: 1,
-          endDate: recurringEndDate ? new Date(recurringEndDate).toISOString() : undefined,
-        }
-      : undefined;
+    const descriptionValue = description.trim() || (isIncomeEntry ? incomeCategory : category);
+    const recurring = isIncomeEntry
+      ? (incomeRecurringMonthly
+        ? {
+            frequency: 'monthly' as const,
+            interval: 1,
+          }
+        : undefined)
+      : (recurringEnabled
+        ? {
+            frequency: recurringFrequency,
+            interval: 1,
+            endDate: recurringEndDate ? new Date(recurringEndDate).toISOString() : undefined,
+          }
+        : undefined);
+    const resolvedType: TransactionType = isIncomeEntry ? 'income' : 'expense';
+    const resolvedCategory: Category = isIncomeEntry
+      ? 'Miscellaneous'
+      : (normalizedSplit?.[0]?.category || category);
 
     const input: TransactionInput = {
       amount: Number(amountValue.toFixed(2)),
-      category: normalizedSplit?.[0]?.category || category,
-      subCategory: normalizedSplit?.[0]?.subCategory || (subCategory.trim() || undefined),
+      type: resolvedType,
+      incomeCategory: isIncomeEntry ? incomeCategory : undefined,
+      category: resolvedCategory,
+      subCategory: isIncomeEntry
+        ? undefined
+        : (normalizedSplit?.[0]?.subCategory || (subCategory.trim() || undefined)),
       merchant: merchant.trim() || undefined,
       description: descriptionValue,
       date: normalizedDate,
-      paymentMethod,
-      notes: notes.trim() || undefined,
-      tags,
-      attachmentBase64,
-      split: normalizedSplit,
+      paymentMethod: isIncomeEntry ? 'Cash' : paymentMethod,
+      notes: isIncomeEntry ? undefined : (notes.trim() || undefined),
+      tags: isIncomeEntry ? [] : tags,
+      attachmentBase64: isIncomeEntry ? undefined : attachmentBase64,
+      split: isIncomeEntry ? undefined : normalizedSplit,
       recurring,
     };
 
@@ -284,16 +328,18 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
       const offlineTx: Transaction = {
         id: uuidv4(),
         amount: input.amount,
+        type: resolvedType,
+        incomeCategory: isIncomeEntry ? incomeCategory : undefined,
         category: input.category,
         subCategory: input.subCategory,
         merchant: input.merchant,
         description: input.description,
         date: normalizedDate,
-        paymentMethod: input.paymentMethod || 'Cash',
-        notes: input.notes || '',
-        tags: input.tags || [],
-        attachmentBase64: input.attachmentBase64,
-        split: input.split as Transaction['split'],
+        paymentMethod: isIncomeEntry ? 'Cash' : (input.paymentMethod || 'Cash'),
+        notes: isIncomeEntry ? '' : (input.notes || ''),
+        tags: isIncomeEntry ? [] : (input.tags || []),
+        attachmentBase64: isIncomeEntry ? undefined : input.attachmentBase64,
+        split: isIncomeEntry ? undefined : (input.split as Transaction['split']),
         recurring: offlineRecurring,
         createdAt: nowIso,
         updatedAt: nowIso,
@@ -318,11 +364,13 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
         className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-2xl animate-slide-up max-h-[100dvh] sm:max-h-[90dvh] flex flex-col modal-shell"
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-          <h2 id={titleId} className="text-xl font-bold text-zinc-900 dark:text-white">Add Expense</h2>
+          <h2 id={titleId} className="text-xl font-bold text-zinc-900 dark:text-white">
+            {isIncomeEntry ? 'Log Income' : 'Add Expense'}
+          </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close add expense modal"
+            aria-label={isIncomeEntry ? 'Close log income modal' : 'Close add expense modal'}
             className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
           >
             <X size={20} />
@@ -331,6 +379,31 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-4 pb-4 space-y-4 modal-content-scroll">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-1 grid grid-cols-2 gap-1">
+            <button
+              type="button"
+              onClick={() => setEntryType('expense')}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                !isIncomeEntry
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-300'
+              }`}
+            >
+              Expense
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntryType('income')}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                isIncomeEntry
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-300'
+              }`}
+            >
+              Income
+            </button>
+          </div>
+
           {formError && (
             <div className="px-3 py-2 rounded-xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400">
               {formError}
@@ -339,7 +412,9 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
 
           {/* Amount - Primary Input */}
           <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Amount (₱)</label>
+            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              {isIncomeEntry ? 'Amount Received' : 'Amount (₱)'}
+            </label>
             <input
               ref={amountInputRef}
               type="number"
@@ -353,6 +428,36 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
               required
             />
           </div>
+
+          {isIncomeEntry && (
+            <div>
+              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Frequency</label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIncomeRecurringMonthly(false)}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                    !incomeRecurringMonthly
+                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                  }`}
+                >
+                  One-time
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIncomeRecurringMonthly(true)}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                    incomeRecurringMonthly
+                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                  }`}
+                >
+                  Recurring monthly
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Description</label>
@@ -376,38 +481,57 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
             />
           </div>
 
-          {/* Category Grid */}
-          <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Category</label>
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategory(cat)}
-                  className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
-                    category === cat
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+          {/* Category */}
+          {!isIncomeEntry && (
+            <div>
+              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Category</label>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategory(cat)}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                      category === cat
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Sub-category (optional)</label>
-            <input
-              type="text"
-              value={subCategory}
-              onChange={(e) => setSubCategory(e.target.value)}
-              disabled={splitEnabled}
-              placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
-              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors disabled:opacity-60"
-            />
-          </div>
+          {isIncomeEntry && (
+            <div>
+              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Income Category</label>
+              <select
+                value={incomeCategory}
+                onChange={(e) => setIncomeCategory(e.target.value as IncomeCategory)}
+                className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+              >
+                {INCOME_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {!isIncomeEntry && (
+            <div>
+              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Sub-category (optional)</label>
+              <input
+                type="text"
+                value={subCategory}
+                onChange={(e) => setSubCategory(e.target.value)}
+                disabled={splitEnabled}
+                placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
+                className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors disabled:opacity-60"
+              />
+            </div>
+          )}
 
           {/* Date */}
           <div>
@@ -420,37 +544,39 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
-              <span className="font-medium">Split Transaction</span>
-              <input
-                type="checkbox"
-                checked={splitEnabled}
-                onChange={(e) => {
-                  const enabled = e.target.checked;
-                  setSplitEnabled(enabled);
-                  if (enabled && splitRows.length < 2) {
-                    setSplitRows([
-                      createSplitDraft(category),
-                      createSplitDraft('Miscellaneous'),
-                    ]);
-                  }
-                }}
-                className="h-4 w-4 accent-emerald-500"
-              />
-            </label>
-            <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
-              <span className="font-medium flex items-center gap-1.5"><Repeat size={14} />Recurring</span>
-              <input
-                type="checkbox"
-                checked={recurringEnabled}
-                onChange={(e) => setRecurringEnabled(e.target.checked)}
-                className="h-4 w-4 accent-emerald-500"
-              />
-            </label>
-          </div>
+          {!isIncomeEntry && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
+                <span className="font-medium">Split Transaction</span>
+                <input
+                  type="checkbox"
+                  checked={splitEnabled}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setSplitEnabled(enabled);
+                    if (enabled && splitRows.length < 2) {
+                      setSplitRows([
+                        createSplitDraft(category),
+                        createSplitDraft('Miscellaneous'),
+                      ]);
+                    }
+                  }}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
+                <span className="font-medium flex items-center gap-1.5"><Repeat size={14} />Recurring</span>
+                <input
+                  type="checkbox"
+                  checked={recurringEnabled}
+                  onChange={(e) => setRecurringEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+              </label>
+            </div>
+          )}
 
-          {splitEnabled && (
+          {!isIncomeEntry && splitEnabled && (
             <div className="space-y-2 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 animate-fade-in">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Split Breakdown</p>
@@ -522,7 +648,7 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
             </div>
           )}
 
-          {recurringEnabled && (
+          {!isIncomeEntry && recurringEnabled && (
             <div className="space-y-3 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 animate-fade-in">
               <div>
                 <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Frequency</label>
@@ -551,17 +677,19 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
             </div>
           )}
 
-          {/* Optional Fields Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowOptional(!showOptional)}
-            className="text-sm text-emerald-600 dark:text-emerald-400 font-medium"
-          >
-            {showOptional ? 'Hide' : 'Show'} optional fields
-          </button>
+          {!isIncomeEntry && (
+            <>
+              {/* Optional Fields Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowOptional(!showOptional)}
+                className="text-sm text-emerald-600 dark:text-emerald-400 font-medium"
+              >
+                {showOptional ? 'Hide' : 'Show'} optional fields
+              </button>
 
-          {showOptional && (
-            <div className="space-y-3 animate-fade-in">
+              {showOptional && (
+                <div className="space-y-3 animate-fade-in">
               <div>
                 <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Payment Method</label>
                 <select
@@ -630,7 +758,9 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
                   </div>
                 )}
               </div>
-            </div>
+                </div>
+              )}
+            </>
           )}
 
           </div>
@@ -641,7 +771,7 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
               disabled={saving || !amount}
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white font-bold text-lg rounded-2xl transition-colors shadow-lg shadow-emerald-500/25"
             >
-              {saving ? 'Saving...' : 'Save Expense'}
+              {saving ? 'Saving...' : isIncomeEntry ? 'Log Income' : 'Save Expense'}
             </button>
           </div>
         </form>

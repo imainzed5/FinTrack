@@ -96,14 +96,29 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
     <div className="space-y-3">
       {budgets.map((b) => (
         <div key={b.budgetId}>
+          {(() => {
+            const isOverall = b.category === 'Overall' && !b.subCategory;
+            const showOverallBoost = isOverall && b.incomeBoost > 0;
+
+            return (
+              <>
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {b.subCategory ? `${b.category} · ${b.subCategory}` : b.category}
             </span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {formatCurrency(b.spent)} / {formatCurrency(b.effectiveLimit)}
-            </span>
+            {!showOverallBoost && (
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {formatCurrency(b.spent)} / {formatCurrency(b.effectiveLimit)}
+              </span>
+            )}
           </div>
+
+          {showOverallBoost && (
+            <p className="text-xs mb-1 text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(b.baseLimit)} + {formatCurrency(b.incomeBoost)} boost
+            </p>
+          )}
+
           <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${
@@ -116,6 +131,13 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
               style={{ width: `${Math.min(b.percentage, 100)}%` }}
             />
           </div>
+
+          {showOverallBoost && (
+            <p className="text-xs mt-1 text-zinc-500 dark:text-zinc-400">
+              {formatCurrency(b.spent)} spent of {formatCurrency(b.effectiveLimit)}
+            </p>
+          )}
+
           {b.rolloverCarry > 0 && (
             <p className="text-[11px] mt-1 text-emerald-600 dark:text-emerald-400">
               Includes {formatCurrency(b.rolloverCarry)} rollover from last month.
@@ -133,11 +155,14 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
               Projected month-end: {formatCurrency(b.projectedSpent)}. Likely over by {formatCurrency(b.projectedOverage)}.
             </p>
           )}
-          {b.limit !== b.effectiveLimit && (
+          {b.limit !== b.effectiveLimit && !showOverallBoost && (
             <p className="text-[11px] mt-1 text-zinc-400 dark:text-zinc-500">
               Base limit {formatCurrency(b.limit)}.
             </p>
           )}
+              </>
+            );
+          })()}
         </div>
       ))}
     </div>

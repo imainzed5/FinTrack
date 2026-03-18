@@ -2,16 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import {
   getTransactions,
-  addTransaction,
+  upsertTransaction,
   deleteTransaction,
   updateTransaction,
   processRecurringTransactions,
   buildRecurringConfig,
 } from '@/lib/db';
 import { broadcastTransactionEvent } from '@/lib/transaction-ws-server';
-import type { Category, Transaction, TransactionInput, TransactionSplit } from '@/lib/types';
-import { CATEGORIES, PAYMENT_METHODS, RECURRING_FREQUENCIES } from '@/lib/types';
+import type {
+  Category,
+  IncomeCategory,
+  Transaction,
+  TransactionInput,
+  TransactionSplit,
+  TransactionType,
+} from '@/lib/types';
+import {
+  CATEGORIES,
+  INCOME_CATEGORIES,
+  PAYMENT_METHODS,
+  RECURRING_FREQUENCIES,
+} from '@/lib/types';
 import { isAuthRequiredError } from '@/lib/supabase/server';
+
+type CategoryFilter = Category | 'Income';
 
 function handleRouteError(error: unknown, fallbackMessage: string): NextResponse {
   if (isAuthRequiredError(error)) {
@@ -85,7 +99,7 @@ function parseSplit(splitInput: unknown):
   return { split, total: Number(total.toFixed(2)) };
 }
 
-function parseCategoryFilters(searchParams: URLSearchParams): Category[] {
+function parseCategoryFilters(searchParams: URLSearchParams): CategoryFilter[] {
   const categoryParams = searchParams
     .getAll('categories')
     .flatMap((value) => value.split(','))
@@ -98,7 +112,9 @@ function parseCategoryFilters(searchParams: URLSearchParams): Category[] {
   }
 
   const uniqueValues = Array.from(new Set(categoryParams));
-  return uniqueValues.filter((value): value is Category => CATEGORIES.includes(value as Category));
+  return uniqueValues.filter(
+    (value): value is CategoryFilter => value === 'Income' || CATEGORIES.includes(value as Category)
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -117,10 +133,26 @@ export async function GET(request: NextRequest) {
     const categoryFilters = parseCategoryFilters(searchParams);
     if (categoryFilters.length > 0) {
       const selectedCategories = new Set(categoryFilters);
+      const includeIncome = selectedCategories.has('Income');
+      const selectedExpenseCategories = new Set(
+        categoryFilters.filter((value): value is Category => value !== 'Income')
+      );
+
       filtered = filtered.filter(
-        (t) =>
-          selectedCategories.has(t.category) ||
-          (Array.isArray(t.split) && t.split.some((line) => selectedCategories.has(line.category)))
+        (t) => {
+          if (t.type === 'income') {
+            return includeIncome;
+          }
+
+          if (selectedExpenseCategories.size === 0) {
+            return false;
+          }
+
+          return (
+            selectedExpenseCategories.has(t.category) ||
+            (Array.isArray(t.split) && t.split.some((line) => selectedExpenseCategories.has(line.category)))
+          );
+        }
       );
     }
 
@@ -137,11 +169,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: TransactionInput = await request.json();
+    const type: TransactionType = body.type === 'income' ? 'income' : 'expense';
+
+    let incomeCategory: IncomeCategory | undefined;
+    if (type === 'income') {
+      if (!body.incomeCategory || !INCOME_CATEGORIES.includes(body.incomeCategory)) {
+        return NextResponse.json(
+          { error: 'Income category is required for income transactions.' },
+          { status: 400 }
+        );
+      }
+      incomeCategory = body.incomeCategory;
+    }
 
     if (!body.amount || body.amount <= 0) {
       return NextResponse.json({ error: 'Amount must be positive' }, { status: 400 });
     }
-    if (!body.category || !CATEGORIES.includes(body.category)) {
+    if (type === 'expense' && (!body.category || !CATEGORIES.includes(body.category))) {
       return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
     }
     if (body.paymentMethod && !PAYMENT_METHODS.includes(body.paymentMethod)) {
@@ -150,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     let normalizedSplit: TransactionSplit[] | undefined;
     let splitTotal = 0;
-    if (body.split) {
+    if (type === 'expense' && body.split) {
       const parsedSplit = parseSplit(body.split);
       if ('error' in parsedSplit) {
         return NextResponse.json({ error: parsedSplit.error }, { status: 400 });
@@ -171,10 +215,17 @@ export async function POST(request: NextRequest) {
 
     const normalizedDate = body.date ? new Date(body.date).toISOString() : new Date().toISOString();
     const merchant = normalizeText(body.merchant);
-    const description = normalizeText(body.description) || normalizeText(body.notes) || body.category;
+    const fallbackDescription = type === 'income'
+      ? incomeCategory || 'Income'
+      : body.category;
+    const description = normalizeText(body.description) || normalizeText(body.notes) || fallbackDescription;
     const notes = normalizeText(body.notes) || '';
     const tags = normalizeTags(body.tags);
     const attachmentBase64 = normalizeText(body.attachmentBase64);
+
+    const resolvedCategory: Category = type === 'income'
+      ? 'Miscellaneous'
+      : (normalizedSplit?.[0]?.category || body.category);
 
     const recurring = body.recurring
       ? buildRecurringConfig(
@@ -189,8 +240,12 @@ export async function POST(request: NextRequest) {
     const transaction: Transaction = {
       id: uuidv4(),
       amount: normalizedSplit ? splitTotal : Number(body.amount.toFixed(2)),
-      category: normalizedSplit?.[0]?.category || body.category,
-      subCategory: normalizedSplit?.[0]?.subCategory || normalizeText(body.subCategory),
+      type,
+      incomeCategory,
+      category: resolvedCategory,
+      subCategory: type === 'income'
+        ? undefined
+        : (normalizedSplit?.[0]?.subCategory || normalizeText(body.subCategory)),
       merchant,
       description,
       date: normalizedDate,
@@ -205,7 +260,7 @@ export async function POST(request: NextRequest) {
       synced: true,
     };
 
-    const created = await addTransaction(transaction);
+    const created = await upsertTransaction(transaction);
     broadcastTransactionEvent('transaction:add', created);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

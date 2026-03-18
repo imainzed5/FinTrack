@@ -19,7 +19,7 @@ import type {
   TransactionSplit,
   BudgetThresholdAlert,
 } from './types';
-import { RECURRING_FREQUENCIES } from './types';
+import { INCOME_CATEGORIES, RECURRING_FREQUENCIES } from './types';
 import { requireSupabaseUser } from './supabase/server';
 
 interface TransactionSplitRow {
@@ -34,6 +34,7 @@ interface TransactionRow {
   id: string;
   user_id: string;
   amount: number | string;
+  type: Transaction['type'] | null;
   category: Transaction['category'];
   sub_category: string | null;
   merchant: string | null;
@@ -72,6 +73,7 @@ const TRANSACTION_SELECT = `
   id,
   user_id,
   amount,
+  type,
   category,
   sub_category,
   merchant,
@@ -161,6 +163,22 @@ function toNumber(value: number | string | null | undefined): number {
   return 0;
 }
 
+const INCOME_CATEGORY_SET = new Set<string>(INCOME_CATEGORIES);
+
+function normalizeTransactionType(value: unknown): Transaction['type'] {
+  return value === 'income' ? 'income' : 'expense';
+}
+
+function normalizeIncomeCategory(value: unknown): Transaction['incomeCategory'] {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  return INCOME_CATEGORY_SET.has(value)
+    ? (value as NonNullable<Transaction['incomeCategory']>)
+    : undefined;
+}
+
 function toTransactionSplit(row: TransactionSplitRow): TransactionSplit {
   return {
     id: row.id,
@@ -189,12 +207,20 @@ function toTransaction(row: TransactionRow): Transaction {
   const split = Array.isArray(row.transaction_splits)
     ? row.transaction_splits.map(toTransactionSplit)
     : [];
+  const type = normalizeTransactionType(row.type);
+  const persistedSubCategory = row.sub_category ?? undefined;
+  const incomeCategory =
+    type === 'income'
+      ? normalizeIncomeCategory(persistedSubCategory) ?? 'Other Income'
+      : undefined;
 
   return {
     id: row.id,
     amount: toNumber(row.amount),
+    type,
+    incomeCategory,
     category: row.category,
-    subCategory: row.sub_category ?? undefined,
+    subCategory: type === 'expense' ? persistedSubCategory : undefined,
     merchant: row.merchant ?? undefined,
     description: row.description,
     date: normalizeIsoDate(row.transaction_at, row.transaction_at),
@@ -229,14 +255,24 @@ function toBudget(row: BudgetRow): Budget {
 }
 
 function toTransactionInsertPayload(tx: Transaction, userId: string) {
+  const type = normalizeTransactionType(tx.type);
+  const incomeCategory =
+    type === 'income'
+      ? normalizeIncomeCategory(tx.incomeCategory) ?? normalizeIncomeCategory(tx.subCategory) ?? 'Other Income'
+      : undefined;
+  const persistedSubCategory = type === 'income' ? incomeCategory : tx.subCategory ?? null;
+  const fallbackDescription =
+    tx.description || tx.notes || (type === 'income' ? incomeCategory || tx.category : tx.category);
+
   return {
     id: tx.id,
     user_id: userId,
     amount: Number(tx.amount.toFixed(2)),
+    type,
     category: tx.category,
-    sub_category: tx.subCategory ?? null,
+    sub_category: persistedSubCategory,
     merchant: tx.merchant ?? null,
-    description: tx.description || tx.notes || tx.category,
+    description: fallbackDescription,
     transaction_at: normalizeIsoDate(tx.date, new Date().toISOString()),
     payment_method: tx.paymentMethod,
     notes: tx.notes || '',
@@ -415,21 +451,62 @@ export async function addTransaction(tx: Transaction): Promise<Transaction> {
   return created;
 }
 
+export async function upsertTransaction(tx: Transaction): Promise<Transaction> {
+  const { supabase } = await getAuthedClient();
+  const existing = await getTransactionById(supabase, tx.id);
+
+  const saved = existing
+    ? await updateTransaction(tx.id, tx)
+    : await addTransaction(tx);
+
+  if (!saved) {
+    throw new Error('Failed to upsert transaction.');
+  }
+
+  // Income never participates in threshold alerts at write-time.
+  if (saved.type === 'income') {
+    return saved;
+  }
+
+  return saved;
+}
+
 export async function updateTransaction(
   id: string,
   updates: Partial<Transaction>
 ): Promise<Transaction | null> {
   const { supabase } = await getAuthedClient();
   const payload: Record<string, unknown> = {};
+  const hasIncomeCategory = Object.prototype.hasOwnProperty.call(updates, 'incomeCategory');
+  let nextType: Transaction['type'] | undefined;
 
   if (typeof updates.amount === 'number') {
     payload.amount = Number(updates.amount.toFixed(2));
   }
+  if (Object.prototype.hasOwnProperty.call(updates, 'type')) {
+    nextType = normalizeTransactionType(updates.type);
+    payload.type = nextType;
+  }
+  if (hasIncomeCategory) {
+    const normalizedIncomeCategory = normalizeIncomeCategory(updates.incomeCategory);
+    payload.sub_category = normalizedIncomeCategory ?? null;
+    if (!nextType) {
+      nextType = 'income';
+      payload.type = nextType;
+    }
+  }
   if (updates.category) {
     payload.category = updates.category;
   }
-  if (Object.prototype.hasOwnProperty.call(updates, 'subCategory')) {
+  if (Object.prototype.hasOwnProperty.call(updates, 'subCategory') && !hasIncomeCategory) {
     payload.sub_category = updates.subCategory ?? null;
+  }
+  if (
+    nextType === 'expense' &&
+    !hasIncomeCategory &&
+    !Object.prototype.hasOwnProperty.call(updates, 'subCategory')
+  ) {
+    payload.sub_category = null;
   }
   if (Object.prototype.hasOwnProperty.call(updates, 'merchant')) {
     payload.merchant = updates.merchant ?? null;
@@ -566,10 +643,19 @@ export async function processRecurringTransactions(
           id: autoId,
           user_id: templateRow.user_id,
           amount: template.amount,
+          type: template.type,
           category: template.category,
-          sub_category: template.subCategory ?? null,
+          sub_category:
+            template.type === 'income'
+              ? normalizeIncomeCategory(template.incomeCategory) ?? 'Other Income'
+              : template.subCategory ?? null,
           merchant: template.merchant ?? null,
-          description: template.description || template.notes || template.category,
+          description:
+            template.description ||
+            template.notes ||
+            (template.type === 'income'
+              ? template.incomeCategory || template.category
+              : template.category),
           transaction_at: nextRunDate.toISOString(),
           payment_method: template.paymentMethod,
           notes: template.notes || '',

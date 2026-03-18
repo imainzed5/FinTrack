@@ -12,6 +12,29 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
+export type TransactionType = 'expense' | 'income';
+
+export type IncomeCategory =
+  | 'Freelance'
+  | 'Side Job'
+  | 'Salary'
+  | 'Part-time'
+  | 'Bonus'
+  | 'Refund'
+  | 'Gift'
+  | 'Other Income';
+
+export const INCOME_CATEGORIES: IncomeCategory[] = [
+  'Freelance',
+  'Side Job',
+  'Salary',
+  'Part-time',
+  'Bonus',
+  'Refund',
+  'Gift',
+  'Other Income',
+];
+
 export const PAYMENT_METHODS = [
   'Cash',
   'Credit Card',
@@ -57,6 +80,8 @@ export interface TransactionSplitInput {
 export interface Transaction {
   id: string;
   amount: number;
+  type: TransactionType;
+  incomeCategory?: IncomeCategory;
   category: Category;
   subCategory?: string;
   merchant?: string;
@@ -141,10 +166,13 @@ export interface BudgetStatus {
   budgetId: string;
   category: Category | 'Overall';
   subCategory?: string;
+  baseLimit: number;
   limit: number;
+  incomeBoost: number;
   effectiveLimit: number;
   rolloverCarry: number;
   spent: number;
+  remaining: number;
   percentage: number;
   projectedSpent: number;
   projectedOverage: number;
@@ -191,6 +219,8 @@ export interface MonthlySavings {
 
 export interface TransactionInput {
   amount: number;
+  type?: TransactionType;
+  incomeCategory?: IncomeCategory;
   category: Category;
   subCategory?: string;
   merchant?: string;

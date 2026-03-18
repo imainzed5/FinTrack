@@ -68,6 +68,19 @@ function getDateGroupLabel(date: Date): string {
   return format(date, 'MMM d');
 }
 
+function getTransactionCategoryLabel(tx: Transaction): string {
+  if (tx.type === 'income') {
+    return tx.incomeCategory || 'Other Income';
+  }
+
+  return tx.subCategory ? `${tx.category} · ${tx.subCategory}` : tx.category;
+}
+
+function formatTransactionAmount(tx: Transaction): string {
+  const formatted = formatCurrency(tx.amount);
+  return tx.type === 'income' ? `+${formatted}` : formatted;
+}
+
 function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
   const baseClassName =
     'inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-100/75 dark:bg-zinc-800/75 px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300';
@@ -274,7 +287,7 @@ function SwipeableTransactionRow({
       : tx.notes && tx.notes !== merchantAnchor
         ? tx.notes
         : '';
-  const categoryLabel = tx.subCategory ? `${tx.category} · ${tx.subCategory}` : tx.category;
+  const categoryLabel = getTransactionCategoryLabel(tx);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800">
@@ -323,8 +336,12 @@ function SwipeableTransactionRow({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-display text-[1.9rem] sm:text-3xl leading-none font-bold text-zinc-900 dark:text-white">
-              {formatCurrency(tx.amount)}
+            <p className={`font-display text-[1.9rem] sm:text-3xl leading-none font-bold ${
+              tx.type === 'income'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-zinc-900 dark:text-white'
+            }`}>
+              {formatTransactionAmount(tx)}
             </p>
             <p className="mt-2 text-[15px] sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">
               {merchantAnchor}
@@ -348,11 +365,19 @@ function SwipeableTransactionRow({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium opacity-80 ${
-              categoryColors[tx.category] || categoryColors.Miscellaneous
+              tx.type === 'income'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                : (categoryColors[tx.category] || categoryColors.Miscellaneous)
             }`}
           >
             {categoryLabel}
           </span>
+
+          {tx.type === 'income' && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              Income
+            </span>
+          )}
 
           {tx.split && tx.split.length > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 opacity-80">
@@ -547,10 +572,12 @@ export default function TransactionList({
         >
           <div
             className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium ${
-              categoryColors[tx.category] || categoryColors.Miscellaneous
+              tx.type === 'income'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                : (categoryColors[tx.category] || categoryColors.Miscellaneous)
             }`}
           >
-            {tx.subCategory ? `${tx.category} · ${tx.subCategory}` : tx.category}
+            {getTransactionCategoryLabel(tx)}
           </div>
 
           <div className="flex-1 min-w-0">
@@ -566,6 +593,12 @@ export default function TransactionList({
             </p>
 
             <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {tx.type === 'income' && (
+                <span className="inline-flex items-center text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold">
+                  Income
+                </span>
+              )}
+
               {tx.split && tx.split.length > 0 && (
                 <span className="inline-flex items-center gap-1 text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
                   <SplitSquareHorizontal size={10} />
@@ -604,8 +637,12 @@ export default function TransactionList({
             )}
           </div>
 
-          <p className="font-display text-base sm:text-sm font-bold text-zinc-900 dark:text-white">
-            {formatCurrency(tx.amount)}
+          <p className={`font-display text-base sm:text-sm font-bold ${
+            tx.type === 'income'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-zinc-900 dark:text-white'
+          }`}>
+            {formatTransactionAmount(tx)}
           </p>
 
           {showEdit && onEdit && (
