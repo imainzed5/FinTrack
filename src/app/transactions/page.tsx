@@ -61,8 +61,10 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isFabVisible, setIsFabVisible] = useState(true);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const categoryFiltersScrollerRef = useRef<HTMLDivElement>(null);
+  const paginationRef = useRef<HTMLDivElement>(null);
 
   const handleCategoryFiltersWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     const scroller = categoryFiltersScrollerRef.current;
@@ -329,6 +331,25 @@ export default function TransactionsPage() {
   useEffect(() => {
     setPage((currentPage) => Math.min(currentPage, totalPages));
   }, [totalPages]);
+
+  useEffect(() => {
+    const el = paginationRef.current;
+    if (!el) {
+      setIsFabVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsFabVisible(!entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, [totalPages, loading, hasNoTransactions, hasNoMatches]);
 
   useEffect(() => {
     if (!pendingDeleteId || isDeleting) return;
@@ -613,7 +634,7 @@ export default function TransactionsPage() {
             />
 
             {totalPages > 1 && (
-              <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
+              <div ref={paginationRef} className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">Rows per page</span>
                   <select
@@ -707,7 +728,7 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      <FloatingAddButton onClick={openAddTransactionModal} />
+      <FloatingAddButton visible={isFabVisible} onClick={openAddTransactionModal} />
       <AddExpenseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
