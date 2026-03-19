@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
-import BerdeSprite from '@/components/berde/BerdeSprite';
+import BerdeSprite from '@/components/BerdeSprite';
 
 interface EmptyStateProps {
   icon: LucideIcon | 'berde';

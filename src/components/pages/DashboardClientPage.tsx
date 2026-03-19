@@ -1,437 +1,291 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import type { DashboardData, MonthlySavings } from '@/lib/types';
-import { StatsCards, BudgetProgress } from '@/components/DashboardWidgets';
-import { CategoryPieChart, WeeklySpendingChart, DailySpendingChart, MonthlySavingsChart } from '@/components/Charts';
-import InsightCards from '@/components/InsightCards';
-import TransactionList from '@/components/TransactionList';
-import FloatingAddButton from '@/components/FloatingAddButton';
+import { BarChart3, CalendarDays } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import AddExpenseModal from '@/components/AddExpenseModal';
-import { formatCurrency } from '@/lib/utils';
-import { AlertTriangle } from 'lucide-react';
+import BerdeCard from '@/components/dashboard/BerdeCard';
+import BerdeDrawer from '@/components/dashboard/BerdeDrawer';
+import MiniBarChart from '@/components/dashboard/MiniBarChart';
+import QuickStatTiles from '@/components/dashboard/QuickStatTiles';
+import RecentTransactions from '@/components/dashboard/RecentTransactions';
+import StatisticsPanel from '@/components/dashboard/StatisticsPanel';
+import UpcomingCard from '@/components/dashboard/UpcomingCard';
+import FloatingAddButton from '@/components/FloatingAddButton';
+import { resolveBerdeState } from '@/lib/berde/berde.logic';
+import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
+import { getBerdeInsightsForMood, mapStateToMood } from '../../lib/berde-messages';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
-import { DashboardSkeleton } from '@/components/SkeletonLoaders';
-import BerdeCard from '@/components/berde/BerdeCard';
-import { useBerdeInputs } from '@/components/berde/useBerdeInputs';
+import type { DashboardData } from '@/lib/types';
 
-const SAVINGS_PER_PAGE = 12;
+interface DashboardClientPageProps {
+  data: DashboardData;
+  firstName: string;
+}
 
-const EMPTY_DASHBOARD_DATA: DashboardData = {
-  totalSpentThisMonth: 0,
-  totalSpentLastMonth: 0,
-  remainingBudget: 0,
-  monthlyBudget: 0,
-  savingsRate: 0,
-  expenseGrowthRate: 0,
-  budgetStatuses: [],
-  budgetAlerts: [],
-  categoryBreakdown: [],
-  weeklySpending: [],
-  dailySpending: [],
-  recentTransactions: [],
-  insights: [],
-};
+type DailySpendingPoint = DashboardData['dailySpending'][number] & { date?: string };
 
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [savings, setSavings] = useState<MonthlySavings[]>([]);
-  const [loading, setLoading] = useState(true);
+function getTimeOfDay(now: Date): string {
+  const hour = now.getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'evening';
+}
+
+function normalizeDateKey(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+
+  const dateKey = value.split('T')[0];
+  const timestamp = new Date(dateKey).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  return dateKey;
+}
+
+export default function DashboardClientPage({ data, firstName }: DashboardClientPageProps) {
+  const router = useRouter();
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [berdeOpen, setBerdeOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [savingsPage, setSavingsPage] = useState(0); // 0 = most recent page
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      const [res, savingsRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/savings'),
-      ]);
-      const json = await res.json();
-      const savingsJson = await savingsRes.json();
-      setData(json);
-      setSavings(savingsJson);
-    } catch {
-      // offline
-    } finally {
-      setLoading(false);
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const formattedDate = format(now, 'EEEE, MMMM d');
+  const timeOfDay = getTimeOfDay(now);
+  const safeFirstName = firstName.trim() || 'there';
+  const monthOverview = format(now, 'MMMM yyyy');
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysUntilPayday = Math.max(0, daysInMonth - now.getDate());
+
+  const overallBudget =
+    data.budgetStatuses.find(
+      (budget) => budget.category === 'Overall' && !budget.subCategory
+    ) ?? data.budgetStatuses.find((budget) => budget.category === 'Overall');
+
+  const spentThisMonth = overallBudget?.spent ?? 0;
+  const remaining = overallBudget?.remaining ?? 0;
+  const monthlyLimit = overallBudget?.limit ?? 0;
+
+  const savingsRate =
+    monthlyLimit > 0
+      ? Math.round(((monthlyLimit - spentThisMonth) / monthlyLimit) * 100)
+      : 0;
+
+  const spentToday = data.recentTransactions
+    .filter((transaction) => transaction.date.split('T')[0] === today)
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+  const last7Days = [...(data.dailySpending as DailySpendingPoint[])]
+    .map((point, index) => {
+      const numericAmount = Number(point.amount);
+      const amount = Number.isFinite(numericAmount) ? numericAmount : 0;
+      const dateKey = normalizeDateKey(point.date);
+      const sortValue = dateKey ? new Date(dateKey).getTime() : index;
+
+      return {
+        day: point.day,
+        amount,
+        date: dateKey ?? undefined,
+        sortValue,
+      };
+    })
+    .sort((a, b) => a.sortValue - b.sortValue)
+    .slice(-7)
+    .map((point) => ({
+      day: point.day,
+      amount: point.amount,
+      date: point.date,
+    }));
+
+  const upcoming = data.recentTransactions.filter((transaction) =>
+    Boolean(transaction.recurring)
+  );
+
+  const latestTransactionName = (() => {
+    const transaction = data.recentTransactions[0];
+    if (!transaction) {
+      return 'No recent transaction yet';
     }
-  }, []);
 
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+    return (
+      transaction.merchant ||
+      transaction.description ||
+      transaction.notes ||
+      transaction.category
+    );
+  })();
+
+  const berdeInputs = useBerdeInputs(data, data.recentTransactions, daysUntilPayday);
+  const berdeContext = resolveBerdeState(berdeInputs);
+  const mood = mapStateToMood(berdeContext.state);
+  const berdeInsights = getBerdeInsightsForMood(mood, {
+    budgetStatuses: data.budgetStatuses,
+    transactions: data.recentTransactions,
+    insights: data.insights,
+  });
+  const primaryBerdeInsight = berdeInsights[0] ?? {
+    mood,
+    type: 'fallback',
+    message: berdeContext.quote,
+    dataLine: berdeContext.triggerReason,
+  };
+
+  const refreshDashboard = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
     const unsubscribe = subscribeAppUpdates(() => {
-      void fetchDashboard();
+      router.refresh();
     });
 
     return unsubscribe;
-  }, [fetchDashboard]);
-
-  useEffect(() => {
-    if (!data || data.budgetAlerts.length === 0) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    if (!('serviceWorker' in navigator)) return;
-
-    void navigator.serviceWorker.ready
-      .then((registration) => {
-        for (const alert of data.budgetAlerts) {
-          const dedupeKey = `budget-alert:${alert.month}:${alert.budgetId}:${alert.threshold}`;
-          if (window.localStorage.getItem(dedupeKey)) continue;
-
-          registration.showNotification('Budget Threshold Reached', {
-            body: alert.message,
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
-            tag: dedupeKey,
-          });
-          window.localStorage.setItem(dedupeKey, '1');
-        }
-      })
-      .catch(() => {
-        // no-op: notification delivery is best-effort
-      });
-  }, [data]);
-
-  // Fallback heuristic until payroll settings exist: treat month-end as payday.
-  const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const daysUntilPayday = Math.max(0, daysInMonth - now.getDate());
-  const dashboardForBerde = data ?? EMPTY_DASHBOARD_DATA;
-  const berdeInputs = useBerdeInputs(
-    dashboardForBerde,
-    dashboardForBerde.recentTransactions,
-    daysUntilPayday,
-  );
-
-  // Reset to most-recent page whenever savings data is refreshed
-  useEffect(() => { setSavingsPage(0); }, [savings]);
-
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
-
-  if (!data) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-zinc-500">
-        Unable to load dashboard. Check your connection.
-      </div>
-    );
-  }
-
-  const projectedWarnings = data.budgetStatuses.filter(
-    (status) => status.projectedOverage > 0 && status.status !== 'critical'
-  );
-
-  // ── Savings pagination derived values ──────────────────────────────────────
-  const totalSavingsPages = Math.max(1, Math.ceil(savings.length / SAVINGS_PER_PAGE));
-  const clampedPage = Math.min(savingsPage, totalSavingsPages - 1);
-  const savingsEnd = savings.length - clampedPage * SAVINGS_PER_PAGE;
-  const savingsStart = Math.max(0, savingsEnd - SAVINGS_PER_PAGE);
-  const pagedSavings = savings.slice(savingsStart, savingsEnd);
-  const availableYears = [...new Set(savings.map((s) => s.month.slice(0, 4)))].sort().reverse();
-  const jumpToYear = (year: string) => {
-    let latestIdx = -1;
-    savings.forEach((s, i) => { if (s.month.startsWith(year)) latestIdx = i; });
-    if (latestIdx === -1) return;
-    setSavingsPage(Math.floor((savings.length - 1 - latestIdx) / SAVINGS_PER_PAGE));
-  };
-  const pageRangeLabel = pagedSavings.length > 0
-    ? (() => {
-        const fmt = (mo: string) => {
-          const [y, m] = mo.split('-');
-          return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'short', year: 'numeric' });
-        };
-        const f = pagedSavings[0].month;
-        const l = pagedSavings[pagedSavings.length - 1].month;
-        return f === l ? fmt(f) : `${fmt(f)} – ${fmt(l)}`;
-      })()
-    : '';
-  // Year label shown inside each nav button so users know exactly where they'll land
-  const olderPageYear = clampedPage < totalSavingsPages - 1
-    ? (savings[Math.max(0, savingsStart - 1)]?.month.slice(0, 4) ?? savings[0]?.month.slice(0, 4) ?? '')
-    : '';
-  const newerPageYear = clampedPage > 0
-    ? (savings[Math.min(savings.length - 1, savingsEnd + SAVINGS_PER_PAGE - 1)]?.month.slice(0, 4) ?? '')
-    : '';
+  }, [router]);
 
   return (
     <>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Dashboard</h1>
-          <p className="font-body text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {format(new Date(), 'MMMM yyyy')} Overview
-          </p>
-          <BerdeCard inputs={berdeInputs} className="mt-4" />
-        </div>
-
-        {(data.budgetAlerts.length > 0 || projectedWarnings.length > 0) && (
-          <div className="mb-4 space-y-2">
-            {data.budgetAlerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2"
-              >
-                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-300 mt-0.5" />
-                <p className="text-xs text-amber-700 dark:text-amber-200">{alert.message}</p>
-              </div>
-            ))}
-            {projectedWarnings.map((warning) => (
-              <div
-                key={`projected-${warning.budgetId}`}
-                className="flex items-start gap-2 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-3 py-2"
-              >
-                <AlertTriangle size={16} className="text-rose-600 dark:text-rose-300 mt-0.5" />
-                <p className="text-xs text-rose-700 dark:text-rose-200">
-                  {warning.subCategory ? `${warning.category} - ${warning.subCategory}` : warning.category} is projected to overshoot by{' '}
-                  {formatCurrency(warning.projectedOverage)} this month.
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Stats */}
-        <StatsCards data={data} />
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Spending by Category
-            </h3>
-            <CategoryPieChart data={data.categoryBreakdown} />
-          </div>
-
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Weekly Spending Trend
-            </h3>
-            <WeeklySpendingChart data={data.weeklySpending} />
-          </div>
-        </div>
-
-        {/* Budget + Daily Spending */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Budget Progress
-            </h3>
-            <BudgetProgress budgets={data.budgetStatuses} />
-          </div>
-
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Last 7 Days
-            </h3>
-            <DailySpendingChart data={data.dailySpending} />
-          </div>
-        </div>
-
-        {/* Savings History */}
-        <div className="mt-4 bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-
-          {/* Card header: title + all-time stats */}
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-            <div>
-              <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white">Monthly Savings History</h3>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
-                Bars = monthly saved vs spent · Line = cumulative total savings
-              </p>
-            </div>
-            {savings.length > 0 && (() => {
-              const total = savings[savings.length - 1].cumulative;
-              const best = savings.reduce((b, s) => s.saved > b.saved ? s : b, savings[0]);
-              const [by, bm] = best.month.split('-');
-              const bestLabel = new Date(Number(by), Number(bm) - 1).toLocaleString('default', { month: 'short', year: '2-digit' });
-              const monthsWithSavings = savings.filter(s => s.saved > 0).length;
-              const avgRate = savings.filter(s => s.budget > 0).reduce((sum, s) => sum + s.savingsRate, 0) /
-                Math.max(1, savings.filter(s => s.budget > 0).length);
-              return (
-                <div className="flex gap-3 flex-wrap">
-                  <div className="text-right">
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Total Saved</div>
-                    <div className="font-display text-base font-bold text-emerald-500">{formatCurrency(total)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Best Month</div>
-                    <div className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{bestLabel}</div>
-                    <div className="font-display text-xs text-emerald-500">{formatCurrency(best.saved)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Avg Rate</div>
-                    <div className="text-sm font-semibold text-indigo-500">{avgRate.toFixed(1)}%</div>
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">{monthsWithSavings} months saved</div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Pagination controls */}
-          {savings.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              {/* Left: year jump + range label */}
-              <div className="flex items-center gap-2">
-                <select
-                  value=""
-                  onChange={(e) => { if (e.target.value) jumpToYear(e.target.value); }}
-                  aria-label="Jump to year"
-                  className="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="" disabled>Jump to year…</option>
-                  {availableYears.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">{pageRangeLabel}</span>
-              </div>
-
-              {/* Right: page indicator + prev/next */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-zinc-400 dark:text-zinc-500 mr-0.5">
-                  Page {clampedPage + 1} of {totalSavingsPages}
-                </span>
+      <div className="dashboard-home min-h-screen">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 md:py-6">
+          <section
+            className={`transition-opacity duration-300 ${statsOpen ? 'hidden md:block' : 'block'}`}
+            style={{ opacity: statsOpen ? 0.55 : 1 }}
+          >
+            <header className="mb-6">
+              <div className="mb-3 flex items-center gap-2 md:hidden">
                 <button
-                  onClick={() => setSavingsPage((p) => Math.min(p + 1, totalSavingsPages - 1))}
-                  disabled={clampedPage >= totalSavingsPages - 1}
-                  aria-label={`Go to ${olderPageYear}`}
-                  title={`View ${olderPageYear}`}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                  type="button"
+                  onClick={() => setStatsOpen(true)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] px-4 py-2 text-xs font-medium transition-colors ${
+                    statsOpen
+                      ? 'bg-[#1D9E75] text-white'
+                      : 'bg-white text-zinc-700 hover:bg-[#E1F5EE]'
+                  }`}
                 >
-                  ‹ {olderPageYear}
+                  <BarChart3 size={14} />
+                  <span>Statistics</span>
                 </button>
-                <button
-                  onClick={() => setSavingsPage((p) => Math.max(p - 1, 0))}
-                  disabled={clampedPage === 0}
-                  aria-label={`Go to ${newerPageYear}`}
-                  title={`View ${newerPageYear}`}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+
+                <Link
+                  href="/timeline"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-4 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                 >
-                  {newerPageYear} ›
-                </button>
+                  <CalendarDays size={14} />
+                  <span>Calendar</span>
+                </Link>
               </div>
-            </div>
-          )}
 
-          {/* Chart — shows only the current page's 12 months */}
-          <MonthlySavingsChart data={pagedSavings} />
-
-          {/* Table */}
-          {savings.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                    <th className="text-left py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Month</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Budget</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Spent</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Saved</th>
-                    <th className="text-right py-2 px-2 text-zinc-500 dark:text-zinc-400 font-medium">Rate</th>
-                    <th className="text-right py-2 px-2 text-indigo-400 font-medium">Cumulative</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...pagedSavings].reverse().map((s) => {
-                    const [y, m] = s.month.split('-');
-                    const label = new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-                    const isNoBudget = s.budget === 0;
-                    return (
-                      <tr key={s.month} className="border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                        <td className="py-2 px-2 text-zinc-700 dark:text-zinc-300 font-medium">{label}</td>
-                        <td className="py-2 px-2 text-right text-zinc-500 dark:text-zinc-400">
-                          {isNoBudget ? <span className="text-zinc-300 dark:text-zinc-600 italic">—</span> : formatCurrency(s.budget)}
-                        </td>
-                        <td className="py-2 px-2 text-right text-red-500">
-                          {s.spent > 0 ? formatCurrency(s.spent) : <span className="text-zinc-300 dark:text-zinc-600">—</span>}
-                        </td>
-                        <td className={`py-2 px-2 text-right font-semibold ${s.saved > 0 ? 'text-emerald-500' : isNoBudget ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-400'}`}>
-                          {s.saved > 0 ? formatCurrency(s.saved) : isNoBudget ? '—' : formatCurrency(0)}
-                        </td>
-                        <td className={`py-2 px-2 text-right ${
-                          isNoBudget ? 'text-zinc-300 dark:text-zinc-600' :
-                          s.savingsRate >= 20 ? 'text-emerald-500' :
-                          s.savingsRate > 0 ? 'text-amber-500' : 'text-zinc-400'
-                        }`}>
-                          {isNoBudget ? '—' : `${s.savingsRate.toFixed(1)}%`}
-                        </td>
-                        <td className="py-2 px-2 text-right font-semibold text-indigo-500">
-                          {formatCurrency(s.cumulative)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40">
-                    <td colSpan={5} className="py-2 px-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-right">
-                      Total Savings Accumulated (all time)
-                    </td>
-                    <td className="py-2 px-2 text-right font-bold text-emerald-500">
-                      {formatCurrency(savings[savings.length - 1]?.cumulative ?? 0)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-
-              {/* Bottom pagination for long tables */}
-              {totalSavingsPages > 1 && (
-                <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500 mr-1">
-                    Page {clampedPage + 1} of {totalSavingsPages}
-                  </span>
-                  <button
-                    onClick={() => setSavingsPage((p) => Math.min(p + 1, totalSavingsPages - 1))}
-                    disabled={clampedPage >= totalSavingsPages - 1}
-                    aria-label={`Go to ${olderPageYear}`}
-                    title={`View ${olderPageYear}`}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                  >
-                    ‹ {olderPageYear}
-                  </button>
-                  <button
-                    onClick={() => setSavingsPage((p) => Math.max(p - 1, 0))}
-                    disabled={clampedPage === 0}
-                    aria-label={`Go to ${newerPageYear}`}
-                    title={`View ${newerPageYear}`}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {newerPageYear} ›
-                  </button>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs uppercase tracking-widest text-zinc-500">
+                    {formattedDate}
+                  </p>
+                  <h1 className="truncate font-display text-2xl font-semibold leading-tight text-zinc-900 md:text-3xl">
+                    Good {timeOfDay}, {safeFirstName}!
+                  </h1>
+                  <p className="mt-1 text-xs text-zinc-500">{monthOverview} Overview</p>
                 </div>
-              )}
+
+                <div className="mt-1 hidden shrink-0 items-center gap-2 md:flex">
+                  <button
+                    type="button"
+                    onClick={() => setStatsOpen(true)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] px-4 py-2 text-xs font-medium transition-colors ${
+                      statsOpen
+                        ? 'bg-[#1D9E75] text-white'
+                        : 'bg-white text-zinc-700 hover:bg-[#E1F5EE]'
+                    }`}
+                  >
+                    <BarChart3 size={14} />
+                    <span>Statistics</span>
+                  </button>
+
+                  <Link
+                    href="/timeline"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-4 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  >
+                    <CalendarDays size={14} />
+                    <span>Calendar</span>
+                  </Link>
+                </div>
+              </div>
+            </header>
+
+            <div className="mt-4">
+              <BerdeCard
+                insight={primaryBerdeInsight}
+                onClick={() => setBerdeOpen(true)}
+              />
             </div>
-          )}
-        </div>
 
-        {/* Insights + Recent Transactions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Financial Insights
-            </h3>
-            <InsightCards insights={data.insights} compact />
-          </div>
+            <div className="mt-4">
+              <QuickStatTiles
+                spentThisMonth={spentThisMonth}
+                remaining={remaining}
+                monthlyLimit={monthlyLimit}
+                savingsRate={savingsRate}
+                spentToday={spentToday}
+                lastMonthSpent={data.totalSpentLastMonth}
+                latestTransactionName={latestTransactionName}
+              />
+            </div>
 
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">
-              Recent Transactions
-            </h3>
-            <TransactionList transactions={data.recentTransactions} />
-          </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-4">
+                <MiniBarChart dailySpending={last7Days} />
+                <UpcomingCard transactions={upcoming} />
+              </div>
+
+              <RecentTransactions transactions={data.recentTransactions} />
+            </div>
+          </section>
+
+          <StatisticsPanel
+            isOpen={statsOpen}
+            onClose={() => setStatsOpen(false)}
+            budgetStatuses={data.budgetStatuses}
+            budgetAlerts={data.budgetAlerts}
+            categoryBreakdown={data.categoryBreakdown}
+            weeklySpending={data.weeklySpending}
+            recentTransactions={data.recentTransactions}
+          />
         </div>
       </div>
 
-      <FloatingAddButton onClick={() => setShowAddModal(true)} />
+      <BerdeDrawer
+        isOpen={berdeOpen}
+        onClose={() => setBerdeOpen(false)}
+        berdeInsights={berdeInsights}
+      />
+
+      <div
+        className={`${statsOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-20 md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
+        style={{ right: statsOpen ? 'calc(340px + 24px)' : '24px' }}
+      >
+        <FloatingAddButton onClick={() => setShowAddModal(true)} />
+      </div>
+
       <AddExpenseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onAdded={fetchDashboard}
+        onAdded={refreshDashboard}
       />
+
+      <style jsx global>{`
+        @media (min-width: 768px) {
+          .fab-shift-wrapper > div {
+            position: static !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: auto !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { BerdeState } from '@/components/berde/berde.types';
+import type { BerdeState } from '@/lib/berde/berde.types';
 
 interface BerdeSprite {
   size?: number;   // rendered px size (default 64)

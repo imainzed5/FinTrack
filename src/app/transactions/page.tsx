@@ -365,7 +365,7 @@ export default function TransactionsPage() {
   return (
     <>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-4 pb-6">
-        <div className="sticky top-2 z-30 -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 bg-zinc-50/95 dark:bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-50/90 dark:supports-[backdrop-filter]:bg-zinc-950/90">
+        <div className="sticky top-2 z-30 -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 bg-[#f5f5f0]/95 dark:bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-[#f5f5f0]/90 dark:supports-[backdrop-filter]:bg-zinc-950/90">
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>

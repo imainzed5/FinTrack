@@ -1,8 +1,8 @@
 ---
-name: "Moneda Expense Tracker System"
+name: "expense-tracker"
 description: "Complete system skill for Moneda—personal financial intelligence dashboard built with Next.js, Supabase, React, and TypeScript. Covers architecture, patterns, workflows, and domain knowledge."
-version: "1.0"
-tags: ["expense-tracker", "fintech", "nextjs", "supabase", "pwa", "financial-intelligence"]
+metadata:
+  tags: ["expense-tracker", "fintech", "nextjs", "supabase", "pwa", "financial-intelligence"]
 ---
 
 # Moneda System Skill

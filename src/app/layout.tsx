@@ -52,7 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} ${inter.variable} antialiased bg-zinc-50 dark:bg-zinc-950`}
+        className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} ${inter.variable} antialiased bg-[#f5f5f0] dark:bg-zinc-950`}
       >
         <ThemeProvider>
           <AppShell>{children}</AppShell>
