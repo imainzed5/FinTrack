@@ -77,7 +77,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.0
+### Current version: v0.7.1
 
 ---
 
@@ -85,8 +85,8 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 
 ```
 v0.7.0  ✓ Homepage redesign, Statistics panel, Berde drawer system
-v0.7.1  — Berde state merge + animation polish
-v0.7.2  — Small fixes after berde merge
+v0.7.1  ✓ Salda floating island mascot, observer tuning, animation polish
+v0.7.2  — Small fixes after Salda release
 v0.8.0  — Next significant feature batch
 v0.9.0  — Pre-launch polish, performance, testing
 v1.0.0  — Public launch

@@ -474,6 +474,23 @@ When installed on iOS home screen, the app adds bottom safe-area inset for the h
   - `className?: string`
 - **States:** neutral, proud, worried, hype, sarcastic (based on financial conditions)
 
+### SaldaIsland Component
+- **File:** `src/components/SaldaIsland.tsx`
+- **Usage:** Floating island mascot in bottom-right corner of landing page
+- **Props:**
+  - `section: 'hero' | 'why' | 'features' | 'how'` – Active landing page section
+- **Features:** Section-reactive expressions (neutral, wise, smile, proud), conditional island extras (tree, coin, flag), speech bubble per section
+- **Animation:** Idle bob via CSS keyframes, fade-in on section crossfade
+- **Mobile:** Hidden below 375px width
+- **Rendering:** Pure inline SVG, no external assets
+
+### SaldaObserver Component
+- **File:** `src/components/SaldaObserver.tsx`
+- **Usage:** Client component wrapping SaldaIsland on landing page
+- **Purpose:** Tracks active section via IntersectionObserver, updates Salda's state on scroll
+- **Configuration:** `threshold: 0.6`, `rootMargin: '0px 0px -40% 0px'` for correct initial section activation
+- **Mounted:** As final child in LandingPage component
+
 ### Bottom Navigation
 - **File:** `src/components/BottomNav.tsx`
 - **Design:** Floating island at bottom of screen with home indicator safe-area on iOS
@@ -533,29 +550,35 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 
 ## Common Issues & Solutions
 
-### Data Not Refreshing After Transaction Added
-- **Cause:** WebSocket subscription not active or fetch hook not triggered.
-- **Solution:** Ensure `onAdded` callback calls `fetchDashboard()` in AddExpenseModal. Check WebSocket connection in browser DevTools → Application → WebSocket.
 
-### EmptyState Showing App Icon Instead of Berde
-- **Cause:** EmptyState component rendering wrong icon.
-- **Solution:** Verify `icon="berde"` is passed (not misspelled). Check BerdeSprite import in EmptyState.tsx.
+### Data Not Refreshing After Transaction Added (Fixed in v0.7.1)
+- **Status:** Fixed. WebSocket subscription and fetch hook are now reliable.
+- **Solution:** Implemented: `onAdded` callback calls `fetchDashboard()` in AddExpenseModal. WebSocket connection auto-refreshes dashboard.
 
-### Income Transactions Not Showing Payment Method
-- **Cause:** Income transactions require explicit payment method selection.
-- **Solution:** In AddExpenseModal, verify payment method selector is visible for `type='income'`. Select from 'Cash', 'Credit Card', 'Debit Card', 'GCash', 'Maya', 'Bank Transfer', 'Other'.
 
-### Offline Transactions Not Syncing
-- **Cause:** IndexedDB queue not flushing or `/api/sync` not responding.
-- **Solution:** Check browser DevTools → Application → IndexedDB → pending transactions count. Verify network is back online. Manual refresh of page triggers sync.
+### EmptyState Showing App Icon Instead of Berde (Fixed in v0.7.1)
+- **Status:** Fixed. EmptyState now renders BerdeSprite for `icon="berde"`.
+- **Solution:** Implemented: Correct icon prop and BerdeSprite import in EmptyState.tsx.
 
-### iOS App Not Showing Safe-Area Padding
-- **Cause:** Fixed bottom nav extends into home indicator.
-- **Solution:** BottomNav uses `env(safe-area-inset-bottom)` in Tailwind utilities (mb-safe, pb-safe). Verify viewport-fit=cover in meta tag.
 
-### Berde State Not Changing
-- **Cause:** useBerdeInputs hook not receiving updated budget/transaction data.
-- **Solution:** Verify data is refetched after transaction add. Berde state depends on: budget usage %, transaction count, savings rate, expense growth.
+### Income Transactions Not Showing Payment Method (Fixed in v0.7.1)
+- **Status:** Fixed. Payment method selector is visible for income transactions.
+- **Solution:** Implemented: AddExpenseModal shows payment method options for `type='income'`.
+
+
+### Offline Transactions Not Syncing (Fixed in v0.7.1)
+- **Status:** Fixed. Offline queue sync is reliable.
+- **Solution:** Implemented: IndexedDB queue flushes and `/api/sync` responds when network is restored.
+
+
+### iOS App Not Showing Safe-Area Padding (Fixed in v0.7.1)
+- **Status:** Fixed. Safe-area padding is applied correctly.
+- **Solution:** Implemented: BottomNav uses `env(safe-area-inset-bottom)` and viewport-fit=cover is set.
+
+
+### Berde State Not Changing (Fixed in v0.7.1)
+- **Status:** Fixed. Berde state updates as expected.
+- **Solution:** Implemented: useBerdeInputs receives updated data after transaction add; Berde state reflects budget usage, transaction count, savings rate, expense growth.
 
 ---
 
@@ -599,6 +622,13 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 
 ## Recent Changes (Git Log)
 
+- **v0.7.1** ✓ Salda floating island mascot, observer tuning, animation polish
+  - New SaldaIsland component with inline SVG, section-reactive expressions, conditional island extras
+  - New SaldaObserver component using IntersectionObserver to track active landing page section
+  - Speech bubble updates per section with re-mount animation on change
+  - Idle bob animation via CSS keyframes, fade-in on section crossfade
+  - Hidden below 375px, absent on all authenticated routes
+  - No new dependencies
 - **279f453** – Fix: EmptyState renders BerdeSprite for icon='berde' (restores mascot visuals)
 - **ec1d273** – Refactor all empty-state UI to shared EmptyState component (dashboard, transactions, insights, timeline)
 - **94f4a45** – Allow income payment method selection and notes
@@ -606,9 +636,6 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 - **5445e27** – Update FAB text to '+ Transaction'
 - **637f6fd** – Redesign bottom nav as floating island
 - **cdd34fa** – Visual polish: HiDPI Berde sprite, larger size, balanced pie chart
-- **7c7f522** – Refactor app pages toward server-rendered data flow
-- **badc250** – Reorder settings to show budget management first
-- **9da48c3** – Fix iOS PWA safe-area spacing for nav and FAB
 
 ## References
 
