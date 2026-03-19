@@ -5,155 +5,125 @@
 
 export function DashboardSkeleton() {
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-      {/* Header + Berde card */}
-      <div className="mb-6">
-        <div className="h-8 w-36 bg-zinc-200 dark:bg-zinc-700 rounded-lg animate-pulse mb-2" />
-        <div className="h-4 w-44 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-
-        <div className="mt-4 rounded-2xl bg-gradient-to-br from-[#0F6E56] to-[#1D9E75] px-4 py-4">
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <div className="h-[88px] w-[88px] rounded-xl bg-white/20 animate-pulse" />
-            <div className="w-full flex-1 space-y-2">
-              <div className="h-3 w-20 bg-emerald-200/50 rounded animate-pulse" />
-              <div className="h-4 w-full max-w-md bg-white/25 rounded animate-pulse" />
-              <div className="h-4 w-11/12 max-w-sm bg-white/20 rounded animate-pulse" />
-              <div className="h-3 w-36 bg-emerald-200/45 rounded animate-pulse" />
+    <div className="dashboard-home min-h-screen">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 md:py-6">
+        <section>
+          <header className="mb-6">
+            <div className="mb-3 flex items-center gap-2 md:hidden">
+              <div className="h-8 w-24 animate-pulse rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white" />
+              <div className="h-8 w-24 animate-pulse rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white" />
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Alert stack */}
-      <div className="mb-4 space-y-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 animate-pulse"
-          />
-        ))}
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
-            <div className="flex items-center justify-between mb-2">
-              <div className="h-3.5 w-24 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-              <div className="h-4 w-4 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-            </div>
-            <div className="h-8 w-28 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-            <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-          </div>
-        ))}
-      </div>
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <div className="h-5 w-40 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-4" />
-            <div className={`${i === 0 ? 'h-60' : 'h-64'} bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse`} />
-          </div>
-        ))}
-      </div>
-
-      {/* Budget + daily spending */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-          <div className="h-5 w-32 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-4" />
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i}>
-                <div className="h-3.5 w-44 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-                <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-full animate-pulse" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-2">
+                <div className="h-3 w-32 animate-pulse rounded bg-zinc-200" />
+                <div className="h-9 w-56 max-w-full animate-pulse rounded bg-zinc-200 md:w-72" />
+                <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-          <div className="h-5 w-28 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-4" />
-          <div className="h-64 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-        </div>
-      </div>
-
-      {/* Savings history */}
-      <div className="mt-4 bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-          <div className="space-y-2">
-            <div className="h-5 w-48 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-            <div className="h-3.5 w-72 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-          </div>
-          <div className="flex gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="h-3 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-                <div className="h-4 w-20 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+              <div className="mt-1 hidden shrink-0 items-center gap-2 md:flex">
+                <div className="h-8 w-24 animate-pulse rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white" />
+                <div className="h-8 w-24 animate-pulse rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white" />
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-28 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-            <div className="h-3.5 w-28 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3.5 w-20 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-            <div className="h-7 w-16 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-            <div className="h-7 w-16 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-          </div>
-        </div>
-
-        <div className="h-64 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-
-        <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[680px] space-y-2">
-            <div className="grid grid-cols-6 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-              ))}
             </div>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="grid grid-cols-6 gap-2">
-                {Array.from({ length: 6 }).map((__, j) => (
-                  <div key={`${i}-${j}`} className="h-6 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+          </header>
+
+          <section className="mt-4 rounded-[20px] border border-[#0b5b47] bg-[#0F6E56] px-4 py-4 text-left md:rounded-2xl md:px-5">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="h-[72px] w-[72px] shrink-0 animate-pulse rounded-2xl bg-[#E1F5EE]/60" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-3 w-24 animate-pulse rounded bg-emerald-100/55" />
+                <div className="h-4 w-full animate-pulse rounded bg-white/30" />
+                <div className="h-4 w-10/12 animate-pulse rounded bg-white/20" />
+                <div className="h-3 w-40 animate-pulse rounded bg-white/20" />
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-4 grid grid-cols-2 gap-[10px] md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <article
+                key={index}
+                className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 md:p-3"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="h-3 w-24 animate-pulse rounded bg-zinc-200" />
+                  <div className="h-4 w-4 animate-pulse rounded-full bg-zinc-200" />
+                </div>
+                <div className="h-7 w-24 animate-pulse rounded bg-zinc-200" />
+                <div className="mt-2 h-3 w-28 animate-pulse rounded bg-zinc-200" />
+              </article>
+            ))}
+          </section>
+
+          <section className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
+                  <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
+                </div>
+                <div className="mt-4 flex h-[60px] items-end gap-1.5 md:h-[52px]">
+                  {Array.from({ length: 7 }).map((_, index) => (
+                    <div key={index} className="flex flex-1 items-end">
+                      <div
+                        className="w-full animate-pulse rounded-md bg-zinc-200"
+                        style={{ height: `${[42, 56, 34, 60, 48, 26, 52][index]}%` }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex gap-1.5">
+                  {Array.from({ length: 7 }).map((_, index) => (
+                    <div key={index} className="h-3 flex-1 animate-pulse rounded bg-zinc-200" />
+                  ))}
+                </div>
+              </article>
+
+              <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-20 animate-pulse rounded bg-zinc-200" />
+                  <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
+                </div>
+                <div className="mt-3 space-y-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                        <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-zinc-200" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="h-3.5 w-28 animate-pulse rounded bg-zinc-200" />
+                          <div className="h-3 w-20 animate-pulse rounded bg-zinc-200" />
+                        </div>
+                      </div>
+                      <div className="h-4 w-14 animate-pulse rounded bg-zinc-200" />
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
+
+            <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
+                <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
+              </div>
+              <div className="mt-3 space-y-3">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                      <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-zinc-200" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="h-3.5 w-32 animate-pulse rounded bg-zinc-200" />
+                        <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
+                      </div>
+                    </div>
+                    <div className="h-4 w-16 animate-pulse rounded bg-zinc-200" />
+                  </div>
                 ))}
               </div>
-            ))}
-            <div className="h-9 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-          </div>
-        </div>
-      </div>
-
-      {/* Insights + recent transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-          <div className="h-5 w-36 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-3" />
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-zinc-100 dark:border-zinc-800 p-4">
-                <div className="h-4 w-full bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-                <div className="h-4 w-4/5 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-          <div className="h-5 w-40 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-3" />
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-zinc-100 dark:border-zinc-800 p-3">
-                <div className="h-4 w-28 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-                <div className="h-3.5 w-3/4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-                <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </div>
+            </article>
+          </section>
+        </section>
       </div>
     </div>
   );

@@ -1,0 +1,232 @@
+================================================================================
+LANDING PAGE PLANNING DETAILS
+================================================================================
+
+LANDING PAGE LOCATION & CONTENT
+================================================================================
+File Path: src/app/page.tsx
+Export: LandingPage() component
+Full file content: Approx 500+ lines with complete component code
+
+
+SECTION IDENTIFIERS
+================================================================================
+Section              | ID Attribute      | HTML Element              | Notes
+─────────────────────────────────────────────────────────────────────────────
+Hero                 | (no ID)           | <header> + <section>      | First section with logo, h1, CTA buttons
+Why Moneda Exists    | id="why"          | <section id="why">        | Contains messaging + 3 role cards (Freelancer, Fresh grad, Family)
+Features             | id="features"     | <section id="features">   | Maps features array to 4 feature cards
+How It Works         | id="how"          | <section id="how">        | Maps journey array to 3 step cards
+Testimonials         | (no ID)           | <section>                 | Maps testimonials array to 3 blockquotes
+Footer               | (no ID)           | <footer>                  | Links + copyright
+
+Component-level details:
+- Headings use displayFont (Fraunces typography)
+- Data stored in arrays at top of file:
+  * features: 4 items (Budgeting, Transaction tracking, Savings insights, Privacy)
+  * journey: 3 items (Sign up, Connect transactions, See full picture)
+  * testimonials: 3 items (quotes from Mina R., Andre K., Leah and Marco)
+
+
+ANIMATION & MOTION LIBRARIES
+================================================================================
+
+Framer Motion: NOT INSTALLED
+
+Available Animations:
+─────────────────────────────────────────────────────────────────────────────
+Source Type | Animation Name    | Details                  | Usage
+─────────────────────────────────────────────────────────────────────────────
+Tailwind    | animate-pulse     | Pulses opacity          | Skeleton loaders
+Custom CSS  | animate-fade-in   | Opacity + vertical slide | Landing page hero section
+            |                   | (0.2s ease-out)         |
+Custom CSS  | animate-slide-up  | Slide from bottom       | Modal animations
+            |                   | (0.3s ease-out)         |
+
+Current Stack:
+- Next.js 16.1.6
+- React 19.2.3
+- Tailwind CSS 4
+- Chart.js 4.5.1
+- Lucide React 0.577.0 (icons)
+- No motion library beyond CSS
+
+
+SCROLL & INTERSECTIONOBSERVER LOGIC
+================================================================================
+
+IntersectionObserver Status: NOT FOUND on landing page
+
+Custom Scroll Hook:
+- File: src/lib/useScrollbarVisibility.ts
+- Status: Exists but not actively used on landing page
+- Purpose: Custom scrollbar visibility tracking
+
+Scroll Handling Implementation:
+- Location: src/app/transactions/page.tsx (lines 65-79)
+- Type: Manual horizontal scroll handling
+- Logic: Uses mousewheel events to control horizontal scroll position
+
+
+SRC/COMPONENTS/ FULL DIRECTORY TREE
+================================================================================
+
+src/components/
+├── AddExpenseModal.tsx
+├── AppShell.tsx
+├── BerdeSprite.tsx
+├── BottomNav.tsx
+├── Charts.tsx
+├── ConsentModal.tsx
+├── DashboardWidgets.tsx
+├── EditTransactionModal.tsx
+├── EmptyState.tsx
+├── FloatingAddButton.tsx
+├── InsightCards.tsx
+├── ServiceWorkerRegistration.tsx
+├── Sidebar.tsx
+├── SkeletonLoaders.tsx
+├── ThemeProvider.tsx
+├── TimelineView.tsx
+├── TransactionList.tsx
+├── auth/
+│   ├── AuthCardShell.tsx
+│   ├── AuthPasswordField.tsx
+│   └── AuthTextField.tsx
+├── dashboard/
+│   ├── BerdeCard.tsx
+│   ├── BerdeDrawer.tsx
+│   ├── MiniBarChart.tsx
+│   ├── QuickStatTiles.tsx
+│   ├── RecentTransactions.tsx
+│   ├── StatisticsPanel.tsx
+│   └── UpcomingCard.tsx
+├── pages/
+└── settings/
+    └── AccountSecuritySection.tsx
+
+Total: 17 top-level components + 10 subdirectory components (27 total)
+
+
+LAYOUT STRUCTURE
+================================================================================
+
+Landing Page Layout: SHARES root layout with authenticated app
+- No separate layout.tsx for landing page
+- Visual hierarchy: root layout.tsx → <AppShell> component → page.tsx
+
+Key Components:
+- Root Layout: src/app/layout.tsx
+  * Wraps with ThemeProvider
+  * Wraps with AppShell (sidebar, bottom nav, auth logic)
+  * Applies fonts: Geist Sans, Geist Mono, DM Serif Display, Inter
+
+Landing Page Flow:
+1. AppShell wraps the landing page content
+2. Landing page renders independently at route /
+3. Authenticated routes use same AppShell with navigation
+
+Implications for Landing Page Feature:
+- AppShell may apply routing/nav logic to landing page
+- Consider whether to conditionally hide nav elements on public routes
+- Landing page styling is independent but shares theme infrastructure
+
+
+LANDING PAGE CONTENT SUMMARY
+================================================================================
+
+Hero Section:
+- Headline: "You earn enough. You just can't see where it goes."
+- Subheading: "Moneda was built for the moment you check your bank balance..."
+- CTAs: "Start Free" and "I already have an account"
+- Visual: Hero image placeholder
+
+Why Section (id="why"):
+- Main message about Moneda's purpose
+- Target audiences: Freelancers, Fresh grads, Families
+- CTA: "Start your clarity plan"
+
+Features Section (id="features"):
+1. Budgeting without shame (Target icon)
+2. Transaction tracking that stays simple (Receipt icon)
+3. Savings insights you can act on (BarChart3 icon)
+4. Privacy-first from day one (ShieldCheck icon)
+- CTAs: "Create free account" and "Try Moneda now"
+
+How It Works Section (id="how"):
+1. Sign up in minutes
+2. Connect or add transactions
+3. See the full picture
+- Step indicators: 1, 2, 3
+- CTAs: "Sign Up" and "Log In"
+
+Testimonials Section:
+1. Mina R. - Freelance Designer
+2. Andre K. - Fresh Graduate
+3. Leah and Marco - Parents of Two
+
+Footer:
+- Privacy message
+- Links: Log In, Sign Up, Terms, Privacy Policy
+- Copyright notice
+
+
+CUSTOM CSS ANIMATIONS (from src/app/globals.css)
+================================================================================
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+
+FONTS USED
+================================================================================
+
+Landing Page:
+- Display Font: Fraunces (weights: 600, 700)
+- Body Font: Manrope (weights: 400, 500, 600, 700)
+
+Root App:
+- Geist Sans (default)
+- Geist Mono (code)
+- DM Serif Display (display)
+- Inter (body)
+
+
+METADATA
+================================================================================
+
+Page Title: "Moneda | You Earn Enough. Now See Where It Goes."
+
+Description: "Moneda helps everyday people understand spending, set realistic budgets, and feel in control of their money."
+
+Canonical URL: /
+
+Viewport Configuration:
+- Theme Color: #10b981 (teal)
+- Width: device-width
+- Initial Scale: 1
+- Viewport Fit: cover
+
+
+================================================================================
+END OF LANDING PAGE INFO
+================================================================================
