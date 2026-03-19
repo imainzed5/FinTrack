@@ -69,6 +69,7 @@ release: v0.7.1 — berde state merge, animation polish
 
 ## Versioning Rules
 
+
 Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 
 | Segment | When to bump |
@@ -77,7 +78,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.1
+### Current version: v0.7.2
 
 ---
 
@@ -86,7 +87,36 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ```
 v0.7.0  ✓ Homepage redesign, Statistics panel, Berde drawer system
 v0.7.1  ✓ Salda floating island mascot, observer tuning, animation polish
-v0.7.2  — Small fixes after Salda release
+v0.7.2  ✓ Session UI grouping, badges, show-more toggles
+# Quick Reference Card
+
+# Start working
+git checkout dev
+
+# Save progress
+git add .
+git commit -m "feat: what you did"
+git push origin dev
+
+# Release to production
+git checkout main
+git merge dev --no-ff -m "release: v0.x.x — description"
+git tag -a v0.x.x -m "Moneda v0.x.x — description"
+git push origin main
+git push origin v0.x.x
+git checkout dev
+
+---
+
+# Recent Changes
+
+v0.7.2  ✓ Session UI grouping, badges, show-more toggles
+	- Active Sessions now grouped by device type (iOS, Android, Windows, Mac, Other)
+	- Session cards show age badges (Active now, Today, X days ago, Inactive 7+ days)
+	- Local IP flagged with badge
+	- Per-group show-more toggles (max 3 visible by default)
+	- Current session card and revoke/logout controls unchanged
+	- Recent Login Activity section removed (redundant)
 v0.8.0  — Next significant feature batch
 v0.9.0  — Pre-launch polish, performance, testing
 v1.0.0  — Public launch

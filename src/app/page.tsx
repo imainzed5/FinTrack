@@ -252,10 +252,10 @@ export default function LandingPage() {
                 Why Moneda exists
               </h2>
               <p className="mt-3 text-slate-600 dark:text-zinc-300">
-                Most people are not bad with money. They are just overloaded and busy. Moneda was created by someone who lived the same frustration and wanted a calmer way to understand spending.
+                Moneda began as a student project—built by someone who wanted to monitor their own expenses and finally see where their money was going. As a student, the developer faced the same confusion and stress as most people: money coming in, but never knowing exactly where it went. The app was designed to be simple, honest, and narrative-driven, so anyone could gain clarity without feeling overwhelmed.
               </p>
               <p className="mt-3 text-slate-600 dark:text-zinc-300">
-                It is for freelancers with irregular income, fresh grads managing a first salary, and families saving for something meaningful. You do not need to be a finance expert. You just need a clear picture.
+                Moneda is for freelancers with irregular income, fresh grads managing a first salary, and families saving for something meaningful. You do not need to be a finance expert. You just need a clear picture—and a story that makes sense for your life.
               </p>
               <div className="mt-6">
                 <Link
