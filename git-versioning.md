@@ -74,20 +74,24 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 
 | Segment | When to bump |
 |---|---|
-| `PATCH` (0.7.**x**) | Small fixes, polish, copy changes |
+
+| `PATCH` (0.8.**x**) | Small fixes, polish, copy changes |
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.2
+### Current version: v0.8.0
 
 ---
 
 ## Version Roadmap
 
 ```
+# Quick Reference Card
+
 v0.7.0  ✓ Homepage redesign, Statistics panel, Berde drawer system
 v0.7.1  ✓ Salda floating island mascot, observer tuning, animation polish
 v0.7.2  ✓ Session UI grouping, badges, show-more toggles
+v0.8.0  ✓ Landing page narrative update (student story, Filipino origin, narrative-driven design)
 # Quick Reference Card
 
 # Start working
@@ -117,7 +121,9 @@ v0.7.2  ✓ Session UI grouping, badges, show-more toggles
 	- Per-group show-more toggles (max 3 visible by default)
 	- Current session card and revoke/logout controls unchanged
 	- Recent Login Activity section removed (redundant)
-v0.8.0  — Next significant feature batch
+v0.8.0  ✓ Landing page narrative update (student story, Filipino origin, narrative-driven design)
+	- "Why Moneda exists" section now includes developer's student story and narrative-driven design context
+	- Highlights Moneda's Filipino roots and mission for everyday clarity
 v0.9.0  — Pre-launch polish, performance, testing
 v1.0.0  — Public launch
 ```
