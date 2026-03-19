@@ -5,11 +5,12 @@ import { Plus } from 'lucide-react';
 
 interface FABProps {
   onClick: () => void;
+  visible?: boolean;
 }
 
 const FAB_TOOLTIP_KEY = 'moneda:add-transaction-fab-tooltip-seen';
 
-export default function FloatingAddButton({ onClick }: FABProps) {
+export default function FloatingAddButton({ onClick, visible = true }: FABProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
@@ -61,7 +62,14 @@ export default function FloatingAddButton({ onClick }: FABProps) {
   };
 
   return (
-    <div className="fixed bottom-20 mobile-fab-offset right-4 sm:bottom-8 sm:right-8 z-30 flex flex-col items-end gap-2">
+    <div
+      className="fixed bottom-20 mobile-fab-offset right-4 sm:bottom-8 sm:right-8 z-30 flex flex-col items-end gap-2"
+      style={{
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? 'auto' : 'none',
+        transition: 'opacity 0.2s ease',
+      }}
+    >
       {showTooltip && (
         <button
           type="button"
