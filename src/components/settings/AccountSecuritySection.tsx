@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { differenceInDays, differenceInMinutes, format } from 'date-fns';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
   Laptop,
   Loader2,
   LogOut,
+  Monitor,
   Shield,
   Smartphone,
   Tablet,
@@ -39,21 +40,15 @@ interface SessionRecord {
   current: boolean;
 }
 
-interface LoginActivityRecord {
-  id: string;
-  timestamp: string;
-  deviceLabel: string;
-  browser: string;
-  os: string;
-  ipAddress: string | null;
-}
+type DeviceGroupKey = 'ios' | 'android' | 'windows' | 'mac' | 'other';
+
+const DEVICE_GROUP_ORDER: DeviceGroupKey[] = ['ios', 'android', 'windows', 'mac', 'other'];
 
 interface SessionsApiSuccess {
   success: true;
   account: AccountSummary;
   currentSession: SessionRecord | null;
   activeSessions: SessionRecord[];
-  loginActivities: LoginActivityRecord[];
 }
 
 interface SessionsApiError {
@@ -176,6 +171,110 @@ function getSessionIcon(deviceType: SessionDeviceType) {
   return <Laptop size={16} className="text-zinc-500 dark:text-zinc-400" />;
 }
 
+function getSessionGroupKey(os: string): DeviceGroupKey {
+  const normalizedOs = os.toLowerCase();
+
+  if (normalizedOs.includes('ios')) {
+    return 'ios';
+  }
+
+  if (normalizedOs.includes('android')) {
+    return 'android';
+  }
+
+  if (normalizedOs.includes('windows')) {
+    return 'windows';
+  }
+
+  if (normalizedOs.includes('mac')) {
+    return 'mac';
+  }
+
+  return 'other';
+}
+
+function getSessionGroupLabel(groupKey: DeviceGroupKey): string {
+  if (groupKey === 'ios') {
+    return 'iOS Devices';
+  }
+
+  if (groupKey === 'android') {
+    return 'Android Devices';
+  }
+
+  if (groupKey === 'windows') {
+    return 'Windows / Desktop';
+  }
+
+  if (groupKey === 'mac') {
+    return 'Mac / Desktop';
+  }
+
+  return 'Other';
+}
+
+function getSessionGroupIcon(groupKey: DeviceGroupKey) {
+  if (groupKey === 'ios' || groupKey === 'android') {
+    return <Smartphone size={14} className="text-zinc-500 dark:text-zinc-400" />;
+  }
+
+  if (groupKey === 'windows' || groupKey === 'mac') {
+    return <Monitor size={14} className="text-zinc-500 dark:text-zinc-400" />;
+  }
+
+  return <Laptop size={14} className="text-zinc-500 dark:text-zinc-400" />;
+}
+
+function parseSessionTimestamp(value: string): number {
+  const parsed = new Date(value);
+  const timestamp = parsed.getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function getSessionAgeBadge(lastActiveAt: string): { label: string; toneClassName: string } {
+  const parsed = new Date(lastActiveAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return {
+      label: 'Unknown',
+      toneClassName: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+    };
+  }
+
+  const now = new Date();
+  const minutesAgo = Math.max(differenceInMinutes(now, parsed), 0);
+
+  if (minutesAgo <= 5) {
+    return {
+      label: 'Active now',
+      toneClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+    };
+  }
+
+  if (minutesAgo < 24 * 60) {
+    return {
+      label: 'Today',
+      toneClassName: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-200',
+    };
+  }
+
+  const daysAgo = Math.max(differenceInDays(now, parsed), 1);
+  if (daysAgo >= 7) {
+    return {
+      label: 'Inactive 7+ days',
+      toneClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+    };
+  }
+
+  return {
+    label: `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`,
+    toneClassName: 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300',
+  };
+}
+
+function isLocalIpAddress(ipAddress: string | null): boolean {
+  return ipAddress === '::1' || ipAddress === '127.0.0.1';
+}
+
 function getPasswordStrengthLabel(score: number): 'Weak' | 'Fair' | 'Good' | 'Strong' {
   if (score <= 1) {
     return 'Weak';
@@ -216,7 +315,7 @@ export default function AccountSecuritySection() {
   const [account, setAccount] = useState<AccountSummary | null>(null);
   const [currentSession, setCurrentSession] = useState<SessionRecord | null>(null);
   const [activeSessions, setActiveSessions] = useState<SessionRecord[]>([]);
-  const [loginActivities, setLoginActivities] = useState<LoginActivityRecord[]>([]);
+  const [expandedSessionGroups, setExpandedSessionGroups] = useState<Partial<Record<DeviceGroupKey, boolean>>>({});
 
   const [profileFullName, setProfileFullName] = useState('');
   const [profileError, setProfileError] = useState('');
@@ -268,7 +367,6 @@ export default function AccountSecuritySection() {
       setProfileFullName(data.account.fullName);
       setCurrentSession(data.currentSession);
       setActiveSessions(Array.isArray(data.activeSessions) ? data.activeSessions : []);
-      setLoginActivities(Array.isArray(data.loginActivities) ? data.loginActivities : []);
     } catch {
       setLoadError('Network error. Please check your connection and retry.');
     } finally {
@@ -302,6 +400,48 @@ export default function AccountSecuritySection() {
   }, [passwordScore]);
 
   const otherActiveSessions = activeSessions.filter((session) => !session.current);
+
+  const groupedActiveSessions = useMemo(() => {
+    const groupedSessions: Record<DeviceGroupKey, SessionRecord[]> = {
+      ios: [],
+      android: [],
+      windows: [],
+      mac: [],
+      other: [],
+    };
+
+    for (const session of activeSessions) {
+      const groupKey = getSessionGroupKey(session.os);
+      groupedSessions[groupKey].push(session);
+    }
+
+    return DEVICE_GROUP_ORDER.map((groupKey) => {
+      const sortedSessions = [...groupedSessions[groupKey]].sort((sessionA, sessionB) => {
+        if (sessionA.current && !sessionB.current) {
+          return -1;
+        }
+
+        if (!sessionA.current && sessionB.current) {
+          return 1;
+        }
+
+        return parseSessionTimestamp(sessionB.lastActiveAt) - parseSessionTimestamp(sessionA.lastActiveAt);
+      });
+
+      return {
+        groupKey,
+        label: getSessionGroupLabel(groupKey),
+        sessions: sortedSessions,
+      };
+    }).filter((group) => group.sessions.length > 0);
+  }, [activeSessions]);
+
+  const handleToggleSessionGroup = useCallback((groupKey: DeviceGroupKey) => {
+    setExpandedSessionGroups((previous) => ({
+      ...previous,
+      [groupKey]: !previous[groupKey],
+    }));
+  }, []);
 
   const handleCopyEmail = useCallback(async () => {
     if (!account?.email) {
@@ -823,57 +963,94 @@ export default function AccountSecuritySection() {
 
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Active Sessions</h4>
-                {activeSessions.length === 0 ? (
+                {groupedActiveSessions.length === 0 ? (
                   <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">No active sessions found.</p>
                 ) : (
-                  <div className="mt-2 space-y-2">
-                    {activeSessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                            {session.current ? 'Current device' : session.deviceLabel}
-                          </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {session.browser} on {session.os}
-                          </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            Last active: {formatDateTime(session.lastActiveAt)}
-                          </p>
+                  <div className="mt-2 space-y-3">
+                    {groupedActiveSessions.map((group) => {
+                      const isExpanded = Boolean(expandedSessionGroups[group.groupKey]);
+                      const visibleSessions = isExpanded ? group.sessions : group.sessions.slice(0, 3);
+                      const hiddenCount = group.sessions.length - visibleSessions.length;
+
+                      return (
+                        <div
+                          key={group.groupKey}
+                          className="rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/40"
+                        >
+                          <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2.5 dark:border-zinc-700">
+                            <p className="flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                              {getSessionGroupIcon(group.groupKey)}
+                              {group.label} ({group.sessions.length})
+                            </p>
+                          </div>
+
+                          <div className="space-y-2 p-3">
+                            {visibleSessions.map((session) => {
+                              const ageBadge = getSessionAgeBadge(session.lastActiveAt);
+                              const localIp = isLocalIpAddress(session.ipAddress);
+
+                              return (
+                                <div
+                                  key={session.id}
+                                  className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                                        {session.current ? 'Current device' : session.deviceLabel}
+                                      </p>
+                                      <span
+                                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${ageBadge.toneClassName}`}
+                                      >
+                                        {ageBadge.label}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      {session.browser} on {session.os}
+                                    </p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      Last active: {formatDateTime(session.lastActiveAt)}
+                                    </p>
+                                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                      <span>IP: {session.ipAddress || 'Not available'}</span>
+                                      {localIp ? (
+                                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                                          Local
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  {!session.current ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPendingRevokeSession(session)}
+                                      className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-200 px-3 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                                    >
+                                      <Trash2 size={14} />
+                                      Revoke
+                                    </button>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+
+                            {group.sessions.length > 3 ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSessionGroup(group.groupKey)}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+                              >
+                                {isExpanded ? 'Show less' : `Show ${hiddenCount} more`}
+                                <span className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                                  v
+                                </span>
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
-
-                        {!session.current ? (
-                          <button
-                            type="button"
-                            onClick={() => setPendingRevokeSession(session)}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-200 px-3 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                          >
-                            <Trash2 size={14} />
-                            Revoke
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Recent Login Activity</h4>
-                {loginActivities.length === 0 ? (
-                  <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">No login activity yet.</p>
-                ) : (
-                  <div className="mt-2 space-y-2">
-                    {loginActivities.map((activity) => (
-                      <div key={activity.id} className="rounded-xl border border-zinc-200 px-3 py-2 dark:border-zinc-700">
-                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{activity.deviceLabel}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{activity.browser} on {activity.os}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{formatDateTime(activity.timestamp)}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">IP: {activity.ipAddress || 'Not available'}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
