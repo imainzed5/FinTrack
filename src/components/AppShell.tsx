@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import BottomNav from '@/components/BottomNav';
 import ConsentModal from '@/components/ConsentModal';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import { DashboardSkeleton } from '@/components/SkeletonLoaders';
 import type { AuthSessionResponse } from '@/lib/auth-contract';
 import type { ConsentCheckResponse, PolicyVersionStatus } from '@/lib/policy';
 
@@ -106,7 +107,9 @@ function AuthRouteSkeleton() {
   );
 }
 
-function AppRouteSkeleton() {
+function AppRouteSkeleton({ pathname }: { pathname: string }) {
+  const isDashboardPath = pathname === '/dashboard';
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <aside className="hidden h-screen w-64 animate-pulse flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 sm:flex">
@@ -117,17 +120,39 @@ function AppRouteSkeleton() {
           ))}
         </div>
       </aside>
-      <main className="space-y-4 p-5 sm:ml-64 sm:p-8">
-        <div className="h-8 w-56 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-28 animate-pulse rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-            />
-          ))}
-        </div>
+      <main
+        className={
+          isDashboardPath
+            ? 'sm:ml-64 pb-20 mobile-nav-offset sm:pb-0 min-h-screen'
+            : 'space-y-4 p-5 sm:ml-64 sm:p-8'
+        }
+      >
+        {isDashboardPath ? (
+          <DashboardSkeleton />
+        ) : (
+          <>
+            <div className="h-8 w-56 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-28 animate-pulse rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+                />
+              ))}
+            </div>
+          </>
+        )}
       </main>
+
+      {isDashboardPath ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white sm:hidden">
+          <div className="mx-auto flex h-16 max-w-md items-center justify-around px-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-8 w-14 animate-pulse rounded-xl bg-zinc-200" />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -396,7 +421,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     return (
       <>
-        <AppRouteSkeleton />
+        <AppRouteSkeleton pathname={pathname} />
         <ServiceWorkerRegistration />
       </>
     );

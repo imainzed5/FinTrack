@@ -55,7 +55,7 @@ export default function BerdeCard({ insight, onClick }: BerdeCardProps) {
 
       <div className="relative z-[1] flex items-center gap-3 md:gap-4">
         <div className="shrink-0 rounded-2xl bg-[#E1F5EE] p-1.5">
-          <BerdeSprite state={spriteState} size={60} animated={false} />
+          <BerdeSprite state={spriteState} size={60} />
         </div>
 
         <div className="min-w-0">

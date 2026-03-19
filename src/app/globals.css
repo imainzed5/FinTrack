@@ -90,6 +90,50 @@ body {
   animation: fade-in 0.2s ease-out;
 }
 
+@keyframes salda-bob {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes salda-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes salda-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.salda-bob {
+  animation: salda-bob 3.2s ease-in-out infinite;
+}
+
+.salda-enter {
+  animation: salda-fade-in 0.4s ease-out forwards;
+}
+
+.salda-bubble {
+  animation: salda-bubble-in 0.3s ease-out forwards;
+}
+
 /* Hide scrollbar */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -156,6 +200,12 @@ input[type="number"] {
     scrollbar-width: none;
   }
   .category-filter-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 374px) {
+  .salda-root {
     display: none;
   }
 }

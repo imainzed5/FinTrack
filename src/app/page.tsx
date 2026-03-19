@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fraunces, Manrope } from 'next/font/google';
+import SaldaObserver from '@/components/SaldaObserver';
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowRight,
@@ -158,7 +159,10 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 pb-16 pt-6 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:pb-24 lg:pt-10">
+        <section
+          data-salda="hero-section"
+          className="mx-auto grid w-full max-w-6xl gap-10 px-4 pb-16 pt-6 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:pb-24 lg:pt-10"
+        >
           <div className="animate-fade-in">
             <p className="mb-4 inline-flex rounded-full border border-amber-200 bg-amber-100/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
               Clarity, not guilt
@@ -241,7 +245,7 @@ export default function LandingPage() {
       </header>
 
       <main className="relative pb-20">
-        <section id="why" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+        <section id="why" data-salda="why" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 lg:grid-cols-[1fr_0.9fr] lg:p-8">
             <div>
               <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
@@ -287,7 +291,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="features" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <section
+          id="features"
+          data-salda="features"
+          className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8"
+        >
           <div className="mb-6 flex items-end justify-between gap-4">
             <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
               Features built for everyday life
@@ -336,7 +344,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="how" className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <section id="how" data-salda="how" className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
           <h2 className={`${displayFont.className} text-3xl text-slate-900 dark:text-zinc-100`}>
             How it works
           </h2>
@@ -437,6 +445,7 @@ export default function LandingPage() {
       <div className="sr-only" aria-live="polite">
         Moneda landing page loaded
       </div>
+      <SaldaObserver />
     </div>
   );
 }

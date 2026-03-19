@@ -249,7 +249,7 @@ function StatisticsContent({
               {weeklySpending.map((entry) => {
                 const height = Math.max(8, (entry.amount / maxWeeklyAmount) * 100);
                 return (
-                  <div key={entry.week} className="flex flex-1 items-end">
+                  <div key={entry.week} className="flex h-full flex-1 items-end">
                     <div
                       className="w-full rounded-md"
                       style={{
