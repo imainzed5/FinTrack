@@ -621,6 +621,9 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ---
 
 ## Recent Changes (Git Log)
+- **v0.7.3** ✓ Landing page narrative update (student story, Filipino origin, narrative-driven design)
+  - "Why Moneda exists" section now includes developer's student story and narrative-driven design context
+  - Highlights Moneda's Filipino roots and mission for everyday clarity
 
 - **v0.7.1** ✓ Salda floating island mascot, observer tuning, animation polish
   - New SaldaIsland component with inline SVG, section-reactive expressions, conditional island extras
