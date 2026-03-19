@@ -6,33 +6,98 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import {
   CreditCard,
   Landmark,
+  MoreVertical,
+  Pencil,
   Repeat,
+  ReceiptText,
+  Smartphone,
+  SplitSquareHorizontal,
   Tag,
   Trash2,
-  Pencil,
-  ReceiptText,
-  SplitSquareHorizontal,
   Wallet,
 } from 'lucide-react';
-import type { PaymentMethod, Transaction } from '@/lib/types';
+import { CATEGORIES, type PaymentMethod, type Transaction } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { isToday, isYesterday } from 'date-fns';
 import EmptyState from '@/components/EmptyState';
 
-const categoryColors: Record<string, string> = {
-  Food: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400',
-  Transportation: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
-  Subscriptions: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400',
-  Utilities: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-400',
-  Shopping: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-400',
-  Entertainment: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400',
-  Health: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400',
-  Education: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400',
-  Miscellaneous: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-400',
+type CategoryColorTokens = {
+  accent: string;
+  icon: string;
+  pill: string;
+};
+
+const categoryColors: Record<string, CategoryColorTokens> = {
+  Food: {
+    accent: 'bg-orange-500 dark:bg-orange-400',
+    icon: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+    pill: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
+  },
+  Transportation: {
+    accent: 'bg-blue-500 dark:bg-blue-400',
+    icon: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+    pill: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  },
+  Subscriptions: {
+    accent: 'bg-purple-500 dark:bg-purple-400',
+    icon: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+    pill: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300',
+  },
+  Utilities: {
+    accent: 'bg-cyan-500 dark:bg-cyan-400',
+    icon: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
+    pill: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300',
+  },
+  Shopping: {
+    accent: 'bg-pink-500 dark:bg-pink-400',
+    icon: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300',
+    pill: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300',
+  },
+  Entertainment: {
+    accent: 'bg-yellow-500 dark:bg-yellow-400',
+    icon: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+    pill: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300',
+  },
+  Health: {
+    accent: 'bg-green-500 dark:bg-green-400',
+    icon: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+    pill: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300',
+  },
+  Education: {
+    accent: 'bg-indigo-500 dark:bg-indigo-400',
+    icon: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300',
+    pill: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
+  },
+  Miscellaneous: {
+    accent: 'bg-zinc-500 dark:bg-zinc-400',
+    icon: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-500/20 dark:text-zinc-300',
+    pill: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-300',
+  },
+};
+
+const CATEGORY_ICON_MAP: Record<(typeof CATEGORIES)[number], typeof Wallet> = {
+  Food: ReceiptText,
+  Transportation: Landmark,
+  Subscriptions: Repeat,
+  Utilities: CreditCard,
+  Shopping: Tag,
+  Entertainment: Wallet,
+  Health: Wallet,
+  Education: SplitSquareHorizontal,
+  Miscellaneous: Wallet,
+};
+
+const PAYMENT_METHOD_ICON_MAP: Record<PaymentMethod, typeof Wallet> = {
+  Cash: Wallet,
+  'Credit Card': CreditCard,
+  'Debit Card': CreditCard,
+  GCash: Smartphone,
+  Maya: Smartphone,
+  'Bank Transfer': Landmark,
+  Other: Wallet,
 };
 
 interface TransactionListProps {
@@ -77,66 +142,41 @@ function getTransactionCategoryLabel(tx: Transaction): string {
   return tx.subCategory ? `${tx.category} · ${tx.subCategory}` : tx.category;
 }
 
-function formatTransactionAmount(tx: Transaction): string {
-  const formatted = formatCurrency(tx.amount);
-  return tx.type === 'income' ? `+${formatted}` : formatted;
+function formatSignedAmount(value: number): string {
+  const formatted = formatCurrency(Math.abs(value));
+
+  if (value > 0) {
+    return `+${formatted}`;
+  }
+
+  if (value < 0) {
+    return `-${formatted}`;
+  }
+
+  return formatted;
 }
 
-function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
-  const baseClassName =
-    'inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-100/75 dark:bg-zinc-800/75 px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300';
+function formatTransactionAmount(tx: Transaction): string {
+  const signedValue = tx.type === 'income' ? Math.abs(tx.amount) : -Math.abs(tx.amount);
+  return formatSignedAmount(signedValue);
+}
 
-  if (method === 'Cash') {
-    return (
-      <span className={baseClassName}>
-        <span role="img" aria-hidden="true" className="text-[13px] leading-none">💵</span>
-        <span>Cash</span>
-      </span>
-    );
+function getGroupNetTotal(items: Transaction[]): number {
+  return items.reduce((total, item) => {
+    return total + (item.type === 'income' ? Math.abs(item.amount) : -Math.abs(item.amount));
+  }, 0);
+}
+
+function getCategoryTone(category: Transaction['category']): CategoryColorTokens {
+  return categoryColors[category] || categoryColors.Miscellaneous;
+}
+
+function getCategoryIcon(tx: Transaction): typeof Wallet {
+  if (tx.type === 'income') {
+    return Wallet;
   }
 
-  if (method === 'GCash') {
-    return (
-      <span className={baseClassName}>
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden="true" />
-        <span>GCash</span>
-      </span>
-    );
-  }
-
-  if (method === 'Maya') {
-    return (
-      <span className={baseClassName}>
-        <span className="h-2.5 w-2.5 rounded-full bg-cyan-500" aria-hidden="true" />
-        <span>Maya</span>
-      </span>
-    );
-  }
-
-  if (method === 'Bank Transfer') {
-    return (
-      <span className={baseClassName}>
-        <Landmark size={12} />
-        <span>Bank</span>
-      </span>
-    );
-  }
-
-  if (method === 'Credit Card' || method === 'Debit Card') {
-    return (
-      <span className={baseClassName}>
-        <CreditCard size={12} />
-        <span>{method === 'Credit Card' ? 'Credit' : 'Debit'}</span>
-      </span>
-    );
-  }
-
-  return (
-    <span className={baseClassName}>
-      <Wallet size={12} />
-      <span>{method}</span>
-    </span>
-  );
+  return CATEGORY_ICON_MAP[tx.category] || Wallet;
 }
 
 interface SwipeableTransactionRowProps {
@@ -158,12 +198,17 @@ function SwipeableTransactionRow({
 }: SwipeableTransactionRowProps) {
   const [offsetX, setOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const offsetRef = useRef(0);
   const startXRef = useRef(0);
   const startYRef = useRef(0);
   const startOffsetRef = useRef(0);
   const axisLockRef = useRef<'x' | 'y' | null>(null);
 
+  const hasEditAction = Boolean(showEdit && onEdit);
+  const hasDeleteAction = Boolean(showDelete && onDelete);
+  const hasMenuActions = hasEditAction || hasDeleteAction;
   const canSwipeLeft = swipeEnabled && Boolean(showDelete && onDelete);
   const canSwipeRight = swipeEnabled && Boolean(showEdit && onEdit);
 
@@ -173,6 +218,10 @@ function SwipeableTransactionRow({
   };
 
   const closeSwipe = () => updateOffset(0);
+  const closeActionMenu = () => {
+    setIsActionMenuOpen(false);
+    setShowDeleteConfirmation(false);
+  };
 
   const clampOffset = (value: number) => {
     const min = canSwipeLeft ? -SWIPE_ACTION_WIDTH : 0;
@@ -280,18 +329,17 @@ function SwipeableTransactionRow({
     touchAction: swipeEnabled ? 'pan-y' : 'auto',
   };
 
-  const txDate = safeParseDate(tx.date);
   const merchantAnchor = tx.merchant || tx.description || tx.notes || tx.category;
-  const secondaryCopy =
-    tx.description && tx.description !== merchantAnchor
-      ? tx.description
-      : tx.notes && tx.notes !== merchantAnchor
-        ? tx.notes
-        : '';
   const categoryLabel = getTransactionCategoryLabel(tx);
+  const categoryTone = getCategoryTone(tx.category);
+  const CategoryIcon = getCategoryIcon(tx);
+  const PaymentMethodIcon = PAYMENT_METHOD_ICON_MAP[tx.paymentMethod] || Wallet;
+  const amountColorClassName = tx.type === 'income'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-red-600 dark:text-red-400';
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800">
+    <div className="group relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800">
       {swipeEnabled && (
         <div className="absolute inset-0 flex items-stretch">
           {canSwipeRight && (
@@ -299,6 +347,7 @@ function SwipeableTransactionRow({
               type="button"
               onClick={() => {
                 onEdit?.(tx);
+                closeActionMenu();
                 closeSwipe();
               }}
               className="inline-flex w-24 min-w-24 items-center justify-center gap-1.5 bg-emerald-500 text-white text-sm font-semibold"
@@ -314,6 +363,7 @@ function SwipeableTransactionRow({
               type="button"
               onClick={() => {
                 onDelete?.(tx.id);
+                closeActionMenu();
                 closeSwipe();
               }}
               className="inline-flex w-24 min-w-24 items-center justify-center gap-1.5 bg-red-500 text-white text-sm font-semibold"
@@ -327,7 +377,7 @@ function SwipeableTransactionRow({
       )}
 
       <div
-        className="relative rounded-2xl bg-white dark:bg-zinc-900 p-4"
+        className="relative rounded-2xl bg-white dark:bg-zinc-900"
         style={cardStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -335,111 +385,118 @@ function SwipeableTransactionRow({
         onPointerCancel={handlePointerCancel}
         onClickCapture={handleForegroundClick}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className={`font-display text-[1.9rem] sm:text-3xl leading-none font-bold ${
-              tx.type === 'income'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-zinc-900 dark:text-white'
-            }`}>
-              {formatTransactionAmount(tx)}
-            </p>
-            <p className="mt-2 text-[15px] sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-              {merchantAnchor}
-            </p>
+        <div className={`absolute inset-y-0 left-0 w-1 ${categoryTone.accent}`} aria-hidden="true" />
+
+        <div className="flex items-start gap-3 py-4 pl-4 pr-3 sm:pr-4">
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] ${categoryTone.icon}`}>
+            <CategoryIcon size={18} />
           </div>
 
-          <span className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">
-            {format(txDate, 'MMM d')}
-          </span>
-        </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+              {merchantAnchor}
+            </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-          <PaymentMethodBadge method={tx.paymentMethod} />
-          {!tx.synced && (
-            <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-              Pending sync
-            </span>
-          )}
-        </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${categoryTone.pill}`}>
+                {categoryLabel}
+              </span>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium opacity-80 ${
-              tx.type === 'income'
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                : (categoryColors[tx.category] || categoryColors.Miscellaneous)
-            }`}
-          >
-            {categoryLabel}
-          </span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                <PaymentMethodIcon size={12} />
+                <span>{tx.paymentMethod}</span>
+              </span>
 
-          {tx.type === 'income' && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-              Income
-            </span>
-          )}
+              {!tx.synced && (
+                <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                  Pending sync
+                </span>
+              )}
+            </div>
+          </div>
 
-          {tx.split && tx.split.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 opacity-80">
-              <SplitSquareHorizontal size={10} />
-              Split ({tx.split.length})
-            </span>
-          )}
+          <div className="ml-1 flex shrink-0 items-center gap-1">
+            <div className="text-right">
+              <p className={`text-[14px] font-medium leading-tight ${amountColorClassName}`}>
+                {formatTransactionAmount(tx)}
+              </p>
+            </div>
 
-          {tx.recurring && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 opacity-80">
-              <Repeat size={10} />
-              {tx.recurring.frequency}
-            </span>
-          )}
-
-          {tx.tags && tx.tags.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-300 opacity-80">
-              <Tag size={10} />
-              {tx.tags.slice(0, 2).join(', ')}
-              {tx.tags.length > 2 ? '...' : ''}
-            </span>
-          )}
-
-          {tx.attachmentBase64 && (
-            <a
-              href={tx.attachmentBase64}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 opacity-80"
-            >
-              <ReceiptText size={10} />
-              Receipt
-            </a>
-          )}
-        </div>
-
-        {secondaryCopy && (
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
-            {secondaryCopy}
-          </p>
-        )}
-
-        {(showEdit || showDelete) && (
-          <div className="mt-3 hidden sm:flex items-center justify-end gap-2">
-            {showEdit && onEdit && (
+            {hasMenuActions && (
               <button
                 type="button"
-                onClick={() => onEdit(tx)}
-                className="min-h-12 px-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setIsActionMenuOpen((open) => !open);
+                  setShowDeleteConfirmation(false);
+                }}
+                className="inline-flex h-8 w-8 self-center items-center justify-center rounded-[6px] text-zinc-500 opacity-100 transition-colors transition-opacity hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:hover:bg-[color:var(--color-background-secondary)]"
+                aria-label="More transaction actions"
+                aria-expanded={isActionMenuOpen}
               >
-                Edit
+                <MoreVertical size={16} />
               </button>
             )}
-            {showDelete && onDelete && (
-              <button
-                type="button"
-                onClick={() => onDelete(tx.id)}
-                className="min-h-12 px-4 rounded-xl bg-red-50 dark:bg-red-500/15 text-sm font-medium text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/25 transition-colors"
-              >
-                Delete
-              </button>
+          </div>
+        </div>
+
+        {isActionMenuOpen && hasMenuActions && (
+          <div className="border-t border-zinc-200/80 bg-zinc-50/85 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/80">
+            {!showDeleteConfirmation ? (
+              <div className="flex items-center justify-end gap-2">
+                {hasEditAction && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onEdit?.(tx);
+                      closeActionMenu();
+                      closeSwipe();
+                    }}
+                    className="min-h-10 rounded-lg bg-zinc-200/70 px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-300/70 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                  >
+                    Edit
+                  </button>
+                )}
+
+                {hasDeleteAction && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirmation(true)}
+                    className="min-h-10 rounded-lg bg-red-50 px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                  Delete this transaction?
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete?.(tx.id);
+                      closeActionMenu();
+                      closeSwipe();
+                    }}
+                    className="min-h-10 rounded-lg bg-red-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+                  >
+                    Yes, delete
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirmation(false)}
+                    className="min-h-10 rounded-lg bg-zinc-200/70 px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-300/70 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -533,34 +590,43 @@ export default function TransactionList({
     })();
 
     return (
-      <div className="space-y-3">
-        {grouped.map((group) => (
-          <section key={group.key} className="space-y-2">
-            {groupByDate && (
-              <div
-                className={`sticky ${stickyHeaderOffsetClassName} z-10 -mx-1 px-1 py-1.5 bg-zinc-50/95 dark:bg-zinc-950/90 backdrop-blur`}
-              >
-                <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400">
-                  {group.label}
-                </p>
-              </div>
-            )}
+      <div className="space-y-4">
+        {grouped.map((group) => {
+          const groupTotal = formatSignedAmount(getGroupNetTotal(group.items));
 
-            <div className="space-y-2">
-              {group.items.map((tx) => (
-                <SwipeableTransactionRow
-                  key={tx.id}
-                  tx={tx}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  showDelete={showDelete}
-                  showEdit={showEdit}
-                  swipeEnabled={swipeEnabled}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
+          return (
+            <section key={group.key} className="space-y-2">
+              {groupByDate && (
+                <div
+                  className={`sticky ${stickyHeaderOffsetClassName} z-10 -mx-1 px-1 py-1.5 bg-zinc-50/95 dark:bg-zinc-950/90 backdrop-blur`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400">
+                      {group.label}
+                    </p>
+                    <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                      {groupTotal}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                {group.items.map((tx) => (
+                  <SwipeableTransactionRow
+                    key={tx.id}
+                    tx={tx}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    showDelete={showDelete}
+                    showEdit={showEdit}
+                    swipeEnabled={swipeEnabled}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     );
   }
@@ -568,105 +634,15 @@ export default function TransactionList({
   return (
     <div className="space-y-2">
       {transactions.map((tx) => (
-        <div
+        <SwipeableTransactionRow
           key={tx.id}
-          className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700 transition-colors"
-        >
-          <div
-            className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium ${
-              tx.type === 'income'
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                : (categoryColors[tx.category] || categoryColors.Miscellaneous)
-            }`}
-          >
-            {getTransactionCategoryLabel(tx)}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] sm:text-sm font-medium text-zinc-900 dark:text-white truncate">
-              {tx.description || tx.merchant || tx.notes || tx.category}
-            </p>
-            <p className="text-[13px] sm:text-xs text-zinc-400 dark:text-zinc-500">
-              {tx.merchant ? `${tx.merchant} · ` : ''}
-              {format(parseISO(tx.date), 'MMM d, yyyy')} · {tx.paymentMethod}
-              {!tx.synced && (
-                <span className="ml-1 text-amber-500">(pending sync)</span>
-              )}
-            </p>
-
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {tx.type === 'income' && (
-                <span className="inline-flex items-center text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold">
-                  Income
-                </span>
-              )}
-
-              {tx.split && tx.split.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-                  <SplitSquareHorizontal size={10} />
-                  Split ({tx.split.length})
-                </span>
-              )}
-              {tx.recurring && (
-                <span className="inline-flex items-center gap-1 text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                  <Repeat size={10} />
-                  {tx.recurring.frequency}
-                </span>
-              )}
-              {tx.tags && tx.tags.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-300">
-                  <Tag size={10} />
-                  {tx.tags.slice(0, 2).join(', ')}{tx.tags.length > 2 ? '...' : ''}
-                </span>
-              )}
-              {tx.attachmentBase64 && (
-                <a
-                  href={tx.attachmentBase64}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] sm:text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                >
-                  <ReceiptText size={10} />
-                  Receipt
-                </a>
-              )}
-            </div>
-
-            {tx.notes && tx.notes !== tx.description && (
-              <p className="text-[13px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-1">
-                {tx.notes}
-              </p>
-            )}
-          </div>
-
-          <p className={`font-display text-base sm:text-sm font-bold ${
-            tx.type === 'income'
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : 'text-zinc-900 dark:text-white'
-          }`}>
-            {formatTransactionAmount(tx)}
-          </p>
-
-          {showEdit && onEdit && (
-            <button
-              onClick={() => onEdit(tx)}
-              className="p-1.5 text-zinc-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors"
-              aria-label="Edit transaction"
-            >
-              <Pencil size={14} />
-            </button>
-          )}
-
-          {showDelete && onDelete && (
-            <button
-              onClick={() => onDelete(tx.id)}
-              className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-              aria-label="Delete transaction"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
+          tx={tx}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          showDelete={showDelete}
+          showEdit={showEdit}
+          swipeEnabled={false}
+        />
       ))}
     </div>
   );
