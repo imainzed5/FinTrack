@@ -621,6 +621,16 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ---
 
 ## Recent Changes (Git Log)
+- **v0.7.8** ✓ Calendar panel transaction data mismatch, desktop overflow, and mobile nav visibility
+  - Fixed drill-down showing "No spend this day" on colored days by adding `currentMonthTransactions` to DashboardData
+  - Updated CalendarPanel to filter `selectedDayTransactions` from full current-month data instead of capped 5-item `recentTransactions`
+  - Added `overflow-x-hidden` to desktop panel content div to prevent content spill on 560px expanded view
+  - Hide mobile BottomNav when calendar or statistics panel is open via `body.panel-open` class toggle
+  - Removed `onExpandChange` callback to fix React setState warning (child updating parent during render)
+  - Parent now syncs calendar expanded state from localStorage when panel opens, decoupling state updates
+  - Updated types.ts: Added `currentMonthTransactions: Transaction[]` to DashboardData interface
+  - Updated insights-engine.ts: Compute full-month transactions and return alongside recentTransactions
+  - Created ISSUES_ANALYSIS.md documenting the bugs, root causes, and solutions
 - **v0.7.7** ✓ Calendar heatmap data source fix + desktop expand/collapse
   - Fixed calendar heatmap to use full-month date-keyed `calendarSpending` instead of 7-day `dailySpending`
   - Added `calendarSpending` field to DashboardData: `{ date: string (yyyy-MM-dd), amount: number }[]` containing all current-month transactions grouped by date

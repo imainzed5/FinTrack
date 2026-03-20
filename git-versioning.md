@@ -79,13 +79,23 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.7
+### Current version: v0.7.8
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.7.8  ✓ Calendar panel fixes: transaction data mismatch, desktop overflow clipping, mobile nav visibility
+  - Fixed drill-down showing "No spend this day" on colored days in CalendarPanel
+  - Added currentMonthTransactions field to DashboardData (full current-month transaction list, not capped at 5)
+  - Updated CalendarPanel.tsx: Filters selectedDayTransactions from full month data instead of recentTransactions
+  - Critical fix: Added overflow-x-hidden to desktop panel content to prevent horizontal spill in 560px expanded view
+  - Mobile UX: Hide BottomNav when calendar or statistics panel is open via body.panel-open CSS class
+  - Fixed React setState warning: Removed onExpandChange callback that updated parent during child render
+  - Parent now reads calendar expanded state from localStorage when panel opens (async, no child-parent coupling)
+  - Files updated: types.ts, insights-engine.ts, CalendarPanel.tsx, DashboardClientPage.tsx, BottomNav.tsx, globals.css, dashboard/page.tsx
+  - New doc: ISSUES_ANALYSIS.md with bug analysis and solutions
 v0.7.7  ✓ Calendar heatmap data source fix + desktop expand/collapse
   - Fixed calendar heatmap to use full-month date-keyed calendarSpending instead of 7-day dailySpending
   - Added calendarSpending field to DashboardData containing all current-month transactions grouped by ISO date (yyyy-MM-dd)
