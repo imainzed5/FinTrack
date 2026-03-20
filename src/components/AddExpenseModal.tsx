@@ -24,6 +24,7 @@ interface AddExpenseModalProps {
   open: boolean;
   onClose: () => void;
   onAdded: () => void;
+  defaultCategory?: string;
 }
 
 interface SplitDraft {
@@ -84,12 +85,44 @@ function createSplitDraft(defaultCategory: Category): SplitDraft {
   };
 }
 
-export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseModalProps) {
+const DEFAULT_CATEGORY_ALIASES: Record<string, Category> = {
+  transport: 'Transportation',
+  transportation: 'Transportation',
+  school: 'Education',
+  education: 'Education',
+  bills: 'Utilities',
+  utilities: 'Utilities',
+  savings: 'Miscellaneous',
+  other: 'Miscellaneous',
+  misc: 'Miscellaneous',
+  miscellaneous: 'Miscellaneous',
+};
+
+function resolveDefaultCategory(defaultCategory?: string): Category {
+  if (!defaultCategory) {
+    return 'Food';
+  }
+
+  const normalized = defaultCategory.trim().toLowerCase();
+  const directMatch = CATEGORIES.find((cat) => cat.toLowerCase() === normalized);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  return DEFAULT_CATEGORY_ALIASES[normalized] ?? 'Food';
+}
+
+export default function AddExpenseModal({
+  open,
+  onClose,
+  onAdded,
+  defaultCategory,
+}: AddExpenseModalProps) {
   const [entryType, setEntryType] = useState<TransactionType>('expense');
   const [incomeCategory, setIncomeCategory] = useState<IncomeCategory>('Freelance');
   const [incomeRecurringMonthly, setIncomeRecurringMonthly] = useState(false);
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category>('Food');
+  const [category, setCategory] = useState<Category>(() => resolveDefaultCategory(defaultCategory));
   const [subCategory, setSubCategory] = useState('');
   const [description, setDescription] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -134,6 +167,12 @@ export default function AddExpenseModal({ open, onClose, onAdded }: AddExpenseMo
     if (!open || !autoFocusAmount) return;
     amountInputRef.current?.focus();
   }, [open, autoFocusAmount]);
+
+  useEffect(() => {
+    if (defaultCategory) {
+      setCategory(resolveDefaultCategory(defaultCategory));
+    }
+  }, [defaultCategory]);
 
   useEffect(() => {
     if (entryType !== 'income') {

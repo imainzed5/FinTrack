@@ -79,13 +79,20 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.4
+### Current version: v0.7.6
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.7.6  ✓ Category emoji → Lucide icons in SpentThisMonthPopup
+  - Replaced category emojis with Lucide icons (UtensilsCrossed, Car, ShoppingBag, Heart, etc.)
+  - Icons render in small green circles (28px, #e8f7f2 background, #1D9E75 icon color)
+  - Icon size normalized to 14px across all categories with consistent strokeWidth=2
+v0.7.5  ✓ Dashboard popup safe-area padding + FAB shortcut stack cleanup
+  - Added explicit bottom sheet safe-area padding using calc(env(safe-area-inset-bottom) + 28px)
+  - Removed the "Your top picks" label above the FAB category shortcut stack for cleaner spacing
 v0.7.4  ✓ Scroll-aware FAB hide/show on Transactions page (IntersectionObserver, fade, pointer-events)
   - FAB now fades out when pagination controls are visible and fades in when not, preventing overlap on mobile
   - Uses IntersectionObserver and a new visible prop on FloatingAddButton

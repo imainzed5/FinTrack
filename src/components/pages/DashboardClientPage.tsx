@@ -4,11 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { BarChart3, CalendarDays } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import BerdeCard from '@/components/dashboard/BerdeCard';
 import BerdeDrawer from '@/components/dashboard/BerdeDrawer';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
+import RemainingBudgetPopup from '@/components/dashboard/popups/RemainingBudgetPopup';
+import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
+import SpentThisMonthPopup from '@/components/dashboard/popups/SpentThisMonthPopup';
+import SpentTodayPopup from '@/components/dashboard/popups/SpentTodayPopup';
 import QuickStatTiles from '@/components/dashboard/QuickStatTiles';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
 import StatisticsPanel from '@/components/dashboard/StatisticsPanel';
@@ -53,6 +57,11 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
   const [statsOpen, setStatsOpen] = useState(false);
   const [berdeOpen, setBerdeOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSpentPopup, setShowSpentPopup] = useState(false);
+  const [showRemainingPopup, setShowRemainingPopup] = useState(false);
+  const [showSavingsPopup, setShowSavingsPopup] = useState(false);
+  const [showTodayPopup, setShowTodayPopup] = useState(false);
+  const [defaultCategory, setDefaultCategory] = useState<string | undefined>();
 
   const now = new Date();
   const today = now.toISOString().split('T')[0];
@@ -121,6 +130,25 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
     );
   })();
 
+  const topCategories = useMemo(() => {
+    const frequencies: Record<string, number> = {};
+
+    data.recentTransactions
+      .filter((tx) => tx.type !== 'income')
+      .forEach((tx) => {
+        frequencies[tx.category] = (frequencies[tx.category] || 0) + 1;
+      });
+
+    const sorted = Object.entries(frequencies)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([category]) => category);
+
+    return sorted.length > 0
+      ? sorted
+      : ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills'];
+  }, [data.recentTransactions]);
+
   const berdeInputs = useBerdeInputs(data, data.recentTransactions, daysUntilPayday);
   const berdeContext = resolveBerdeState(berdeInputs);
   const mood = mapStateToMood(berdeContext.state);
@@ -140,8 +168,17 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
     router.refresh();
   }, [router]);
 
+  const handleCategorySelect = useCallback((category: string) => {
+    setDefaultCategory(category);
+    setShowAddModal(true);
+  }, []);
+
   useEffect(() => {
     const unsubscribe = subscribeAppUpdates(() => {
+      setShowSpentPopup(false);
+      setShowRemainingPopup(false);
+      setShowSavingsPopup(false);
+      setShowTodayPopup(false);
       router.refresh();
     });
 
@@ -232,6 +269,10 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
                 spentToday={spentToday}
                 lastMonthSpent={data.totalSpentLastMonth}
                 latestTransactionName={latestTransactionName}
+                onSpentThisMonthTap={() => setShowSpentPopup(true)}
+                onRemainingBudgetTap={() => setShowRemainingPopup(true)}
+                onSavingsRateTap={() => setShowSavingsPopup(true)}
+                onSpentTodayTap={() => setShowTodayPopup(true)}
               />
             </div>
 
@@ -267,13 +308,50 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
         className={`${statsOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-20 md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
         style={{ right: statsOpen ? 'calc(340px + 24px)' : '24px' }}
       >
-        <FloatingAddButton onClick={() => setShowAddModal(true)} />
+        <FloatingAddButton
+          onClick={() => {
+            setDefaultCategory(undefined);
+            setShowAddModal(true);
+          }}
+          topCategories={topCategories}
+          onCategorySelect={handleCategorySelect}
+        />
       </div>
 
       <AddExpenseModal
         open={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setDefaultCategory(undefined);
+        }}
         onAdded={refreshDashboard}
+        defaultCategory={defaultCategory}
+      />
+
+      <SpentThisMonthPopup
+        open={showSpentPopup}
+        onClose={() => setShowSpentPopup(false)}
+        categoryBreakdown={data.categoryBreakdown}
+        dailySpending={data.dailySpending}
+      />
+
+      <RemainingBudgetPopup
+        open={showRemainingPopup}
+        onClose={() => setShowRemainingPopup(false)}
+        overallBudget={data.budgetStatuses.find((budget) => budget.category === 'Overall')!}
+      />
+
+      <SavingsRatePopup
+        open={showSavingsPopup}
+        onClose={() => setShowSavingsPopup(false)}
+        savingsRate={data.savingsRate ?? 0}
+        firstName={firstName}
+      />
+
+      <SpentTodayPopup
+        open={showTodayPopup}
+        onClose={() => setShowTodayPopup(false)}
+        recentTransactions={data.recentTransactions}
       />
 
       <style jsx global>{`
