@@ -203,6 +203,31 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
     return unsubscribe;
   }, [router]);
 
+  useEffect(() => {
+    const isAnyOpen = statsOpen || calendarOpen;
+
+    if (isAnyOpen) {
+      document.body.classList.add('panel-open');
+    } else {
+      document.body.classList.remove('panel-open');
+    }
+
+    return () => {
+      document.body.classList.remove('panel-open');
+    };
+  }, [statsOpen, calendarOpen]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+
+    try {
+      const isExpanded = window.localStorage.getItem('moneda-calendar-expanded') === 'true';
+      setCalendarExpanded(isExpanded);
+    } catch {
+      setCalendarExpanded(false);
+    }
+  }, [calendarOpen]);
+
   return (
     <>
       <div className="dashboard-home min-h-screen">
@@ -340,8 +365,7 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
             isOpen={calendarOpen}
             onClose={() => setCalendarOpen(false)}
             calendarSpending={data.calendarSpending}
-            recentTransactions={data.recentTransactions}
-            onExpandChange={setCalendarExpanded}
+            currentMonthTransactions={data.currentMonthTransactions}
           />
         </div>
       </div>

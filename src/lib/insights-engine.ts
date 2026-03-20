@@ -507,6 +507,9 @@ export function buildDashboardData(
     .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
     .slice(0, 5);
 
+  const currentMonthTransactions = [...currentMonthTxs]
+    .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+
   const insights = generateInsights(transactions, budgets, now);
 
   return {
@@ -522,6 +525,7 @@ export function buildDashboardData(
     weeklySpending,
     dailySpending,
     calendarSpending,
+    currentMonthTransactions,
     recentTransactions,
     insights,
   };

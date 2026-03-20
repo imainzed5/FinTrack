@@ -205,6 +205,7 @@ export interface DashboardData {
   weeklySpending: { week: string; amount: number }[];
   dailySpending: { day: string; amount: number }[];
   calendarSpending: { date: string; amount: number }[];
+  currentMonthTransactions: Transaction[];
   recentTransactions: Transaction[];
   insights: Insight[];
 }

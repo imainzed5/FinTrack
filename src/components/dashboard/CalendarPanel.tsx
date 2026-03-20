@@ -32,8 +32,7 @@ interface CalendarPanelProps {
   isOpen: boolean;
   onClose: () => void;
   calendarSpending: DashboardData['calendarSpending'];
-  recentTransactions: Transaction[];
-  onExpandChange?: (expanded: boolean) => void;
+  currentMonthTransactions: Transaction[];
 }
 
 type CategoryTone = {
@@ -453,8 +452,7 @@ export default function CalendarPanel({
   isOpen,
   onClose,
   calendarSpending,
-  recentTransactions,
-  onExpandChange,
+  currentMonthTransactions,
 }: CalendarPanelProps) {
   const router = useRouter();
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -559,7 +557,7 @@ export default function CalendarPanel({
   const currentNoSpendStreak = runningNoSpendStreak;
 
   const selectedDayTransactions = selectedDay
-    ? recentTransactions.filter(
+    ? currentMonthTransactions.filter(
         (transaction) =>
           transaction.type !== 'income' && toDateKey(transaction.date) === selectedDay
       )
@@ -585,7 +583,6 @@ export default function CalendarPanel({
       } catch {
         // Ignore localStorage issues.
       }
-      onExpandChange?.(next);
       return next;
     });
   };
@@ -687,7 +684,7 @@ export default function CalendarPanel({
         }}
       >
         <div
-          className={`h-full overflow-y-auto p-4 ${
+          className={`h-full overflow-y-auto overflow-x-hidden p-4 ${
             isOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
           }`}
           style={{
