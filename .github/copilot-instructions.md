@@ -621,9 +621,14 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ---
 
 ## Recent Changes (Git Log)
+- **v0.7.5** ✓ Dashboard popup safe-area padding + FAB shortcut stack cleanup
+  - Added explicit bottom padding on all dashboard popup sheets using `calc(env(safe-area-inset-bottom) + 28px)` for better iOS home-indicator spacing
+  - Removed the "Your top picks" label above FAB shortcut categories so the stack opens cleanly without extra text
 - **v0.7.4** ✓ Scroll-aware FAB hide/show on Transactions page (IntersectionObserver, fade, pointer-events)
   - FAB now fades out when pagination controls are visible and fades in when not, preventing overlap on mobile
   - Uses IntersectionObserver and a new visible prop on FloatingAddButton
+  - TransactionList.tsx card layout and swipe logic unchanged; only FAB and visibility logic updated
+  - All changes merged to main and pushed to production
 - **v0.7.3** ✓ Landing page narrative update (student story, Filipino origin, narrative-driven design)
   - "Why Moneda exists" section now includes developer's student story and narrative-driven design context
   - Highlights Moneda's Filipino roots and mission for everyday clarity
