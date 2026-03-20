@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, PiggyBank, Sun, Target, Wallet } from 'lucide-react';
+import { PiggyBank, Sun, Target, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 interface QuickStatTilesProps {
@@ -41,11 +41,6 @@ function Tile({ label, value, subLabel, icon, onClick }: TileProps) {
       </div>
       <p className="text-[20px] font-medium leading-tight text-zinc-900">{value}</p>
       <p className="mt-1 truncate text-[11px] text-zinc-500">{subLabel}</p>
-      <ChevronDown
-        size={12}
-        className="text-muted absolute bottom-2.5 right-2.5 text-zinc-400"
-        aria-hidden="true"
-      />
     </button>
   );
 }
