@@ -1,7 +1,20 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { X } from 'lucide-react';
+import {
+  X,
+  UtensilsCrossed,
+  Car,
+  Package,
+  BookOpen,
+  ShoppingBag,
+  Heart,
+  FileText,
+  Smartphone,
+  Gamepad2,
+  PiggyBank,
+  Zap,
+} from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 interface SpentThisMonthPopupProps {
@@ -11,6 +24,7 @@ interface SpentThisMonthPopupProps {
   dailySpending: { day: string; amount: number; date?: string }[];
 }
 
+// Exported for backward compatibility (used by SpentTodayPopup)
 export const CATEGORY_EMOJI: Record<string, string> = {
   Food: '🍔',
   Transport: '🚌',
@@ -26,6 +40,23 @@ export const CATEGORY_EMOJI: Record<string, string> = {
   Savings: '🐷',
   Other: '📦',
   Miscellaneous: '📦',
+};
+
+const CATEGORY_ICON: Record<string, React.ElementType> = {
+  Food: UtensilsCrossed,
+  Transport: Car,
+  Transportation: Car,
+  School: BookOpen,
+  Education: BookOpen,
+  Shopping: ShoppingBag,
+  Health: Heart,
+  Bills: FileText,
+  Utilities: Zap,
+  Subscriptions: Smartphone,
+  Entertainment: Gamepad2,
+  Savings: PiggyBank,
+  Other: Package,
+  Miscellaneous: Package,
 };
 
 function normalizeDateSortKey(value: string | undefined, fallbackIndex: number): number {
@@ -133,17 +164,20 @@ export default function SpentThisMonthPopup({
 
           {topCategories.map((item) => {
             const percentage = total > 0 ? Math.min(100, (item.amount / total) * 100) : 0;
-            const emoji = CATEGORY_EMOJI[item.category] ?? '📦';
+            const Icon = CATEGORY_ICON[item.category] ?? Package;
 
             return (
               <div key={item.category} className="rounded-xl border border-zinc-100 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                  <p className="font-medium text-zinc-800">
-                    <span className="mr-1.5" aria-hidden="true">
-                      {emoji}
-                    </span>
-                    {item.category}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <div
+                      style={{ backgroundColor: '#e8f7f2' }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    >
+                      <Icon size={14} color="#1D9E75" strokeWidth={2} />
+                    </div>
+                    <p className="font-medium text-zinc-800">{item.category}</p>
+                  </div>
                   <div className="text-right">
                     <p className="font-semibold text-zinc-900">{formatCurrency(item.amount)}</p>
                     <p className="text-xs text-zinc-500">{Math.round(percentage)}%</p>

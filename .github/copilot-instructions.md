@@ -621,6 +621,10 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ---
 
 ## Recent Changes (Git Log)
+- **v0.7.6** ✓ Category emoji → Lucide icons in SpentThisMonthPopup
+  - Replaced category emojis with Lucide icons (UtensilsCrossed, Car, ShoppingBag, Heart, etc.)
+  - Icons render in small green circles (28px, #e8f7f2 background, #1D9E75 icon color)
+  - Icon size normalized to 14px across all categories with consistent strokeWidth=2
 - **v0.7.5** ✓ Dashboard popup safe-area padding + FAB shortcut stack cleanup
   - Added explicit bottom padding on all dashboard popup sheets using `calc(env(safe-area-inset-bottom) + 28px)` for better iOS home-indicator spacing
   - Removed the "Your top picks" label above FAB shortcut categories so the stack opens cleanly without extra text
