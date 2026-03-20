@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { BarChart3, CalendarDays } from 'lucide-react';
@@ -8,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import BerdeCard from '@/components/dashboard/BerdeCard';
 import BerdeDrawer from '@/components/dashboard/BerdeDrawer';
+import CalendarPanel from '@/components/dashboard/CalendarPanel';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
 import RemainingBudgetPopup from '@/components/dashboard/popups/RemainingBudgetPopup';
 import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
@@ -55,6 +55,18 @@ function normalizeDateKey(value: unknown): string | null {
 export default function DashboardClientPage({ data, firstName }: DashboardClientPageProps) {
   const router = useRouter();
   const [statsOpen, setStatsOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarExpanded, setCalendarExpanded] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    try {
+      return window.localStorage.getItem('moneda-calendar-expanded') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [berdeOpen, setBerdeOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSpentPopup, setShowSpentPopup] = useState(false);
@@ -71,6 +83,12 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
   const monthOverview = format(now, 'MMMM yyyy');
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysUntilPayday = Math.max(0, daysInMonth - now.getDate());
+  const isAnyPanelOpen = statsOpen || calendarOpen;
+  const fabRight = isAnyPanelOpen
+    ? calendarOpen && calendarExpanded
+      ? 'calc(560px + 24px)'
+      : 'calc(340px + 24px)'
+    : '24px';
 
   const overallBudget =
     data.budgetStatuses.find(
@@ -191,16 +209,19 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 md:py-6">
           <section
             className={`transition-opacity duration-300 ${statsOpen ? 'hidden md:block' : 'block'}`}
-            style={{ opacity: statsOpen ? 0.55 : 1 }}
+            style={{ opacity: isAnyPanelOpen ? 0.55 : 1 }}
           >
             <header className="mb-6">
               <div className="mb-3 flex items-center gap-2 md:hidden">
                 <button
                   type="button"
-                  onClick={() => setStatsOpen(true)}
+                  onClick={() => {
+                    setCalendarOpen(false);
+                    setStatsOpen((prev) => !prev);
+                  }}
                   className={`inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] px-4 py-2 text-xs font-medium transition-colors ${
                     statsOpen
-                      ? 'bg-[#1D9E75] text-white'
+                      ? 'border-[#1D9E75] bg-[#1D9E75] text-white'
                       : 'bg-white text-zinc-700 hover:bg-[#E1F5EE]'
                   }`}
                 >
@@ -208,13 +229,21 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
                   <span>Statistics</span>
                 </button>
 
-                <Link
-                  href="/timeline"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-4 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatsOpen(false);
+                    setCalendarOpen((prev) => !prev);
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-medium transition-colors ${
+                    calendarOpen
+                      ? 'border-[#1D9E75] bg-[#1D9E75] text-white'
+                      : 'border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white text-zinc-700 hover:bg-[#E1F5EE]'
+                  }`}
                 >
                   <CalendarDays size={14} />
                   <span>Calendar</span>
-                </Link>
+                </button>
               </div>
 
               <div className="flex items-start justify-between gap-3">
@@ -231,10 +260,13 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
                 <div className="mt-1 hidden shrink-0 items-center gap-2 md:flex">
                   <button
                     type="button"
-                    onClick={() => setStatsOpen(true)}
+                    onClick={() => {
+                      setCalendarOpen(false);
+                      setStatsOpen((prev) => !prev);
+                    }}
                     className={`inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] px-4 py-2 text-xs font-medium transition-colors ${
                       statsOpen
-                        ? 'bg-[#1D9E75] text-white'
+                        ? 'border-[#1D9E75] bg-[#1D9E75] text-white'
                         : 'bg-white text-zinc-700 hover:bg-[#E1F5EE]'
                     }`}
                   >
@@ -242,13 +274,21 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
                     <span>Statistics</span>
                   </button>
 
-                  <Link
-                    href="/timeline"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-4 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatsOpen(false);
+                      setCalendarOpen((prev) => !prev);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-medium transition-colors ${
+                      calendarOpen
+                        ? 'border-[#1D9E75] bg-[#1D9E75] text-white'
+                        : 'border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white text-zinc-700 hover:bg-[#E1F5EE]'
+                    }`}
                   >
                     <CalendarDays size={14} />
                     <span>Calendar</span>
-                  </Link>
+                  </button>
                 </div>
               </div>
             </header>
@@ -295,6 +335,14 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
             weeklySpending={data.weeklySpending}
             recentTransactions={data.recentTransactions}
           />
+
+          <CalendarPanel
+            isOpen={calendarOpen}
+            onClose={() => setCalendarOpen(false)}
+            calendarSpending={data.calendarSpending}
+            recentTransactions={data.recentTransactions}
+            onExpandChange={setCalendarExpanded}
+          />
         </div>
       </div>
 
@@ -305,8 +353,8 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
       />
 
       <div
-        className={`${statsOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-20 md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
-        style={{ right: statsOpen ? 'calc(340px + 24px)' : '24px' }}
+        className={`${isAnyPanelOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-20 md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
+        style={{ right: fabRight }}
       >
         <FloatingAddButton
           onClick={() => {

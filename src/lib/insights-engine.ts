@@ -486,6 +486,23 @@ export function buildDashboardData(
     };
   });
 
+  const currentMonthDays = eachDayOfInterval({
+    start: monthStart,
+    end: monthEnd,
+  });
+
+  const calendarSpending = currentMonthDays.map((day) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const dayTotal = currentMonthExpenseTxs
+      .filter((transaction) => transaction.date.startsWith(dateStr))
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+    return {
+      date: dateStr,
+      amount: dayTotal,
+    };
+  });
+
   const recentTransactions = [...currentMonthTxs]
     .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
     .slice(0, 5);
@@ -504,6 +521,7 @@ export function buildDashboardData(
     categoryBreakdown,
     weeklySpending,
     dailySpending,
+    calendarSpending,
     recentTransactions,
     insights,
   };

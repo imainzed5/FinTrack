@@ -204,6 +204,7 @@ export interface DashboardData {
   categoryBreakdown: { category: string; amount: number }[];
   weeklySpending: { week: string; amount: number }[];
   dailySpending: { day: string; amount: number }[];
+  calendarSpending: { date: string; amount: number }[];
   recentTransactions: Transaction[];
   insights: Insight[];
 }
