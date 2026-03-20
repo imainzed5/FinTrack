@@ -621,6 +621,19 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ---
 
 ## Recent Changes (Git Log)
+- **v0.7.7** ✓ Calendar heatmap data source fix + desktop expand/collapse
+  - Fixed calendar heatmap to use full-month date-keyed `calendarSpending` instead of 7-day `dailySpending`
+  - Added `calendarSpending` field to DashboardData: `{ date: string (yyyy-MM-dd), amount: number }[]` containing all current-month transactions grouped by date
+  - Implemented in `insights-engine.ts`: Loops through all current-month days, aggregates expenses by ISO date string
+  - New CalendarPanel.tsx component extracted from dashboard (730 lines, interactive heatmap with drill-down)
+  - Added desktop expand/collapse toggle: 340px default ↔ 560px expanded with smooth animation
+  - Expanded state persists via localStorage: key `moneda-calendar-expanded`
+  - Two-column layout at 560px: left heatmap column (280px fixed), right detail column (flex-1)
+  - FAB offset syncs dynamically with panel expansion: `calendarOpen && isExpanded ? 560px+24px : 340px+24px`
+  - Mobile bottom-sheet unaffected (forced `isExpanded={false}` for mobile render to preserve existing UX)
+  - New design doc: CALENDAR_PANEL_DESIGN.md with component architecture & usage notes
+  - Updated types.ts: Added `calendarSpending` to DashboardData interface
+  - Lazy state initializers used for localStorage (no effect-based setState) to avoid lint warnings
 - **v0.7.6** ✓ Category emoji → Lucide icons in SpentThisMonthPopup
   - Replaced category emojis with Lucide icons (UtensilsCrossed, Car, ShoppingBag, Heart, etc.)
   - Icons render in small green circles (28px, #e8f7f2 background, #1D9E75 icon color)

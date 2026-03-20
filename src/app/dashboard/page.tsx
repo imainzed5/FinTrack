@@ -24,6 +24,8 @@ const EMPTY_DASHBOARD_DATA: DashboardData = {
   categoryBreakdown: [],
   weeklySpending: [],
   dailySpending: [],
+  calendarSpending: [],
+  currentMonthTransactions: [],
   recentTransactions: [],
   insights: [],
 };

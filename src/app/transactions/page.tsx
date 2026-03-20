@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { Search, Filter, Download, ChevronDown, X, Wallet, SearchX } from 'lucide-react';
 import type { WheelEvent as ReactWheelEvent } from 'react';
@@ -24,6 +25,14 @@ function isCategoryFilter(value: string): value is CategoryFilter {
 }
 
 export default function TransactionsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selectedDayParam = searchParams.get('selectedDay');
+  const selectedDayFilter = selectedDayParam && /^\d{4}-\d{2}-\d{2}$/.test(selectedDayParam)
+    ? selectedDayParam
+    : null;
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalTransactionCount, setTotalTransactionCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -303,7 +312,37 @@ export default function TransactionsPage() {
     setPage(1);
   };
 
+  const clearSelectedDayFilter = useCallback(() => {
+    if (!selectedDayFilter) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete('selectedDay');
+
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+    setPage(1);
+  }, [pathname, router, searchParams, selectedDayFilter]);
+
+  const selectedDayFilterLabel = useMemo(() => {
+    if (!selectedDayFilter) {
+      return null;
+    }
+
+    const parsed = parseISO(selectedDayFilter);
+    if (Number.isNaN(parsed.getTime())) {
+      return selectedDayFilter;
+    }
+
+    return format(parsed, 'MMM d, yyyy');
+  }, [selectedDayFilter]);
+
   const filtered = transactions.filter((tx) => {
+    if (selectedDayFilter && tx.date.split('T')[0] !== selectedDayFilter) {
+      return false;
+    }
+
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -323,7 +362,7 @@ export default function TransactionsPage() {
 
   const totalAmount = filtered.reduce((sum, tx) => sum + tx.amount, 0);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const activeFilterCount = selectedCategories.length;
+  const activeFilterCount = selectedCategories.length + (selectedDayFilter ? 1 : 0);
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const hasNoTransactions = !loading && totalTransactionCount === 0;
   const hasNoMatches = !loading && totalTransactionCount > 0 && filtered.length === 0;
@@ -369,6 +408,7 @@ export default function TransactionsPage() {
   const clearSearchAndFilters = () => {
     setSearch('');
     setSelectedCategories([]);
+    clearSelectedDayFilter();
     setPage(1);
   };
 
@@ -450,6 +490,17 @@ export default function TransactionsPage() {
           {activeFilterCount > 0 && (
             <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
               <div className="flex flex-wrap items-center gap-2">
+                {selectedDayFilter && selectedDayFilterLabel && (
+                  <button
+                    type="button"
+                    onClick={clearSelectedDayFilter}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                  >
+                    Day: {selectedDayFilterLabel}
+                    <X size={12} aria-hidden="true" />
+                  </button>
+                )}
+
                 {selectedCategories.map((category) => (
                   <button
                     key={category}
@@ -464,7 +515,10 @@ export default function TransactionsPage() {
 
                 <button
                   type="button"
-                  onClick={clearSelectedCategories}
+                  onClick={() => {
+                    clearSelectedCategories();
+                    clearSelectedDayFilter();
+                  }}
                   className="inline-flex min-h-9 items-center rounded-full border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Clear all

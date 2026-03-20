@@ -79,13 +79,24 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.6
+### Current version: v0.7.7
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.7.7  ✓ Calendar heatmap data source fix + desktop expand/collapse
+  - Fixed calendar heatmap to use full-month date-keyed calendarSpending instead of 7-day dailySpending
+  - Added calendarSpending field to DashboardData containing all current-month transactions grouped by ISO date (yyyy-MM-dd)
+  - Added desktop expand/collapse toggle for CalendarPanel (340px default ↔ 560px expanded)
+  - Expanded state persists via localStorage (key: moneda-calendar-expanded)
+  - Two-column layout at 560px: left heatmap column (280px fixed) + right detail column (flex-1)
+  - FAB offset syncs dynamically: 340px+24px when closed/narrow, 560px+24px when expanded
+  - Mobile bottom-sheet unaffected by expand state (forced isExpanded={false} for mobile render)
+  - New files: CalendarPanel.tsx (extracted from DashboardClientPage), CALENDAR_PANEL_DESIGN.md
+  - Updated types: Added calendarSpending to DashboardData interface
+  - Updated insights-engine: Compute full-month calendar spending in buildDashboardData()
 v0.7.6  ✓ Category emoji → Lucide icons in SpentThisMonthPopup
   - Replaced category emojis with Lucide icons (UtensilsCrossed, Car, ShoppingBag, Heart, etc.)
   - Icons render in small green circles (28px, #e8f7f2 background, #1D9E75 icon color)
