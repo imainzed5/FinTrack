@@ -79,13 +79,23 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.8.0
+### Current version: v0.9.0
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.9.0  ✓ Berde insight data sufficiency thresholds
+  - Gate analyzeSpendingPatterns() with minimum 5+ transactions and ₱500+ spending for the month
+  - Gate detectSpendingSpikes() with minimum 3+ transactions per category and ₱300+ per category spend
+  - Gate food_high supporting insight with minimum 5+ total transactions (prevents "food dominance" on sparse data)
+  - Gate monday_spender supporting insight with minimum 8+ total transactions (prevents "Monday bias" pattern on thin data)
+  - Leave forecast_good, forecast_bad, bill_due, savings_good, savings_bad checks ungated (budget math, not pattern detection)
+  - Add transactionCount field to BerdeSignalData to track total expense transaction count for gating decisions
+  - Verified with thin-data simulation: 1-transaction account shows only budget/forecast/savings insights, not pattern insights
+  - Prevents premature insight generation on new accounts (fresh graduates, early adopters) until sufficient data exists
+  - Files updated: src/lib/berde-messages.ts, src/lib/insights-engine.ts
 v0.8.0  ✓ Calendar layout restructure + Spent Today display consistency
   - Restructured CalendarPanel expanded state into top row (stats + day detail) + full-width bottom (calendar heatmap)
   - Stats grid (2x2) and day detail panel displayed side-by-side in top row with border separator
