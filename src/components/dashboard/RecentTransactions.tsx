@@ -75,6 +75,16 @@ function getPalette(transaction: Transaction): CategoryPalette {
     };
   }
 
+  if (transaction.type === 'savings') {
+    return {
+      iconBg: '#E1F5EE',
+      iconText: '#1D9E75',
+      pillBg: '#E1F5EE',
+      pillText: '#1D9E75',
+      label: transaction.savingsMeta?.goalName ?? 'Savings',
+    };
+  }
+
   if (transaction.category === 'Transportation') {
     return CATEGORY_PALETTES.Transportation;
   }
@@ -87,7 +97,10 @@ function getPalette(transaction: Transaction): CategoryPalette {
     return CATEGORY_PALETTES.Subscription;
   }
 
-  return CATEGORY_PALETTES.Others;
+  return {
+    ...CATEGORY_PALETTES.Others,
+    label: transaction.category,
+  };
 }
 
 function getTransactionTitle(transaction: Transaction): string {
@@ -132,9 +145,22 @@ export default function RecentTransactions({
             const palette = getPalette(transaction);
             const title = getTransactionTitle(transaction);
             const date = format(safeParseDate(transaction.date), 'MMM d');
-            const amountLabel = `${transaction.type === 'income' ? '+' : ''}${formatCurrency(
-              transaction.amount
-            )}`;
+            const amountLabel =
+              transaction.type === 'income'
+                ? `+${formatCurrency(transaction.amount)}`
+                : transaction.type === 'savings'
+                ? transaction.savingsMeta?.depositType === 'deposit'
+                  ? `+${formatCurrency(transaction.amount)}`
+                  : `-${formatCurrency(transaction.amount)}`
+                : formatCurrency(transaction.amount);
+            const amountColor =
+              transaction.type === 'income'
+                ? '#1D9E75'
+                : transaction.type === 'savings'
+                ? transaction.savingsMeta?.depositType === 'deposit'
+                  ? '#1D9E75'
+                  : '#D85A30'
+                : '#D85A30';
             const rowVisibilityClass =
               typeof limit === 'number' || index < fallbackMobileLimit ? 'flex' : 'hidden md:flex';
 
@@ -174,7 +200,7 @@ export default function RecentTransactions({
 
                 <p
                   className="shrink-0 text-sm font-medium"
-                  style={{ color: transaction.type === 'income' ? '#1D9E75' : '#D85A30' }}
+                  style={{ color: amountColor }}
                 >
                   {amountLabel}
                 </p>

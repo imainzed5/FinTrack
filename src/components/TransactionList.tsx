@@ -100,6 +100,15 @@ const PAYMENT_METHOD_ICON_MAP: Record<PaymentMethod, typeof Wallet> = {
   Other: Wallet,
 };
 
+function getIconBackgroundTint(category: string): string {
+  if (category === 'Food') return '#FAECE7';
+  if (category === 'Transportation') return '#E6F1FB';
+  if (category === 'Health') return '#EAF3DE';
+  if (category === 'Subscriptions') return '#EEEDFE';
+  if (category === 'Shopping') return '#FBEAF0';
+  return '#F1EFE8';
+}
+
 interface TransactionListProps {
   transactions: Transaction[];
   onDelete?: (id: string) => void;
@@ -139,6 +148,10 @@ function getTransactionCategoryLabel(tx: Transaction): string {
     return tx.incomeCategory || 'Other Income';
   }
 
+  if (tx.type === 'savings') {
+    return tx.savingsMeta?.goalName ?? 'Savings';
+  }
+
   return tx.subCategory ? `${tx.category} · ${tx.subCategory}` : tx.category;
 }
 
@@ -157,7 +170,18 @@ function formatSignedAmount(value: number): string {
 }
 
 function formatTransactionAmount(tx: Transaction): string {
-  const signedValue = tx.type === 'income' ? Math.abs(tx.amount) : -Math.abs(tx.amount);
+  let signedValue = -Math.abs(tx.amount);
+
+  if (tx.type === 'income') {
+    signedValue = Math.abs(tx.amount);
+  }
+
+  if (tx.type === 'savings') {
+    signedValue = tx.savingsMeta?.depositType === 'withdrawal'
+      ? -Math.abs(tx.amount)
+      : Math.abs(tx.amount);
+  }
+
   return formatSignedAmount(signedValue);
 }
 
@@ -167,8 +191,24 @@ function getGroupNetTotal(items: Transaction[]): number {
   }, 0);
 }
 
-function getCategoryTone(category: Transaction['category']): CategoryColorTokens {
-  return categoryColors[category] || categoryColors.Miscellaneous;
+function getCategoryTone(tx: Transaction): CategoryColorTokens {
+  if (tx.type === 'savings') {
+    if (tx.savingsMeta?.depositType === 'withdrawal') {
+      return {
+        accent: 'bg-amber-500 dark:bg-amber-400',
+        icon: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+        pill: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+      };
+    }
+
+    return {
+      accent: 'bg-emerald-500 dark:bg-emerald-400',
+      icon: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+      pill: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+    };
+  }
+
+  return categoryColors[tx.category] || categoryColors.Miscellaneous;
 }
 
 function getCategoryIcon(tx: Transaction): typeof Wallet {
@@ -206,11 +246,12 @@ function SwipeableTransactionRow({
   const startOffsetRef = useRef(0);
   const axisLockRef = useRef<'x' | 'y' | null>(null);
 
-  const hasEditAction = Boolean(showEdit && onEdit);
+  const isSavingsRow = tx.type === 'savings';
+  const hasEditAction = Boolean(showEdit && onEdit && !isSavingsRow);
   const hasDeleteAction = Boolean(showDelete && onDelete);
   const hasMenuActions = hasEditAction || hasDeleteAction;
   const canSwipeLeft = swipeEnabled && Boolean(showDelete && onDelete);
-  const canSwipeRight = swipeEnabled && Boolean(showEdit && onEdit);
+  const canSwipeRight = swipeEnabled && Boolean(showEdit && onEdit && !isSavingsRow);
 
   const updateOffset = (nextOffset: number) => {
     offsetRef.current = nextOffset;
@@ -331,12 +372,18 @@ function SwipeableTransactionRow({
 
   const merchantAnchor = tx.merchant || tx.description || tx.notes || tx.category;
   const categoryLabel = getTransactionCategoryLabel(tx);
-  const categoryTone = getCategoryTone(tx.category);
+  const categoryTone = getCategoryTone(tx);
   const CategoryIcon = getCategoryIcon(tx);
   const PaymentMethodIcon = PAYMENT_METHOD_ICON_MAP[tx.paymentMethod] || Wallet;
-  const amountColorClassName = tx.type === 'income'
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : 'text-red-600 dark:text-red-400';
+  const iconTint = getIconBackgroundTint(tx.category);
+  const amountColorClassName =
+    tx.type === 'income'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tx.type === 'savings' && tx.savingsMeta?.depositType === 'deposit'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : tx.type === 'savings' && tx.savingsMeta?.depositType === 'withdrawal'
+          ? 'text-amber-600 dark:text-amber-400'
+          : 'text-red-600 dark:text-red-400';
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800">
@@ -346,6 +393,7 @@ function SwipeableTransactionRow({
             <button
               type="button"
               onClick={() => {
+                if (tx.type === 'savings') return;
                 onEdit?.(tx);
                 closeActionMenu();
                 closeSwipe();
@@ -385,11 +433,12 @@ function SwipeableTransactionRow({
         onPointerCancel={handlePointerCancel}
         onClickCapture={handleForegroundClick}
       >
-        <div className={`absolute inset-y-0 left-0 w-1 ${categoryTone.accent}`} aria-hidden="true" />
-
         <div className="flex items-start gap-3 py-4 pl-4 pr-3 sm:pr-4">
-          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] ${categoryTone.icon}`}>
-            <CategoryIcon size={18} />
+          <div
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+            style={{ backgroundColor: iconTint, color: '#1D9E75' }}
+          >
+            <CategoryIcon size={17} />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -449,6 +498,7 @@ function SwipeableTransactionRow({
                   <button
                     type="button"
                     onClick={() => {
+                      if (tx.type === 'savings') return;
                       onEdit?.(tx);
                       closeActionMenu();
                       closeSwipe();
@@ -604,7 +654,7 @@ export default function TransactionList({
                     <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400">
                       {group.label}
                     </p>
-                    <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs text-[var(--color-text-tertiary)]">
                       {groupTotal}
                     </span>
                   </div>

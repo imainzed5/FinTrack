@@ -25,7 +25,7 @@ import {
 } from '@/lib/types';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
-type CategoryFilter = Category | 'Income';
+type CategoryFilter = Category | 'Income' | 'Savings';
 
 function handleRouteError(error: unknown, fallbackMessage: string): NextResponse {
   if (isAuthRequiredError(error)) {
@@ -113,7 +113,8 @@ function parseCategoryFilters(searchParams: URLSearchParams): CategoryFilter[] {
 
   const uniqueValues = Array.from(new Set(categoryParams));
   return uniqueValues.filter(
-    (value): value is CategoryFilter => value === 'Income' || CATEGORIES.includes(value as Category)
+    (value): value is CategoryFilter =>
+      value === 'Income' || value === 'Savings' || CATEGORIES.includes(value as Category)
   );
 }
 
@@ -134,14 +135,19 @@ export async function GET(request: NextRequest) {
     if (categoryFilters.length > 0) {
       const selectedCategories = new Set(categoryFilters);
       const includeIncome = selectedCategories.has('Income');
+      const includeSavings = selectedCategories.has('Savings');
       const selectedExpenseCategories = new Set(
-        categoryFilters.filter((value): value is Category => value !== 'Income')
+        categoryFilters.filter((value): value is Category => value !== 'Income' && value !== 'Savings')
       );
 
       filtered = filtered.filter(
         (t) => {
           if (t.type === 'income') {
             return includeIncome;
+          }
+
+          if (t.type === 'savings') {
+            return includeSavings;
           }
 
           if (selectedExpenseCategories.size === 0) {

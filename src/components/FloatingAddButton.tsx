@@ -122,12 +122,12 @@ export default function FloatingAddButton({
           type="button"
           aria-label="Close category shortcuts"
           onClick={() => setMenuOpen(false)}
-          className="fixed inset-0 z-30 bg-black/25"
+          className="fixed inset-0 z-40 bg-transparent"
         />
       )}
 
       <div
-        className="fixed bottom-20 mobile-fab-offset right-4 sm:bottom-8 sm:right-8 z-40 flex flex-col items-end gap-2"
+        className="fixed bottom-20 mobile-fab-offset right-4 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end gap-2"
         style={{
           opacity: visible ? 1 : 0,
           pointerEvents: visible ? 'auto' : 'none',
@@ -148,6 +148,7 @@ export default function FloatingAddButton({
                     transform: menuOpen ? 'translateY(0)' : 'translateY(8px)',
                     transitionDelay: `${index * 45}ms`,
                     transitionDuration: '220ms',
+                    pointerEvents: menuOpen ? 'auto' : 'none',
                   }}
                 >
                   <span className="whitespace-nowrap rounded-full border border-gray-100 bg-white px-3 py-1 text-xs font-medium text-gray-800 shadow-sm">
@@ -174,7 +175,7 @@ export default function FloatingAddButton({
 
         <button
           onClick={handleFabClick}
-          className="inline-flex h-14 min-h-14 items-center gap-2 rounded-full bg-emerald-500 px-5 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95"
+          className="relative z-50 inline-flex h-14 min-h-14 items-center gap-2 rounded-full bg-emerald-500 px-5 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95"
           aria-label="Add transaction"
         >
           <Plus

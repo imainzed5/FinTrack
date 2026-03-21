@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   ArcElement,
   Chart as ChartJS,
@@ -342,6 +342,8 @@ export default function StatisticsPanel({
   weeklySpending,
   recentTransactions,
 }: StatisticsPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -360,8 +362,26 @@ export default function StatisticsPanel({
     };
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   return (
-    <>
+    <div ref={panelRef}>
       <section className={`${isOpen ? 'block' : 'hidden'} md:hidden`}>
         <div className="min-h-screen bg-[#f5f5f0] px-4 py-5 sm:px-6">
           <StatisticsContent
@@ -408,6 +428,6 @@ export default function StatisticsPanel({
           />
         </div>
       </aside>
-    </>
+    </div>
   );
 }

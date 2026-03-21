@@ -60,7 +60,7 @@ function deriveFirstName(value: string): string {
   return firstToken || 'there';
 }
 
-async function loadViewerFirstName(): Promise<string> {
+async function loadViewerIdentity(): Promise<{ firstName: string; userId: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const {
@@ -77,17 +77,26 @@ async function loadViewerFirstName(): Promise<string> {
         : '';
 
     const fullName = metadataFullName || user?.email || 'there';
-    return deriveFirstName(fullName);
+    return {
+      firstName: deriveFirstName(fullName),
+      userId: user?.id ?? '',
+    };
   } catch {
-    return 'there';
+    return { firstName: 'there', userId: '' };
   }
 }
 
 export default async function DashboardPage() {
-  const [data, firstName] = await Promise.all([
+  const [data, viewerIdentity] = await Promise.all([
     loadDashboardData(),
-    loadViewerFirstName(),
+    loadViewerIdentity(),
   ]);
 
-  return <DashboardClientPage data={data} firstName={firstName} />;
+  return (
+    <DashboardClientPage
+      data={data}
+      firstName={viewerIdentity.firstName}
+      userId={viewerIdentity.userId}
+    />
+  );
 }

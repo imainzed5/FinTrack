@@ -79,13 +79,51 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.8
+### Current version: v0.10.0
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.10.0 ✓ Dashboard and Transactions UI refinement
+  - Moved FilterDrawer to React Portal (document.body) with mounted guard to escape sticky header stacking context
+  - Changed FilterDrawer z-index to 9999 to properly overlay FAB (z-50) and bottom nav (z-40)
+  - Updated FilterDrawer sheet background from CSS variables to explicit zinc classes for portal compatibility
+  - Redesigned mobile transactions header: separated Filters button into its own row below title/total
+  - Replaced quick-add category buttons with simplified add flow (FAB only)
+  - Reduced stat card typography: values text-2xl → text-lg, labels/sub-text to text-[10px] to prevent wrapping on 3-column grid
+  - Changed Calendar panel mobile view from bottom-sheet modal to inline full-block (matches Statistics panel pattern)
+  - Fixed dashboard main section visibility: now hides on mobile when either Statistics or Calendar panel opens (was only hiding for Statistics)
+  - Updated FilterDrawer header: changed h2 → p, improved close button styling, tightened border color classes
+  - Files updated: FilterDrawer.tsx, transactions/page.tsx, CalendarPanel.tsx, DashboardClientPage.tsx
+v0.9.0  ✓ Berde insight data sufficiency thresholds
+  - Gate analyzeSpendingPatterns() with minimum 5+ transactions and ₱500+ spending for the month
+  - Gate detectSpendingSpikes() with minimum 3+ transactions per category and ₱300+ per category spend
+  - Gate food_high supporting insight with minimum 5+ total transactions (prevents "food dominance" on sparse data)
+  - Gate monday_spender supporting insight with minimum 8+ total transactions (prevents "Monday bias" pattern on thin data)
+  - Leave forecast_good, forecast_bad, bill_due, savings_good, savings_bad checks ungated (budget math, not pattern detection)
+  - Add transactionCount field to BerdeSignalData to track total expense transaction count for gating decisions
+  - Verified with thin-data simulation: 1-transaction account shows only budget/forecast/savings insights, not pattern insights
+  - Prevents premature insight generation on new accounts (fresh graduates, early adopters) until sufficient data exists
+  - Files updated: src/lib/berde-messages.ts, src/lib/insights-engine.ts
+v0.8.0  ✓ Calendar layout restructure + Spent Today display consistency
+  - Restructured CalendarPanel expanded state into top row (stats + day detail) + full-width bottom (calendar heatmap)
+  - Stats grid (2x2) and day detail panel displayed side-by-side in top row with border separator
+  - Calendar heatmap + legend moved to full-width bottom section
+  - Collapsed state layout unchanged (vertical flex layout with all sections stacked)
+  - Fixed "Spent Today" stat card and modal to count only expense transactions (excludes savings deposits/income)
+  - Updated spentToday calculation in DashboardClientPage.tsx to filter type === 'expense'
+  - Updated SpentTodayPopup to filter for expense-only transactions and apply transaction-aware sign formatting
+  - Removed hardcoded negative sign in modal amount display; now uses transaction.type to determine +/- prefix
+  - Files updated: CalendarPanel.tsx, DashboardClientPage.tsx, SpentTodayPopup.tsx
+v0.7.9  ✓ Savings transaction rendering on dashboard and deposit metadata
+  - Set merchant to goal name in addSavingsDeposit() for correct display in transaction list
+  - Add description field with deposit/withdrawal context
+  - Patch RecentTransactions component with savings palette detection and rendering
+  - Display goal name in category badge for savings transactions
+  - Show +/- prefix for deposits/withdrawals with appropriate colors (emerald/amber)
+  - Files updated: db.ts, RecentTransactions.tsx
 v0.7.8  ✓ Calendar panel fixes: transaction data mismatch, desktop overflow clipping, mobile nav visibility
   - Fixed drill-down showing "No spend this day" on colored days in CalendarPanel
   - Added currentMonthTransactions field to DashboardData (full current-month transaction list, not capped at 5)

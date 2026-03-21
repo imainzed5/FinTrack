@@ -77,7 +77,7 @@ export default function RemainingBudgetPopup({
   if (!open || !overallBudget) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

@@ -2,10 +2,11 @@
 
 import { Clock3 } from 'lucide-react';
 import BerdeSprite from '@/components/BerdeSprite';
-import { getBerdeSubtitle, type BerdeInsight, type BerdeMood } from '../../lib/berde-messages';
+import { type BerdeInsight, type BerdeMood } from '../../lib/berde-messages';
 
 interface BerdeCardProps {
   insight: BerdeInsight;
+  quote?: string;
   onClick: () => void;
 }
 
@@ -17,7 +18,7 @@ function resolveSpriteState(mood: BerdeMood) {
   return 'neutral' as const;
 }
 
-export default function BerdeCard({ insight, onClick }: BerdeCardProps) {
+export default function BerdeCard({ insight, quote, onClick }: BerdeCardProps) {
   const spriteState = resolveSpriteState(insight.mood);
 
   return (
@@ -68,12 +69,14 @@ export default function BerdeCard({ insight, onClick }: BerdeCardProps) {
               <strong className="font-semibold text-emerald-100">{insight.boldPhrase}</strong>
             ) : null}
           </p>
-          <div
-            className="mt-[5px] text-[11px] italic"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
-          >
-            {getBerdeSubtitle(insight.mood)}
-          </div>
+          {quote ? (
+            <div
+              className="mt-[5px] text-[11px] italic"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+            >
+              {quote}
+            </div>
+          ) : null}
           <div
             className="mt-[7px] flex items-center gap-1 text-[10px]"
             style={{ color: 'rgba(255,255,255,0.4)' }}

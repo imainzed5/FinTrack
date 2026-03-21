@@ -1,5 +1,6 @@
 import type { BerdeState } from '@/lib/berde/berde.types';
 import type { BudgetStatus, Insight, Transaction } from '@/lib/types';
+import { getTodayDateKeyInManila } from '@/lib/utils';
 
 export type BerdeMood = 'good' | 'sarcastic' | 'hype' | 'warning' | 'dry';
 
@@ -40,6 +41,7 @@ interface BerdeSignalData {
   mondayTotal: number;
   mondayAvg: number;
   dailyAvg: number;
+  transactionCount: number;
   sameMerchantCount: number;
   highSpendStreakDays: number;
   category: string;
@@ -78,6 +80,21 @@ const pools = {
         boldPhrase: 'Berde is cautiously excited.',
         dataLine: 'Spending pace: healthy',
       },
+      {
+        message: "Sweldo day. Let's make it count this time.",
+        boldPhrase: 'Berde is cautiously optimistic about your choices.',
+        dataLine: 'Fresh budget loaded',
+      },
+      {
+        message: "You logged your first transaction. That's the hardest part.",
+        boldPhrase: 'Most people never start. You did.',
+        dataLine: 'Transaction recorded',
+      },
+      {
+        message: 'A savings milestone. For real this time.',
+        boldPhrase: "Berde is genuinely proud. Don't make it weird.",
+        dataLine: '₱{saved} saved this month',
+      },
     ],
   },
   warning_general: {
@@ -107,6 +124,21 @@ const pools = {
         message: "Budget's under pressure this month.",
         boldPhrase: 'Still recoverable. Just be mindful.',
         dataLine: 'P{remaining} left of P{limit}',
+      },
+      {
+        message: 'The budget is feeling the pressure.',
+        boldPhrase: 'You can still course-correct. But soon.',
+        dataLine: '{pctUsed}% used - ₱{remaining} left',
+      },
+      {
+        message: 'Spending is running a little fast this month.',
+        boldPhrase: "Berde is not panicking. You shouldn't either. Yet.",
+        dataLine: '₱{spent} of ₱{limit} used',
+      },
+      {
+        message: "You've been spending above average for a few days now.",
+        boldPhrase: 'Nothing alarming. Worth being aware of.',
+        dataLine: 'Above average spend: {days} days running',
       },
     ],
   },
@@ -138,6 +170,21 @@ const pools = {
         boldPhrase: 'Not a problem yet. Just saying.',
         dataLine: '{category} up {pct}% vs last month',
       },
+      {
+        message: 'That category is carrying a lot of weight this month.',
+        boldPhrase: 'Sige lang. Berde is just noting things.',
+        dataLine: '{category} up {pct}% vs last month',
+      },
+      {
+        message: 'Same place, same time, again.',
+        boldPhrase: 'Creature of habit. At least it\'s consistent.',
+        dataLine: 'Repeat merchant: {sameMerchantCount}x this week',
+      },
+      {
+        message: 'Impulse buy logged. Berde sees all.',
+        boldPhrase: 'No judgment. Just documentation.',
+        dataLine: 'Transaction flagged as impulse pattern',
+      },
     ],
   },
   neutral_general: {
@@ -166,6 +213,21 @@ const pools = {
       {
         message: 'No major signals this month.',
         boldPhrase: "Keep it up. Or don't. Up to you.",
+        dataLine: 'Spending pace: normal',
+      },
+      {
+        message: 'Nothing to flag this month.',
+        boldPhrase: 'Wala namang masyadong nangyayari. Which is the point.',
+        dataLine: 'All categories within budget',
+      },
+      {
+        message: "Budget's holding steady.",
+        boldPhrase: 'Berde is watching. No alarms. For now.',
+        dataLine: '₱{spent} spent - ₱{remaining} remaining',
+      },
+      {
+        message: 'Month is progressing as expected.',
+        boldPhrase: 'Boring. Berde is not complaining.',
         dataLine: 'Spending pace: normal',
       },
     ],
@@ -197,6 +259,21 @@ const pools = {
         message: "You're under budget and over expectations.",
         boldPhrase: "Honestly didn't see that coming.",
         dataLine: 'P{saved} remaining - {rate}% savings rate',
+      },
+      {
+        message: 'You actually did it.',
+        boldPhrase: "Berde didn't think you had it in you. Respect.",
+        dataLine: '{rate}% saved - ₱{saved} set aside',
+      },
+      {
+        message: 'Savings goal cleared. Month not even over.',
+        boldPhrase: 'Whatever you did differently this month - write it down.',
+        dataLine: '₱{saved} saved of ₱{limit} budget',
+      },
+      {
+        message: 'Under budget. Over expectations.',
+        boldPhrase: 'Berde is taking this personally. In a good way.',
+        dataLine: '{rate}% savings rate this month',
       },
     ],
   },
@@ -464,12 +541,12 @@ function interpolate(template: string, data: Record<string, unknown>): string {
 }
 
 function pickRandom(pool: BerdePool, data: Record<string, unknown>, type: string): BerdeInsight {
-  const monthSeed = new Date().toISOString().slice(0, 7);
+  const daySeed = new Date().toISOString().slice(0, 10);
   const variabilitySeed = Object.keys(data)
     .sort()
     .map((key) => `${key}:${String(data[key])}`)
     .join('|');
-  const index = getStableIndex(`${type}:${monthSeed}:${variabilitySeed}`, pool.messages.length);
+  const index = getStableIndex(`${type}:${daySeed}:${variabilitySeed}`, pool.messages.length);
   const selected = pool.messages[index];
 
   return {
@@ -509,7 +586,7 @@ function buildSignalData(data: {
 }): BerdeSignalData {
   const { budgetStatuses, transactions } = data;
   const now = new Date();
-  const todayKey = now.toISOString().split('T')[0];
+  const todayKey = getTodayDateKeyInManila();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysElapsed = Math.max(1, now.getDate());
   const daysLeft = Math.max(0, daysInMonth - daysElapsed);
@@ -618,6 +695,7 @@ function buildSignalData(data: {
     mondayTotal,
     mondayAvg,
     dailyAvg,
+    transactionCount: expenseTransactions.length,
     sameMerchantCount,
     highSpendStreakDays,
     category: overspentCategory,
@@ -709,11 +787,19 @@ function getSupportingInsights(input: {
     );
   }
 
-  if (signalData.foodAmount > 0 && signalData.foodPct >= 35) {
+  if (
+    signalData.foodAmount > 0 &&
+    signalData.foodPct >= 35 &&
+    signalData.transactionCount >= 5
+  ) {
     supporting.push(pickRandom(pools.food_high, data, 'food_high'));
   }
 
-  if (signalData.mondayAvg > 0 && signalData.mondayAvg > signalData.dailyAvg * 1.3) {
+  if (
+    signalData.mondayAvg > 0 &&
+    signalData.mondayAvg > signalData.dailyAvg * 1.3 &&
+    signalData.transactionCount >= 8
+  ) {
     supporting.push(pickRandom(pools.monday_spender, data, 'monday_spender'));
   }
 

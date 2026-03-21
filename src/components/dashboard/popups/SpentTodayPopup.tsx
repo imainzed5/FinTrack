@@ -1,10 +1,9 @@
 'use client';
 
-import { format } from 'date-fns';
 import { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import type { Transaction } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getTodayDateKeyInManila } from '@/lib/utils';
 import { CATEGORY_EMOJI } from './SpentThisMonthPopup';
 
 interface SpentTodayPopupProps {
@@ -13,17 +12,25 @@ interface SpentTodayPopupProps {
   recentTransactions: Transaction[];
 }
 
-type TimeGroup = 'Morning' | 'Afternoon' | 'Evening';
+function formatSignedAmount(tx: Transaction): string {
+  const value = formatCurrency(tx.amount);
 
-function formatSignedAmount(amount: number): string {
-  return `-${formatCurrency(amount)}`;
+  if (tx.type === 'income') {
+    return `+${value}`;
+  }
+
+  if (tx.type === 'savings') {
+    return tx.savingsMeta?.depositType === 'deposit' ? `+${value}` : `-${value}`;
+  }
+
+  return `-${value}`;
 }
 
-function getTimeGroup(date: Date): TimeGroup {
-  const hour = date.getHours();
-  if (hour < 12) return 'Morning';
-  if (hour < 18) return 'Afternoon';
-  return 'Evening';
+const toTitleCase = (str: string) =>
+  str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+function toDateKey(value: string): string {
+  return value.split('T')[0];
 }
 
 export default function SpentTodayPopup({
@@ -31,36 +38,13 @@ export default function SpentTodayPopup({
   onClose,
   recentTransactions,
 }: SpentTodayPopupProps) {
-  const todayKey = new Date().toISOString().split('T')[0];
+  const todayKey = getTodayDateKeyInManila();
 
   const todayTxns = useMemo(
     () =>
       recentTransactions
-        .filter(
-          (tx) => tx.date.split('T')[0] === todayKey && tx.type !== 'income'
-        )
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        .filter((tx) => toDateKey(tx.date) === todayKey && tx.type === 'expense'),
     [recentTransactions, todayKey]
-  );
-
-  const grouped = useMemo(() => {
-    const groups: Record<TimeGroup, Transaction[]> = {
-      Morning: [],
-      Afternoon: [],
-      Evening: [],
-    };
-
-    todayTxns.forEach((tx) => {
-      const timestamp = new Date(tx.date);
-      if (Number.isNaN(timestamp.getTime())) return;
-      groups[getTimeGroup(timestamp)].push(tx);
-    });
-
-    return groups;
-  }, [todayTxns]);
-
-  const visibleGroups = (Object.keys(grouped) as TimeGroup[]).filter(
-    (group) => grouped[group].length > 0
   );
 
   const totalToday = useMemo(
@@ -90,7 +74,7 @@ export default function SpentTodayPopup({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -118,41 +102,33 @@ export default function SpentTodayPopup({
           </div>
         ) : (
           <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
-            {visibleGroups.map((groupName) => (
-              <section key={groupName}>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                  {groupName}
-                </p>
-                <div className="space-y-2">
-                  {grouped[groupName].map((tx) => {
-                    const parsedDate = new Date(tx.date);
-                    const emoji = CATEGORY_EMOJI[tx.category] ?? '📦';
-                    const title = tx.merchant || tx.description || tx.category;
-                    const timeLabel = Number.isNaN(parsedDate.getTime())
-                      ? '--:--'
-                      : format(parsedDate, 'h:mm a');
+            <div className="space-y-2">
+              {todayTxns.map((tx) => {
+                const emoji = CATEGORY_EMOJI[tx.category] ?? '📦';
+                const title = tx.merchant
+                  ? toTitleCase(tx.merchant)
+                  : tx.description
+                    ? toTitleCase(tx.description)
+                    : toTitleCase(tx.category);
 
-                    return (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-zinc-800">
-                            <span className="mr-1.5" aria-hidden="true">{emoji}</span>
-                            {title}
-                          </p>
-                          <p className="text-xs text-zinc-500">{timeLabel}</p>
-                        </div>
-                        <p className="shrink-0 text-sm font-semibold text-[#d85a30]">
-                          {formatSignedAmount(tx.amount)}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                return (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zinc-800">
+                        <span className="mr-1.5" aria-hidden="true">{emoji}</span>
+                        {title}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-[#d85a30]">
+                      {formatSignedAmount(tx)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

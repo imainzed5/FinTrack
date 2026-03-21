@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addMonths,
   eachDayOfInterval,
@@ -26,7 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import type { DashboardData, Transaction } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getTodayDateKeyInManila } from '@/lib/utils';
 
 interface CalendarPanelProps {
   isOpen: boolean;
@@ -299,8 +299,157 @@ function CalendarPanelContent({
         </div>
       </header>
 
-      <div className={`flex gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`} style={{ minWidth: 0 }}>
-        <div className={`${isExpanded ? 'w-[280px] flex-shrink-0' : 'w-full'} space-y-4`}>
+      {isExpanded ? (
+        <div style={{ minWidth: 0 }} className="flex flex-col">
+          <div className="flex gap-0 border-b border-[color:var(--color-border-tertiary,#d9d7cf)]">
+            <div className="w-[280px] flex-shrink-0 p-4 border-r border-[color:var(--color-border-tertiary,#d9d7cf)]">
+              <section className="grid grid-cols-2 gap-2">
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    Total spent
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-zinc-900">{formatCurrency(totalSpent)}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">elapsed days</p>
+                </article>
+
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    Spend days
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-zinc-900">{spendDays}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">with activity</p>
+                </article>
+
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    No-spend days
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-[#1D9E75]">{noSpendDays}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">elapsed only</p>
+                </article>
+
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    Best streak
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-zinc-900">{bestNoSpendStreak}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">no-spend run</p>
+                </article>
+              </section>
+            </div>
+
+            <div className="flex-1 min-w-0 p-4">{dayDetailContent}</div>
+          </div>
+
+          <div className="p-4">
+            <div className="mb-4">
+              <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={onPrevMonth}
+                  disabled={!canGoPrev}
+                  aria-label="Previous month"
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                    canGoPrev
+                      ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
+                      : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
+                  }`}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+
+                <p className="text-sm font-medium text-zinc-800">{format(viewedMonth, 'MMMM yyyy')}</p>
+
+                <button
+                  type="button"
+                  onClick={onNextMonth}
+                  disabled={!canGoNext}
+                  aria-label="Next month"
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                    canGoNext
+                      ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
+                      : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
+                  }`}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+              </section>
+            </div>
+
+            <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5">
+              <div className="grid grid-cols-7 gap-1.5">
+                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((weekday) => (
+                  <p
+                    key={weekday}
+                    className="text-center text-[10px] font-medium uppercase tracking-[0.04em] text-zinc-500"
+                  >
+                    {weekday}
+                  </p>
+                ))}
+
+                {Array.from({ length: monthOffset }).map((_, index) => (
+                  <div key={`offset-${index}`} className="aspect-square" aria-hidden="true" />
+                ))}
+
+                {monthDays.map((day) => {
+                  const dateKey = format(day, 'yyyy-MM-dd');
+                  const amount = getAmountForDate(dateKey);
+                  const level = getHeatLevel(amount, maxAmountInMonth);
+                  const isTodayCell = dateKey === todayKey;
+                  const isSelected = selectedDay === dateKey;
+
+                  return (
+                    <button
+                      key={dateKey}
+                      type="button"
+                      onClick={() => onSelectDay(dateKey)}
+                      className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-[6px] border transition-shadow"
+                      style={{
+                        backgroundColor: HEATMAP_COLORS[level],
+                        color: HEATMAP_TEXT_COLORS[level],
+                        borderColor: isSelected || isTodayCell ? '#1D9E75' : 'transparent',
+                        borderWidth: '1.5px',
+                        boxShadow: isSelected ? '0 0 0 2px #1D9E7530' : 'none',
+                      }}
+                      aria-label={`${format(day, 'MMM d')}: ${formatCurrency(amount)}`}
+                    >
+                      <span className="text-[10px] font-medium leading-none">{format(day, 'd')}</span>
+                      {amount > 0 ? (
+                        <span
+                          className="mt-1 h-[3px] w-[3px] rounded-full"
+                          style={{ backgroundColor: level === 4 ? '#ffffff' : '#1D9E75' }}
+                        />
+                      ) : (
+                        <span className="mt-1 h-[3px] w-[3px]" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-zinc-500">Less</span>
+                  {HEATMAP_COLORS.map((color) => (
+                    <span
+                      key={color}
+                      className="inline-flex h-[14px] w-[14px] rounded-[3px] border border-black/5"
+                      style={{ backgroundColor: color }}
+                      aria-hidden="true"
+                    />
+                  ))}
+                  <span className="text-[10px] text-zinc-500">More</span>
+                </div>
+
+                <p className="text-[10px] text-zinc-500">tap a day</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full space-y-4" style={{ minWidth: 0 }}>
           <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-3 py-2.5">
             <div className="flex items-center justify-between">
               <button
@@ -335,7 +484,7 @@ function CalendarPanelContent({
             </div>
           </section>
 
-          <section className="grid grid-cols-2 gap-2.5">
+          <section className={`grid gap-2 ${isExpanded ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
               <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">Total spent</p>
               <p className="mt-1 text-lg font-medium text-zinc-900">{formatCurrency(totalSpent)}</p>
@@ -437,13 +586,7 @@ function CalendarPanelContent({
             ) : null}
           </section>
         </div>
-
-        {isExpanded ? (
-          <div className="flex-1 min-w-0 border-l border-[color:var(--color-border-tertiary,#d9d7cf)] pl-4">
-            {dayDetailContent}
-          </div>
-        ) : null}
-      </div>
+      )}
     </div>
   );
 }
@@ -455,6 +598,7 @@ export default function CalendarPanel({
   currentMonthTransactions,
 }: CalendarPanelProps) {
   const router = useRouter();
+  const panelRef = useRef<HTMLElement>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
@@ -487,8 +631,30 @@ export default function CalendarPanel({
     };
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (window.innerWidth < 768) {
+        return;
+      }
+
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   const now = new Date();
-  const todayKey = format(now, 'yyyy-MM-dd');
+  const todayKey = getTodayDateKeyInManila();
   const selectedMonth = format(viewedMonth, 'yyyy-MM');
   const currentMonthKey = format(now, 'yyyy-MM');
 
@@ -624,24 +790,8 @@ export default function CalendarPanel({
 
   return (
     <>
-      <section
-        className={`fixed inset-0 z-40 md:hidden ${
-          isOpen ? 'pointer-events-auto' : 'pointer-events-none'
-        }`}
-      >
-        <div
-          className={`absolute inset-0 bg-black/25 transition-opacity duration-300 ${
-            isOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-          }`}
-          onClick={onClose}
-          aria-hidden="true"
-        />
-
-        <div
-          className={`fixed bottom-0 inset-x-0 z-40 max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+16px)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-            isOpen ? 'translate-y-0' : 'translate-y-full'
-          }`}
-        >
+      <section className={`${isOpen ? 'block' : 'hidden'} md:hidden`}>
+        <div className="min-h-screen bg-[#f5f5f0] px-4 py-5 sm:px-6">
           <CalendarPanelContent
             onClose={onClose}
             viewedMonth={viewedMonth}
@@ -671,6 +821,7 @@ export default function CalendarPanel({
       </section>
 
       <aside
+        ref={panelRef}
         className="fixed right-0 top-0 z-30 hidden h-screen overflow-hidden bg-[#f8f7f2] md:block"
         style={{
           width: isOpen ? `${panelWidth}px` : '0px',

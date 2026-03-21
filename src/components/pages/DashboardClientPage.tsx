@@ -10,7 +10,7 @@ import BerdeDrawer from '@/components/dashboard/BerdeDrawer';
 import CalendarPanel from '@/components/dashboard/CalendarPanel';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
 import RemainingBudgetPopup from '@/components/dashboard/popups/RemainingBudgetPopup';
-import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
+import SavingsGoalsDashboardCard from '@/components/dashboard/SavingsGoalsDashboardCard';
 import SpentThisMonthPopup from '@/components/dashboard/popups/SpentThisMonthPopup';
 import SpentTodayPopup from '@/components/dashboard/popups/SpentTodayPopup';
 import QuickStatTiles from '@/components/dashboard/QuickStatTiles';
@@ -22,11 +22,13 @@ import { resolveBerdeState } from '@/lib/berde/berde.logic';
 import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
 import { getBerdeInsightsForMood, mapStateToMood } from '../../lib/berde-messages';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
-import type { DashboardData } from '@/lib/types';
+import { getTodayDateKeyInManila } from '@/lib/utils';
+import type { DashboardData, SavingsGoalsSummary } from '@/lib/types';
 
 interface DashboardClientPageProps {
   data: DashboardData;
   firstName: string;
+  userId: string;
 }
 
 type DailySpendingPoint = DashboardData['dailySpending'][number] & { date?: string };
@@ -52,7 +54,7 @@ function normalizeDateKey(value: unknown): string | null {
   return dateKey;
 }
 
-export default function DashboardClientPage({ data, firstName }: DashboardClientPageProps) {
+export default function DashboardClientPage({ data, firstName, userId }: DashboardClientPageProps) {
   const router = useRouter();
   const [statsOpen, setStatsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -71,12 +73,14 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSpentPopup, setShowSpentPopup] = useState(false);
   const [showRemainingPopup, setShowRemainingPopup] = useState(false);
-  const [showSavingsPopup, setShowSavingsPopup] = useState(false);
   const [showTodayPopup, setShowTodayPopup] = useState(false);
+  const [showSavingsGoalsPopup, setShowSavingsGoalsPopup] = useState(false);
+  const [savingsSummary, setSavingsSummary] = useState<SavingsGoalsSummary | null>(null);
+  const [savingsLoading, setSavingsLoading] = useState(true);
   const [defaultCategory, setDefaultCategory] = useState<string | undefined>();
 
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  const today = getTodayDateKeyInManila();
   const formattedDate = format(now, 'EEEE, MMMM d');
   const timeOfDay = getTimeOfDay(now);
   const safeFirstName = firstName.trim() || 'there';
@@ -99,13 +103,10 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
   const remaining = overallBudget?.remaining ?? 0;
   const monthlyLimit = overallBudget?.limit ?? 0;
 
-  const savingsRate =
-    monthlyLimit > 0
-      ? Math.round(((monthlyLimit - spentThisMonth) / monthlyLimit) * 100)
-      : 0;
-
   const spentToday = data.recentTransactions
-    .filter((transaction) => transaction.date.split('T')[0] === today)
+    .filter(
+      (transaction) => normalizeDateKey(transaction.date) === today && transaction.type === 'expense'
+    )
     .reduce((sum, transaction) => sum + transaction.amount, 0);
 
   const last7Days = [...(data.dailySpending as DailySpendingPoint[])]
@@ -168,7 +169,7 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
   }, [data.recentTransactions]);
 
   const berdeInputs = useBerdeInputs(data, data.recentTransactions, daysUntilPayday);
-  const berdeContext = resolveBerdeState(berdeInputs);
+  const berdeContext = resolveBerdeState(berdeInputs, userId);
   const mood = mapStateToMood(berdeContext.state);
   const berdeInsights = getBerdeInsightsForMood(mood, {
     budgetStatuses: data.budgetStatuses,
@@ -195,13 +196,43 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
     const unsubscribe = subscribeAppUpdates(() => {
       setShowSpentPopup(false);
       setShowRemainingPopup(false);
-      setShowSavingsPopup(false);
+      setShowSavingsGoalsPopup(false);
       setShowTodayPopup(false);
       router.refresh();
     });
 
     return unsubscribe;
   }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchSavings() {
+      try {
+        const res = await fetch('/api/savings/goals', { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error('Failed');
+        }
+        const fetchedData = (await res.json()) as SavingsGoalsSummary;
+        if (!cancelled) {
+          setSavingsSummary(fetchedData);
+        }
+      } catch {
+        if (!cancelled) {
+          setSavingsSummary({ goals: [], totalSaved: 0, activeGoalCount: 0, savingsRate: 0 });
+        }
+      } finally {
+        if (!cancelled) {
+          setSavingsLoading(false);
+        }
+      }
+    }
+
+    void fetchSavings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const isAnyOpen = statsOpen || calendarOpen;
@@ -233,7 +264,7 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
       <div className="dashboard-home min-h-screen">
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 md:py-6">
           <section
-            className={`transition-opacity duration-300 ${statsOpen ? 'hidden md:block' : 'block'}`}
+            className={`transition-opacity duration-300 ${isAnyPanelOpen ? 'hidden md:block' : 'block'}`}
             style={{ opacity: isAnyPanelOpen ? 0.55 : 1 }}
           >
             <header className="mb-6">
@@ -321,27 +352,38 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
             <div className="mt-4">
               <BerdeCard
                 insight={primaryBerdeInsight}
+                quote={berdeContext.quote}
                 onClick={() => setBerdeOpen(true)}
               />
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 animate-fade-up" style={{ animationDelay: '0.05s' }}>
               <QuickStatTiles
                 spentThisMonth={spentThisMonth}
                 remaining={remaining}
                 monthlyLimit={monthlyLimit}
-                savingsRate={savingsRate}
                 spentToday={spentToday}
+                savingsTotalSaved={savingsSummary?.totalSaved ?? 0}
+                savingsActiveGoalCount={savingsSummary?.activeGoalCount ?? 0}
+                savingsLoading={savingsLoading}
                 lastMonthSpent={data.totalSpentLastMonth}
                 latestTransactionName={latestTransactionName}
                 onSpentThisMonthTap={() => setShowSpentPopup(true)}
                 onRemainingBudgetTap={() => setShowRemainingPopup(true)}
-                onSavingsRateTap={() => setShowSavingsPopup(true)}
                 onSpentTodayTap={() => setShowTodayPopup(true)}
+                onSavingsGoalsTap={() => setShowSavingsGoalsPopup(true)}
               />
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {showSavingsGoalsPopup && (
+              <SavingsGoalsDashboardCard
+                open={showSavingsGoalsPopup}
+                onClose={() => setShowSavingsGoalsPopup(false)}
+                summary={savingsSummary}
+              />
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               <div className="space-y-4">
                 <MiniBarChart dailySpending={last7Days} />
                 <UpcomingCard transactions={upcoming} />
@@ -413,13 +455,6 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
         overallBudget={data.budgetStatuses.find((budget) => budget.category === 'Overall')!}
       />
 
-      <SavingsRatePopup
-        open={showSavingsPopup}
-        onClose={() => setShowSavingsPopup(false)}
-        savingsRate={data.savingsRate ?? 0}
-        firstName={firstName}
-      />
-
       <SpentTodayPopup
         open={showTodayPopup}
         onClose={() => setShowTodayPopup(false)}
@@ -429,10 +464,10 @@ export default function DashboardClientPage({ data, firstName }: DashboardClient
       <style jsx global>{`
         @media (min-width: 768px) {
           .fab-shift-wrapper > div {
-            position: static !important;
+            position: relative !important;
             right: 0 !important;
             bottom: 0 !important;
-            z-index: auto !important;
+            z-index: 50 !important;
           }
         }
       `}</style>
