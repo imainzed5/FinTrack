@@ -79,13 +79,24 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.9.0
+### Current version: v0.10.0
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.10.0 ✓ Dashboard and Transactions UI refinement
+  - Moved FilterDrawer to React Portal (document.body) with mounted guard to escape sticky header stacking context
+  - Changed FilterDrawer z-index to 9999 to properly overlay FAB (z-50) and bottom nav (z-40)
+  - Updated FilterDrawer sheet background from CSS variables to explicit zinc classes for portal compatibility
+  - Redesigned mobile transactions header: separated Filters button into its own row below title/total
+  - Replaced quick-add category buttons with simplified add flow (FAB only)
+  - Reduced stat card typography: values text-2xl → text-lg, labels/sub-text to text-[10px] to prevent wrapping on 3-column grid
+  - Changed Calendar panel mobile view from bottom-sheet modal to inline full-block (matches Statistics panel pattern)
+  - Fixed dashboard main section visibility: now hides on mobile when either Statistics or Calendar panel opens (was only hiding for Statistics)
+  - Updated FilterDrawer header: changed h2 → p, improved close button styling, tightened border color classes
+  - Files updated: FilterDrawer.tsx, transactions/page.tsx, CalendarPanel.tsx, DashboardClientPage.tsx
 v0.9.0  ✓ Berde insight data sufficiency thresholds
   - Gate analyzeSpendingPatterns() with minimum 5+ transactions and ₱500+ spending for the month
   - Gate detectSpendingSpikes() with minimum 3+ transactions per category and ₱300+ per category spend
