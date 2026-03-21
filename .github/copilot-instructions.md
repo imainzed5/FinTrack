@@ -7,6 +7,9 @@ metadata:
 
 # Moneda System Skill
 
+**Current Version:** v0.9.0 (March 22, 2026)  
+**Status:** Active development on `dev` branch; production-ready on `main`
+
 ## System Overview
 
 Moneda is a PWA-based personal financial intelligence dashboard that helps freelancers, fresh graduates, and families track expenses, detect spending patterns, and gain clarity on financial decisions. Built with **Next.js 16**, **React 19**, **TypeScript**, **Supabase**, and **Tailwind CSS 4**.
@@ -14,12 +17,15 @@ Moneda is a PWA-based personal financial intelligence dashboard that helps freel
 **Key Features:**
 - Real-time expense tracking with category and sub-category breakdown.
 - Budget management with monthly limits and rollover support.
-- Financial insights and spending trend analysis (pie charts, weekly/daily trends, savings history).
+- **Data-driven financial insights** with intelligence gating to prevent false positives on sparse data (5+ transactions minimum for pattern detection, 3+ per category for spike detection).
+- Spending trend analysis (calendar heatmap, weekly/daily trends, savings history) with interactive drill-down.
 - Recurring transaction templates and transaction splits for shared expenses.
+- Berde emotional AI mascot with state-driven messaging and daily-seeded quote rotation.
+- Savings goals tracking with deposit/withdrawal transactions.
 - Offline-first architecture using IndexedDB for pending transactions.
 - Session tracking and secure authentication with Supabase Auth.
 - PWA installable on iOS, Android, and desktop browsers.
-- WebSocket support for real-time app updates.
+- WebSocket support for real-time app updates across tabs/devices.
 
 ---
 
@@ -164,6 +170,16 @@ ws-server/
 - **`upsertTransaction()`** – Create or update transaction with splits.
 - **`processRecurringTransactions()`** – Generate recurring txn instances.
 - **Server-side only** – Uses `requireSupabaseUser()` for auth.
+
+#### Insight Generation (`src/lib/insights-engine.ts` & `src/lib/berde-messages.ts`)
+- **`analyzeSpendingPatterns()`** – Day-of-week analysis; gated at 5+ transactions and ₱500+ monthly spend.
+- **`detectSpendingSpikes()`** – Category spike detection; gated at 3+ transactions per category and ₱300+ category spend.
+- **`getBerdeInsightsForMood()`** – Generate Berde insight cards with mood-driven message pools.
+- **`buildSignalData()`** – Compute financial signal data (budget, spending, streaks, patterns) for insight gating.
+- **Supporting insight gates:**
+  - `food_high`: Requires 5+ total transactions (prevents false food-dominance on sparse data)
+  - `monday_spender`: Requires 8+ total transactions (prevents day-of-week bias on thin data)
+  - Budget/forecast/savings checks: **Ungated** (budget math, not pattern detection)
 
 #### Supabase Helpers (`src/lib/supabase/`)
 - **`createSupabaseServerClient()`** – Server-side Supabase client with cookie handling.
@@ -550,6 +566,9 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 
 ## Common Issues & Solutions
 
+### Pattern Insights Showing on Sparse Data (Fixed in v0.9.0)
+- **Status:** Fixed. Insight gates prevent statistical false positives on new accounts.
+- **Solution:** Added minimum data thresholds—analyzeSpendingPatterns requires 5+ transactions and ₱500+ monthly spend; detectSpendingSpikes requires 3+ per category and ₱300+ per category; food_high and monday_spender require 5+ and 8+ total transactions respectively. Budget/forecast/savings insights remain ungated (budget math, not pattern detection).
 
 ### Data Not Refreshing After Transaction Added (Fixed in v0.7.1)
 - **Status:** Fixed. WebSocket subscription and fetch hook are now reliable.
@@ -594,6 +613,7 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 8. **Income transactions** – Separate transaction type with dynamic budget boost when Overall budget exists.
 9. **Berde emotional intelligence** – Mascot state changes based on financial data (proud if saving, worried if over-budget).
 10. **PWA experience** – iOS safe-area insets, installable manifest, Service Worker offline support, HiDPI pixel-art Berde sprite.
+11. **Data sufficiency gating** – Insights only fire when statistical thresholds are met; prevents premature pattern claims on fresh accounts (critical for user trust with new users).
 
 ---
 
@@ -619,68 +639,6 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 | Check if income | `transaction.type === 'income'` |
 
 ---
-
-## Recent Changes (Git Log)
-- **v0.7.9** ✓ Savings transaction rendering on dashboard and deposit metadata
-  - Set merchant to goal name in addSavingsDeposit() for correct display across all UI components
-  - Add description field with deposit/withdrawal context in savings transaction metadata
-  - Patch RecentTransactions component with savings palette detection; returns emerald theme with goal name label
-  - Updated amount color logic to show emerald for deposits, amber for withdrawals (from savings)
-  - Display +/- prefix for savings deposits and withdrawals in recent transactions list
-  - Files updated: db.ts, RecentTransactions.tsx
-- **v0.7.8** ✓ Calendar panel transaction data mismatch, desktop overflow, and mobile nav visibility
-  - Fixed drill-down showing "No spend this day" on colored days by adding `currentMonthTransactions` to DashboardData
-  - Updated CalendarPanel to filter `selectedDayTransactions` from full current-month data instead of capped 5-item `recentTransactions`
-  - Added `overflow-x-hidden` to desktop panel content div to prevent content spill on 560px expanded view
-  - Hide mobile BottomNav when calendar or statistics panel is open via `body.panel-open` class toggle
-  - Removed `onExpandChange` callback to fix React setState warning (child updating parent during render)
-  - Parent now syncs calendar expanded state from localStorage when panel opens, decoupling state updates
-  - Updated types.ts: Added `currentMonthTransactions: Transaction[]` to DashboardData interface
-  - Updated insights-engine.ts: Compute full-month transactions and return alongside recentTransactions
-  - Created ISSUES_ANALYSIS.md documenting the bugs, root causes, and solutions
-- **v0.7.7** ✓ Calendar heatmap data source fix + desktop expand/collapse
-  - Fixed calendar heatmap to use full-month date-keyed `calendarSpending` instead of 7-day `dailySpending`
-  - Added `calendarSpending` field to DashboardData: `{ date: string (yyyy-MM-dd), amount: number }[]` containing all current-month transactions grouped by date
-  - Implemented in `insights-engine.ts`: Loops through all current-month days, aggregates expenses by ISO date string
-  - New CalendarPanel.tsx component extracted from dashboard (730 lines, interactive heatmap with drill-down)
-  - Added desktop expand/collapse toggle: 340px default ↔ 560px expanded with smooth animation
-  - Expanded state persists via localStorage: key `moneda-calendar-expanded`
-  - Two-column layout at 560px: left heatmap column (280px fixed), right detail column (flex-1)
-  - FAB offset syncs dynamically with panel expansion: `calendarOpen && isExpanded ? 560px+24px : 340px+24px`
-  - Mobile bottom-sheet unaffected (forced `isExpanded={false}` for mobile render to preserve existing UX)
-  - New design doc: CALENDAR_PANEL_DESIGN.md with component architecture & usage notes
-  - Updated types.ts: Added `calendarSpending` to DashboardData interface
-  - Lazy state initializers used for localStorage (no effect-based setState) to avoid lint warnings
-- **v0.7.6** ✓ Category emoji → Lucide icons in SpentThisMonthPopup
-  - Replaced category emojis with Lucide icons (UtensilsCrossed, Car, ShoppingBag, Heart, etc.)
-  - Icons render in small green circles (28px, #e8f7f2 background, #1D9E75 icon color)
-  - Icon size normalized to 14px across all categories with consistent strokeWidth=2
-- **v0.7.5** ✓ Dashboard popup safe-area padding + FAB shortcut stack cleanup
-  - Added explicit bottom padding on all dashboard popup sheets using `calc(env(safe-area-inset-bottom) + 28px)` for better iOS home-indicator spacing
-  - Removed the "Your top picks" label above FAB shortcut categories so the stack opens cleanly without extra text
-- **v0.7.4** ✓ Scroll-aware FAB hide/show on Transactions page (IntersectionObserver, fade, pointer-events)
-  - FAB now fades out when pagination controls are visible and fades in when not, preventing overlap on mobile
-  - Uses IntersectionObserver and a new visible prop on FloatingAddButton
-  - TransactionList.tsx card layout and swipe logic unchanged; only FAB and visibility logic updated
-  - All changes merged to main and pushed to production
-- **v0.7.3** ✓ Landing page narrative update (student story, Filipino origin, narrative-driven design)
-  - "Why Moneda exists" section now includes developer's student story and narrative-driven design context
-  - Highlights Moneda's Filipino roots and mission for everyday clarity
-
-- **v0.7.1** ✓ Salda floating island mascot, observer tuning, animation polish
-  - New SaldaIsland component with inline SVG, section-reactive expressions, conditional island extras
-  - New SaldaObserver component using IntersectionObserver to track active landing page section
-  - Speech bubble updates per section with re-mount animation on change
-  - Idle bob animation via CSS keyframes, fade-in on section crossfade
-  - Hidden below 375px, absent on all authenticated routes
-  - No new dependencies
-- **279f453** – Fix: EmptyState renders BerdeSprite for icon='berde' (restores mascot visuals)
-- **ec1d273** – Refactor all empty-state UI to shared EmptyState component (dashboard, transactions, insights, timeline)
-- **94f4a45** – Allow income payment method selection and notes
-- **12a1983** – Add income transactions with dynamic Overall budget boost
-- **5445e27** – Update FAB text to '+ Transaction'
-- **637f6fd** – Redesign bottom nav as floating island
-- **cdd34fa** – Visual polish: HiDPI Berde sprite, larger size, balanced pie chart
 
 ## References
 
