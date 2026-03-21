@@ -79,13 +79,20 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.8
+### Current version: v0.7.9
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.7.9  ✓ Savings transaction rendering on dashboard and deposit metadata
+  - Set merchant to goal name in addSavingsDeposit() for correct display in transaction list
+  - Add description field with deposit/withdrawal context
+  - Patch RecentTransactions component with savings palette detection and rendering
+  - Display goal name in category badge for savings transactions
+  - Show +/- prefix for deposits/withdrawals with appropriate colors (emerald/amber)
+  - Files updated: db.ts, RecentTransactions.tsx
 v0.7.8  ✓ Calendar panel fixes: transaction data mismatch, desktop overflow clipping, mobile nav visibility
   - Fixed drill-down showing "No spend this day" on colored days in CalendarPanel
   - Added currentMonthTransactions field to DashboardData (full current-month transaction list, not capped at 5)

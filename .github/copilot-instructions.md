@@ -621,6 +621,13 @@ npx supabase db push --yes        # Push pending migrations (non-interactive)
 ---
 
 ## Recent Changes (Git Log)
+- **v0.7.9** ✓ Savings transaction rendering on dashboard and deposit metadata
+  - Set merchant to goal name in addSavingsDeposit() for correct display across all UI components
+  - Add description field with deposit/withdrawal context in savings transaction metadata
+  - Patch RecentTransactions component with savings palette detection; returns emerald theme with goal name label
+  - Updated amount color logic to show emerald for deposits, amber for withdrawals (from savings)
+  - Display +/- prefix for savings deposits and withdrawals in recent transactions list
+  - Files updated: db.ts, RecentTransactions.tsx
 - **v0.7.8** ✓ Calendar panel transaction data mismatch, desktop overflow, and mobile nav visibility
   - Fixed drill-down showing "No spend this day" on colored days by adding `currentMonthTransactions` to DashboardData
   - Updated CalendarPanel to filter `selectedDayTransactions` from full current-month data instead of capped 5-item `recentTransactions`
