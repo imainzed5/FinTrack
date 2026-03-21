@@ -19,6 +19,9 @@ function formatSignedAmount(amount: number): string {
   return `-${formatCurrency(amount)}`;
 }
 
+const toTitleCase = (str: string) =>
+  str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
 function getTimeGroup(date: Date): TimeGroup {
   const hour = date.getHours();
   if (hour < 12) return 'Morning';
@@ -90,7 +93,7 @@ export default function SpentTodayPopup({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -127,7 +130,11 @@ export default function SpentTodayPopup({
                   {grouped[groupName].map((tx) => {
                     const parsedDate = new Date(tx.date);
                     const emoji = CATEGORY_EMOJI[tx.category] ?? '📦';
-                    const title = tx.merchant || tx.description || tx.category;
+                    const title = tx.merchant
+                      ? toTitleCase(tx.merchant)
+                      : tx.description
+                        ? toTitleCase(tx.description)
+                        : toTitleCase(tx.category);
                     const timeLabel = Number.isNaN(parsedDate.getTime())
                       ? '--:--'
                       : format(parsedDate, 'h:mm a');

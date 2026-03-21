@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Rounded square background -->
+  <rect width="32" height="32" rx="7" fill="#1D9E75"/>
+  <!-- Coin outer ring -->
+  <circle cx="16" cy="17" r="6.5" fill="none" stroke="white" stroke-width="1.8" opacity="0.95"/>
+  <!-- Coin inner ring (premium detail) -->
+  <circle cx="16" cy="17" r="4.2" fill="none" stroke="white" stroke-width="0.8" opacity="0.5"/>
+  <!-- Leaf wrapping around left side of coin -->
+  <path d="M16 23.5 C10 23 7 18 8.5 12.5 C11 14 12.5 17 16 17" fill="white" opacity="0.92"/>
+  <!-- Leaf vein -->
+  <path d="M16 23.5 C13 20 10.5 16.5 8.5 12.5" fill="none" stroke="#1D9E75" stroke-width="0.7" opacity="0.6"/>
+</svg>

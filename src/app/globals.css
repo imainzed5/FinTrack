@@ -94,6 +94,30 @@ body.panel-open .bottom-nav {
   animation: fade-in 0.2s ease-out;
 }
 
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes progress-grow {
+  from { width: 0%; }
+  to   { width: var(--progress-target); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.3s ease-out both;
+}
+
+.animate-progress-grow {
+  animation: progress-grow 0.5s ease-out both;
+}
+
 @keyframes salda-bob {
   0%,
   100% {

@@ -30,6 +30,10 @@ export const metadata: Metadata = {
   title: "Moneda — Personal Financial Intelligence",
   description: "Track expenses, detect patterns, and gain financial intelligence.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

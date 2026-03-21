@@ -7,14 +7,16 @@ interface QuickStatTilesProps {
   spentThisMonth: number;
   remaining: number;
   monthlyLimit: number;
-  savingsRate: number;
   spentToday: number;
+  savingsTotalSaved: number;
+  savingsActiveGoalCount: number;
+  savingsLoading: boolean;
   lastMonthSpent: number;
   latestTransactionName?: string;
   onSpentThisMonthTap?: () => void;
   onRemainingBudgetTap?: () => void;
-  onSavingsRateTap?: () => void;
   onSpentTodayTap?: () => void;
+  onSavingsGoalsTap?: () => void;
 }
 
 interface TileProps {
@@ -23,14 +25,16 @@ interface TileProps {
   subLabel: string;
   icon: React.ReactNode;
   onClick?: () => void;
+  delay?: number;
 }
 
-function Tile({ label, value, subLabel, icon, onClick }: TileProps) {
+function Tile({ label, value, subLabel, icon, onClick, delay }: TileProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
+      className="relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3 animate-fade-up"
+      style={{ animationDelay: `${delay ?? 0}ms` }}
       aria-label={label}
     >
       <div className="mb-2 flex items-center justify-between">
@@ -49,14 +53,16 @@ export default function QuickStatTiles({
   spentThisMonth,
   remaining,
   monthlyLimit,
-  savingsRate,
   spentToday,
+  savingsTotalSaved,
+  savingsActiveGoalCount,
+  savingsLoading,
   lastMonthSpent,
   latestTransactionName,
   onSpentThisMonthTap,
   onRemainingBudgetTap,
-  onSavingsRateTap,
   onSpentTodayTap,
+  onSavingsGoalsTap,
 }: QuickStatTilesProps) {
   const monthChange =
     lastMonthSpent > 0 ? ((spentThisMonth - lastMonthSpent) / lastMonthSpent) * 100 : 0;
@@ -74,6 +80,7 @@ export default function QuickStatTiles({
         subLabel={monthChangeLabel}
         icon={<Wallet size={16} color="#1D9E75" />}
         onClick={onSpentThisMonthTap}
+        delay={0}
       />
 
       <Tile
@@ -82,14 +89,7 @@ export default function QuickStatTiles({
         subLabel={`of ${formatCurrency(monthlyLimit)} total`}
         icon={<Target size={16} color="#185FA5" />}
         onClick={onRemainingBudgetTap}
-      />
-
-      <Tile
-        label="Savings rate"
-        value={`${savingsRate}%`}
-        subLabel="of budget saved"
-        icon={<PiggyBank size={16} color="#3C3489" />}
-        onClick={onSavingsRateTap}
+        delay={50}
       />
 
       <Tile
@@ -98,6 +98,22 @@ export default function QuickStatTiles({
         subLabel={latestTransactionName || 'No transaction yet today'}
         icon={<Sun size={16} color="#B66A12" />}
         onClick={onSpentTodayTap}
+        delay={100}
+      />
+
+      <Tile
+        label="Savings goals"
+        value={savingsLoading ? '—' : formatCurrency(savingsTotalSaved)}
+        subLabel={
+          savingsLoading
+            ? 'Loading...'
+            : savingsActiveGoalCount === 0
+              ? 'No goals yet'
+              : `${savingsActiveGoalCount} active goal${savingsActiveGoalCount === 1 ? '' : 's'}`
+        }
+        icon={<PiggyBank size={16} color="#7F77DD" />}
+        onClick={onSavingsGoalsTap}
+        delay={150}
       />
     </section>
   );

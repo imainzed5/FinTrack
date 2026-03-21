@@ -48,8 +48,12 @@ function isIncomeTransaction(tx: Transaction): boolean {
   return tx.type === 'income';
 }
 
+function isSavingsTransaction(tx: Transaction): boolean {
+  return tx.type === 'savings';
+}
+
 function isExpenseTransaction(tx: Transaction): boolean {
-  return !isIncomeTransaction(tx);
+  return !isIncomeTransaction(tx) && !isSavingsTransaction(tx);
 }
 
 function getTransactionAllocations(tx: Transaction): Allocation[] {

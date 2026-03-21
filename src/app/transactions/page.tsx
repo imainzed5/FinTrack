@@ -17,11 +17,11 @@ import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 import EmptyState from '@/components/EmptyState';
 
 const CATEGORY_FILTERS_STORAGE_KEY = 'transactions:selected-categories';
-type CategoryFilter = Category | 'Income';
-const CATEGORY_FILTER_OPTIONS: CategoryFilter[] = [...CATEGORIES, 'Income'];
+type CategoryFilter = Category | 'Income' | 'Savings';
+const CATEGORY_FILTER_OPTIONS: CategoryFilter[] = [...CATEGORIES, 'Income', 'Savings'];
 
 function isCategoryFilter(value: string): value is CategoryFilter {
-  return value === 'Income' || CATEGORIES.includes(value as Category);
+  return value === 'Income' || value === 'Savings' || CATEGORIES.includes(value as Category);
 }
 
 export default function TransactionsPage() {
@@ -343,6 +343,18 @@ export default function TransactionsPage() {
       return false;
     }
 
+    const matchesCategory =
+      selectedCategories.length === 0 ||
+      selectedCategories.some((filter) => {
+        if (filter === 'Income') return tx.type === 'income';
+        if (filter === 'Savings') return tx.type === 'savings';
+        return tx.category === filter;
+      });
+
+    if (!matchesCategory) {
+      return false;
+    }
+
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -350,6 +362,7 @@ export default function TransactionsPage() {
         (tx.merchant || '').toLowerCase().includes(q) ||
         (tx.notes || '').toLowerCase().includes(q) ||
         (tx.incomeCategory || '').toLowerCase().includes(q) ||
+        (tx.savingsMeta?.goalName || '').toLowerCase().includes(q) ||
         tx.type.toLowerCase().includes(q) ||
         (tx.subCategory || '').toLowerCase().includes(q) ||
         (tx.tags || []).some((tag) => tag.toLowerCase().includes(q)) ||

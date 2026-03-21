@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DashboardData, Transaction } from '@/lib/types';
 import type { BerdeInputs } from '@/lib/berde/berde.types';
 
@@ -12,6 +12,28 @@ export function useBerdeInputs(
   transactions: Transaction[],
   daysUntilPayday?: number,
 ): BerdeInputs {
+  const [sessionSavingsGoalHit, setSessionSavingsGoalHit] = useState(false);
+  const [sessionSavingsMilestoneHit, setSessionSavingsMilestoneHit] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const goalHit = window.sessionStorage.getItem('berde:savings-goal-hit') === 'true';
+    const milestoneHit = window.sessionStorage.getItem('berde:savings-milestone-hit') === 'true';
+
+    if (goalHit) {
+      setSessionSavingsGoalHit(true);
+      window.sessionStorage.removeItem('berde:savings-goal-hit');
+    }
+
+    if (milestoneHit) {
+      setSessionSavingsMilestoneHit(true);
+      window.sessionStorage.removeItem('berde:savings-milestone-hit');
+    }
+  }, []);
+
   return useMemo(() => {
     const overallStatus =
       data.budgetStatuses.find(
@@ -25,14 +47,17 @@ export function useBerdeInputs(
     const savingsRate = data.savingsRate;
 
     const savingsGoalHit =
+      sessionSavingsGoalHit ||
       savingsRate >= 20 ||
       data.insights.some(
         (insight) => insight.insightType === 'saving' && /goal|target/i.test(insight.message),
       );
 
-    const savingsMilestoneHit = data.insights.some(
-      (insight) => insight.insightType === 'saving' && /milestone|streak|record/i.test(insight.message),
-    );
+    const savingsMilestoneHit =
+      sessionSavingsMilestoneHit ||
+      data.insights.some(
+        (insight) => insight.insightType === 'saving' && /milestone|streak|record/i.test(insight.message),
+      );
 
     const categoryOverspent = data.budgetAlerts.some(
       (alert) => alert.threshold === 100 || alert.percentage >= 100,
@@ -92,5 +117,5 @@ export function useBerdeInputs(
       sameMerchantCount,
       impulseLogged,
     };
-  }, [data, transactions, daysUntilPayday]);
+  }, [data, transactions, daysUntilPayday, sessionSavingsGoalHit, sessionSavingsMilestoneHit]);
 }
