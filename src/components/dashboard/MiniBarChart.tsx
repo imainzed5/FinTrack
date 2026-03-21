@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { format } from 'date-fns';
 import type { DashboardData } from '@/lib/types';
+import { getTodayDateKeyInManila, getTodayWeekdayShortInManila } from '@/lib/utils';
 
 type DailyBarPoint = DashboardData['dailySpending'][number] & { date?: string };
 
@@ -11,8 +11,8 @@ interface MiniBarChartProps {
 }
 
 export default function MiniBarChart({ dailySpending }: MiniBarChartProps) {
-  const todayLabel = format(new Date(), 'EEE');
-  const todayDateKey = new Date().toISOString().split('T')[0];
+  const todayLabel = getTodayWeekdayShortInManila();
+  const todayDateKey = getTodayDateKeyInManila();
   const maxMobileBarHeight = 60;
   const maxDesktopBarHeight = 52;
 

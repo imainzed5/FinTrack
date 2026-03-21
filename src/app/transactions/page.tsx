@@ -2,23 +2,70 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
-import { Search, Filter, Download, ChevronDown, X, Wallet, SearchX } from 'lucide-react';
-import type { WheelEvent as ReactWheelEvent } from 'react';
-import type { Transaction, Category } from '@/lib/types';
+import { format, parseISO, subMonths } from 'date-fns';
+import { Search, Filter, Download, X, Wallet, SearchX } from 'lucide-react';
+import type { Transaction, Category, PaymentMethod } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { CATEGORIES } from '@/lib/types';
 import TransactionList from '@/components/TransactionList';
+import TimelineView from '@/components/TimelineView';
 import FloatingAddButton from '@/components/FloatingAddButton';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EditTransactionModal from '@/components/EditTransactionModal';
-import { subscribeTransactionUpdates } from '@/lib/transaction-ws';
+import FilterDrawer from '@/components/FilterDrawer';
+import { subscribeAppUpdates, subscribeTransactionUpdates } from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 import EmptyState from '@/components/EmptyState';
+import type { TimelineEvent } from '@/lib/types';
 
 const CATEGORY_FILTERS_STORAGE_KEY = 'transactions:selected-categories';
+const PAYMENT_METHOD_FILTER_STORAGE_KEY = 'transactions:selected-payment-method';
 type CategoryFilter = Category | 'Income' | 'Savings';
+type PaymentMethodFilter = 'All methods' | 'Cash' | 'GCash' | 'Card' | 'Bank Transfer';
 const CATEGORY_FILTER_OPTIONS: CategoryFilter[] = [...CATEGORIES, 'Income', 'Savings'];
+const PAYMENT_FILTER_OPTIONS: PaymentMethodFilter[] = [
+  'All methods',
+  'Cash',
+  'GCash',
+  'Card',
+  'Bank Transfer',
+];
+
+const CATEGORY_DOT_COLORS: Record<string, string> = {
+  Food: '#D85A30',
+  Transportation: '#378ADD',
+  Health: '#1D9E75',
+  Subscriptions: '#7F77DD',
+  Shopping: '#D4537E',
+  Entertainment: '#BA7517',
+  Utilities: '#378ADD',
+};
+
+const pesoDecimalFormatter = new Intl.NumberFormat('en-PH', {
+  style: 'decimal',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatPesoDecimal(value: number): string {
+  return `P${pesoDecimalFormatter.format(value)}`;
+}
+
+function isValidMonth(value: string): boolean {
+  return /^\d{4}-\d{2}$/.test(value);
+}
+
+function matchesPaymentMethodFilter(
+  txPaymentMethod: PaymentMethod,
+  selectedPaymentMethod: PaymentMethodFilter
+): boolean {
+  if (selectedPaymentMethod === 'All methods') return true;
+  if (selectedPaymentMethod === 'Card') {
+    return txPaymentMethod === 'Credit Card' || txPaymentMethod === 'Debit Card';
+  }
+
+  return txPaymentMethod === selectedPaymentMethod;
+}
 
 function isCategoryFilter(value: string): value is CategoryFilter {
   return value === 'Income' || value === 'Savings' || CATEGORIES.includes(value as Category);
@@ -28,6 +75,8 @@ export default function TransactionsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const currentMonthKey = format(new Date(), 'yyyy-MM');
+  const monthParam = searchParams.get('month');
   const selectedDayParam = searchParams.get('selectedDay');
   const selectedDayFilter = selectedDayParam && /^\d{4}-\d{2}-\d{2}$/.test(selectedDayParam)
     ? selectedDayParam
@@ -38,9 +87,16 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    if (monthParam && isValidMonth(monthParam)) {
+      return monthParam;
+    }
+    return currentMonthKey;
+  });
   const [selectedCategories, setSelectedCategories] = useState<CategoryFilter[]>(() => {
     if (typeof window === 'undefined') {
       return [];
@@ -66,40 +122,41 @@ export default function TransactionsPage() {
       return [];
     }
   });
-  const [showFilters, setShowFilters] = useState(true);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodFilter>(() => {
+    if (typeof window === 'undefined') {
+      return 'All methods';
+    }
+
+    const stored = window.sessionStorage.getItem(PAYMENT_METHOD_FILTER_STORAGE_KEY);
+    if (!stored) {
+      return 'All methods';
+    }
+
+    if (PAYMENT_FILTER_OPTIONS.includes(stored as PaymentMethodFilter)) {
+      return stored as PaymentMethodFilter;
+    }
+
+    return 'All methods';
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(true);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
-  const categoryFiltersScrollerRef = useRef<HTMLDivElement>(null);
+  const [activeView, setActiveView] = useState<'list' | 'timeline'>('list');
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(true);
   const paginationRef = useRef<HTMLDivElement>(null);
-
-  const handleCategoryFiltersWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    const scroller = categoryFiltersScrollerRef.current;
-    if (!scroller) return;
-    if (scroller.scrollWidth <= scroller.clientWidth) return;
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-
-    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
-    const boundedScrollLeft = Math.max(
-      0,
-      Math.min(maxScrollLeft, scroller.scrollLeft + event.deltaY)
-    );
-
-    if (boundedScrollLeft === scroller.scrollLeft) return;
-
-    event.preventDefault();
-    scroller.scrollLeft = boundedScrollLeft;
-  };
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
 
     try {
       const params = new URLSearchParams();
+      params.set('month', selectedMonth);
       if (selectedCategories.length > 0) {
         params.set('categories', selectedCategories.join(','));
+      }
+      if (selectedPaymentMethod !== 'All methods') {
+        params.set('paymentMethod', selectedPaymentMethod);
       }
       const query = params.toString();
       const endpoint = query ? `/api/transactions?${query}` : '/api/transactions';
@@ -129,7 +186,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategories]);
+  }, [selectedCategories, selectedMonth, selectedPaymentMethod]);
 
   useEffect(() => {
     fetchTransactions();
@@ -147,6 +204,23 @@ export default function TransactionsPage() {
   }, [selectedCategories]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (selectedPaymentMethod === 'All methods') {
+      window.sessionStorage.removeItem(PAYMENT_METHOD_FILTER_STORAGE_KEY);
+      return;
+    }
+
+    window.sessionStorage.setItem(PAYMENT_METHOD_FILTER_STORAGE_KEY, selectedPaymentMethod);
+  }, [selectedPaymentMethod]);
+
+  useEffect(() => {
+    if (monthParam && isValidMonth(monthParam)) {
+      setSelectedMonth(monthParam);
+    }
+  }, [monthParam]);
+
+  useEffect(() => {
     const unsubscribe = subscribeTransactionUpdates(() => {
       void fetchTransactions();
     });
@@ -154,27 +228,31 @@ export default function TransactionsPage() {
     return unsubscribe;
   }, [fetchTransactions]);
 
+  const fetchTimeline = useCallback(async () => {
+    setTimelineLoading(true);
+
+    try {
+      const res = await fetch('/api/timeline');
+      const json = await res.json();
+      setTimelineEvents(Array.isArray(json) ? json : []);
+    } catch {
+      // offline
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!showExportMenu) return;
+    void fetchTimeline();
+  }, [fetchTimeline]);
 
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!exportMenuRef.current) return;
-      if (event.target instanceof Node && exportMenuRef.current.contains(event.target)) return;
-      setShowExportMenu(false);
-    };
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchTimeline();
+    });
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowExportMenu(false);
-    };
-
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [showExportMenu]);
+    return unsubscribe;
+  }, [fetchTimeline]);
 
   const requestDeleteConfirmation = (id: string) => {
     setPendingDeleteId(id);
@@ -312,6 +390,25 @@ export default function TransactionsPage() {
     setPage(1);
   };
 
+  const handlePaymentMethodChange = (method: PaymentMethodFilter) => {
+    setSelectedPaymentMethod(method);
+    setPage(1);
+  };
+
+  const handleMonthChange = (nextMonth: string) => {
+    if (!isValidMonth(nextMonth)) {
+      return;
+    }
+
+    setSelectedMonth(nextMonth);
+    setPage(1);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('month', nextMonth);
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
+
   const clearSelectedDayFilter = useCallback(() => {
     if (!selectedDayFilter) {
       return;
@@ -338,20 +435,25 @@ export default function TransactionsPage() {
     return format(parsed, 'MMM d, yyyy');
   }, [selectedDayFilter]);
 
-  const filtered = transactions.filter((tx) => {
+  const monthOptions = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => {
+      const date = subMonths(new Date(), index);
+      return {
+        value: format(date, 'yyyy-MM'),
+        label: format(date, 'MMMM yyyy'),
+      };
+    }),
+    []
+  );
+
+  const monthScopedTransactions = transactions.filter((tx) => tx.date.startsWith(selectedMonth));
+
+  const searchableTransactions = monthScopedTransactions.filter((tx) => {
     if (selectedDayFilter && tx.date.split('T')[0] !== selectedDayFilter) {
       return false;
     }
 
-    const matchesCategory =
-      selectedCategories.length === 0 ||
-      selectedCategories.some((filter) => {
-        if (filter === 'Income') return tx.type === 'income';
-        if (filter === 'Savings') return tx.type === 'savings';
-        return tx.category === filter;
-      });
-
-    if (!matchesCategory) {
+    if (!matchesPaymentMethodFilter(tx.paymentMethod, selectedPaymentMethod)) {
       return false;
     }
 
@@ -370,12 +472,79 @@ export default function TransactionsPage() {
         tx.amount.toString().includes(q)
       );
     }
+
     return true;
   });
 
+  const filtered = searchableTransactions.filter((tx) => {
+
+    const matchesCategory =
+      selectedCategories.length === 0 ||
+      selectedCategories.some((filter) => {
+        if (filter === 'Income') return tx.type === 'income';
+        if (filter === 'Savings') return tx.type === 'savings';
+        return tx.category === filter;
+      });
+
+    if (!matchesCategory) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const filteredExpenseTransactions = filtered.filter((tx) => tx.type === 'expense');
+  const totalSpent = filteredExpenseTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const trackedDays = new Set(filteredExpenseTransactions.map((tx) => tx.date.split('T')[0]));
+  const daysTracked = trackedDays.size;
+  const avgPerDay = daysTracked > 0 ? totalSpent / daysTracked : 0;
+  const biggestSpendTx = filteredExpenseTransactions.reduce<Transaction | null>((maxTx, tx) => {
+    if (!maxTx || tx.amount > maxTx.amount) {
+      return tx;
+    }
+    return maxTx;
+  }, null);
+
+  const categoryBreakdown = useMemo(() => {
+    const totals = new Map<string, number>();
+
+    searchableTransactions.forEach((tx) => {
+      const next = (totals.get(tx.category) ?? 0) + tx.amount;
+      totals.set(tx.category, next);
+    });
+
+    return Array.from(totals.entries())
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        color: CATEGORY_DOT_COLORS[category] ?? '#888780',
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [searchableTransactions]);
+
+  const highestCategoryTotal = categoryBreakdown[0]?.amount ?? 0;
+
+  const topCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    filteredExpenseTransactions.forEach((tx) => {
+      counts.set(tx.category, (counts.get(tx.category) ?? 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([category]) => category);
+  }, [filteredExpenseTransactions]);
+
   const totalAmount = filtered.reduce((sum, tx) => sum + tx.amount, 0);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const activeFilterCount = selectedCategories.length + (selectedDayFilter ? 1 : 0);
+  const activeFilterCount =
+    selectedCategories.length +
+    (selectedDayFilter ? 1 : 0) +
+    (selectedPaymentMethod !== 'All methods' ? 1 : 0);
+  const hasCategoryOrPaymentFilter =
+    selectedCategories.length > 0 || selectedPaymentMethod !== 'All methods';
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const hasNoTransactions = !loading && totalTransactionCount === 0;
   const hasNoMatches = !loading && totalTransactionCount > 0 && filtered.length === 0;
@@ -421,6 +590,7 @@ export default function TransactionsPage() {
   const clearSearchAndFilters = () => {
     setSearch('');
     setSelectedCategories([]);
+    setSelectedPaymentMethod('All methods');
     clearSelectedDayFilter();
     setPage(1);
   };
@@ -438,312 +608,397 @@ export default function TransactionsPage() {
 
   return (
     <>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-4 pb-6">
-        <div className="sticky top-2 z-30 -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 bg-[#f5f5f0]/95 dark:bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-[#f5f5f0]/90 dark:supports-[backdrop-filter]:bg-zinc-950/90">
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-4 shadow-sm">
+      <div className="mx-auto max-w-6xl px-4 pb-6 pt-4 sm:px-6">
+        <div className="sticky top-2 z-30 -mx-4 bg-white/95 px-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/90 sm:mx-0 sm:px-0">
+          <div className="rounded-2xl border border-zinc-200 bg-white/95 p-4 dark:border-zinc-800 dark:bg-zinc-900/95">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Transactions</h1>
-                <p className="mt-1 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
                   {filtered.length} transactions
                 </p>
               </div>
-              <p className="font-display text-3xl sm:text-4xl leading-none font-bold text-emerald-600 dark:text-emerald-400">
+
+              <p className="font-display text-3xl font-bold leading-none text-emerald-600 dark:text-emerald-400">
                 {formatCurrency(totalAmount)}
               </p>
             </div>
-            <p className="mt-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+
+            <div className="mt-2 flex items-center justify-between md:hidden">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                Page {page} of {totalPages} · Swipe right to edit, swipe left to delete
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowFilterDrawer(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:text-zinc-400"
+              >
+                <Filter size={12} />
+                Filters
+                {hasCategoryOrPaymentFilter && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#1D9E75]" />
+                )}
+              </button>
+            </div>
+
+            <p className="mt-2 hidden text-[11px] font-medium text-zinc-500 dark:text-zinc-400 md:block">
               {totalPages > 1 ? `Page ${page} of ${totalPages}` : 'All results in one page'}
               {' · '}
               Swipe right to edit, swipe left to delete
             </p>
-          </div>
-        </div>
 
-        <div className="space-y-3 mb-5">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search by merchant, amount, note, or tag"
-                className="w-full h-12 pl-11 pr-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowFilters((prev) => !prev)}
-              className={`inline-flex items-center gap-2 min-h-12 px-4 rounded-xl text-sm font-semibold border transition-colors ${
-                showFilters || activeFilterCount > 0
-                  ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                  : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300'
-              }`}
-              aria-expanded={showFilters}
-            >
-              <Filter size={16} />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] px-1.5">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            Tip: try words like groceries, lunch, or an amount like 250.
-          </p>
-
-          {activeFilterCount > 0 && (
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedDayFilter && selectedDayFilterLabel && (
-                  <button
-                    type="button"
-                    onClick={clearSelectedDayFilter}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
-                  >
-                    Day: {selectedDayFilterLabel}
-                    <X size={12} aria-hidden="true" />
-                  </button>
-                )}
-
-                {selectedCategories.map((category) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => removeCategory(category)}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
-                  >
-                    {category}
-                    <X size={12} aria-hidden="true" />
-                  </button>
-                ))}
-
+            <div className="mt-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-6">
                 <button
                   type="button"
-                  onClick={() => {
-                    clearSelectedCategories();
-                    clearSelectedDayFilter();
-                  }}
-                  className="inline-flex min-h-9 items-center rounded-full border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Clear all
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showFilters && (
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 animate-fade-in">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold tracking-wide uppercase text-zinc-500 dark:text-zinc-400">
-                  Category filters
-                </p>
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearSelectedCategories}
-                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-
-              <div
-                ref={categoryFiltersScrollerRef}
-                onWheel={handleCategoryFiltersWheel}
-                className="mt-3 -mx-1 px-1 flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:thin] category-filter-scrollbar"
-              >
-                <button
-                  type="button"
-                  onClick={clearSelectedCategories}
-                  className={`min-h-10 shrink-0 snap-start rounded-full px-3.5 text-xs font-semibold transition-colors ${
-                    activeFilterCount === 0
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  onClick={() => setActiveView('list')}
+                  className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                    activeView === 'list'
+                      ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
+                      : 'border-transparent text-zinc-500 dark:text-zinc-400'
                   }`}
                 >
-                  All categories
+                  List
                 </button>
-
-                {CATEGORY_FILTER_OPTIONS.map((category) => {
-                  const checked = selectedCategories.includes(category);
-
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      aria-pressed={checked}
-                      onClick={() => toggleCategory(category)}
-                      className={`min-h-10 shrink-0 snap-start rounded-full px-3.5 text-xs font-semibold transition-colors ${
-                        checked
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                      }`}
-                    >
-                      {category}
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => setActiveView('timeline')}
+                  className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                    activeView === 'timeline'
+                      ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
+                      : 'border-transparent text-zinc-500 dark:text-zinc-400'
+                  }`}
+                >
+                  Timeline
+                </button>
               </div>
-
-              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Use mouse wheel, trackpad, or scrollbar to browse categories.</p>
             </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-            Export
-          </p>
-
-          <div className="hidden sm:flex items-center gap-2">
-            <button
-              onClick={handleExportCSV}
-              title="Export CSV"
-              className="inline-flex items-center gap-1.5 min-h-12 px-4 text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl transition-colors"
-            >
-              <Download size={15} />
-              CSV
-            </button>
-            <button
-              onClick={handleExportPDF}
-              title="Export PDF"
-              className="inline-flex items-center gap-1.5 min-h-12 px-4 text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl transition-colors"
-            >
-              <Download size={15} />
-              PDF
-            </button>
-          </div>
-
-          <div ref={exportMenuRef} className="relative sm:hidden self-start">
-            <button
-              type="button"
-              onClick={() => setShowExportMenu((prev) => !prev)}
-              aria-expanded={showExportMenu}
-              aria-haspopup="menu"
-              className="inline-flex items-center gap-1.5 min-h-12 px-4 text-sm font-semibold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl transition-colors"
-            >
-              <Download size={14} />
-              Export
-              <ChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showExportMenu && (
-              <div
-                role="menu"
-                className="absolute right-0 mt-2 w-44 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg p-1.5 z-20"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    handleExportCSV();
-                    setShowExportMenu(false);
-                  }}
-                  className="w-full text-left min-h-12 px-3 py-2 text-sm rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  Export CSV
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    handleExportPDF();
-                    setShowExportMenu(false);
-                  }}
-                  className="w-full text-left min-h-12 px-3 py-2 text-sm rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  Export PDF
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
-        {loading ? (
-          <TransactionsSkeleton />
-        ) : hasNoTransactions ? (
-          <EmptyState
-            icon={Wallet}
-            headline="No transactions yet."
-            subtext="Start logging your expenses and income here."
-            cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
-            onAddTransaction={openAddTransactionModal}
-          />
-        ) : hasNoMatches ? (
-          <EmptyState
-            icon={SearchX}
-            headline="No results found."
-            subtext="Try adjusting your search or filters."
-            cta={{ label: 'Clear Filters', action: 'clear-filters' }}
-            onClearFilters={clearSearchAndFilters}
-          />
-        ) : (
+        {activeView === 'list' ? (
           <>
-            <TransactionList
-              transactions={paginated}
-              onDelete={requestDeleteConfirmation}
-              onEdit={setEditingTransaction}
-              showDelete
-              showEdit
-              mobileFirst
-              groupByDate
-              stickyHeaderOffsetClassName="top-28 sm:top-24"
-            />
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Total spent</p>
+                <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(totalSpent)}</p>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{filteredExpenseTransactions.length} transactions</p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Avg / day</p>
+                <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(avgPerDay)}</p>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{daysTracked} days tracked</p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Biggest spend</p>
+                <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">
+                  {formatPesoDecimal(biggestSpendTx?.amount ?? 0)}
+                </p>
+                <p className="text-[10px] text-[#1D9E75] mt-0.5">
+                  {biggestSpendTx
+                    ? `${biggestSpendTx.merchant || biggestSpendTx.description || biggestSpendTx.paymentMethod} · ${format(parseISO(biggestSpendTx.date), 'MMM d')}`
+                    : 'No spend yet'}
+                </p>
+              </div>
+            </div>
 
-            {totalPages > 1 && (
-              <div ref={paginationRef} className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Rows per page</span>
+            <div className="mt-5 flex flex-row items-start gap-6">
+              <aside className="hidden md:flex md:w-64 shrink-0 flex-col gap-5">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">By category</p>
+                  <div className="mt-3 space-y-2.5">
+                    {categoryBreakdown.map((entry) => {
+                      const checked = selectedCategories.includes(entry.category as CategoryFilter);
+                      const width = highestCategoryTotal > 0 ? (entry.amount / highestCategoryTotal) * 100 : 0;
+
+                      return (
+                        <button
+                          key={entry.category}
+                          type="button"
+                          onClick={() => toggleCategory(entry.category as CategoryFilter)}
+                          className={`w-full text-left transition-colors ${checked ? 'bg-zinc-100 dark:bg-zinc-800 rounded-lg' : ''}`}
+                        >
+                          <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                              <span className="text-sm text-zinc-700 dark:text-zinc-300 flex-1">{entry.category}</span>
+                            </span>
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400 min-w-[40px] text-right">{formatPesoDecimal(entry.amount)}</span>
+                          </div>
+                          <div className="mt-2 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${width}%`, backgroundColor: entry.color }}
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">Payment method</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {PAYMENT_FILTER_OPTIONS.map((method) => {
+                      const checked = selectedPaymentMethod === method;
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => handlePaymentMethodChange(method)}
+                          className={checked
+                            ? 'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors border-[#1D9E75] bg-[#1D9E75]/10 text-[#1D9E75]'
+                            : 'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-[#1D9E75]'}
+                        >
+                          {method}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">Month</p>
                   <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="h-12 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                    value={selectedMonth}
+                    onChange={(event) => handleMonthChange(event.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-700 dark:text-zinc-300 px-3 py-2"
                   >
-                    {[10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>{n}</option>
+                    {monthOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="min-h-12 px-4 text-sm font-semibold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    ← Prev
-                  </button>
+                <div className="flex-1" />
 
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400 min-w-[90px] text-center">
-                    {page} / {totalPages}
-                  </span>
-
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="min-h-12 px-4 text-sm font-semibold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    Next →
-                  </button>
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">Export</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handleExportCSV}
+                      className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-700 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-[#1D9E75] hover:text-[#1D9E75] transition-colors"
+                    >
+                      CSV
+                    </button>
+                    <button
+                      onClick={handleExportPDF}
+                      className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-700 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-[#1D9E75] hover:text-[#1D9E75] transition-colors"
+                    >
+                      PDF
+                    </button>
+                  </div>
                 </div>
+              </aside>
+
+              <div className="min-w-0 flex-1">
+                <div className="mb-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPage(1);
+                        }}
+                        placeholder="Search by merchant, amount, note, or tag"
+                        className="h-12 w-full rounded-xl border border-zinc-200 bg-white pl-11 pr-4 text-sm text-zinc-900 outline-none transition-colors focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                      />
+                    </div>
+
+                  </div>
+
+                  <div className="md:hidden">
+                    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                      <button
+                        type="button"
+                        onClick={clearSelectedCategories}
+                        className={`min-h-10 shrink-0 rounded-full px-3.5 text-xs font-semibold transition-colors ${
+                          selectedCategories.length === 0
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        All categories
+                      </button>
+
+                      {CATEGORY_FILTER_OPTIONS.map((category) => {
+                        const checked = selectedCategories.includes(category);
+                        return (
+                          <button
+                            key={category}
+                            type="button"
+                            aria-pressed={checked}
+                            onClick={() => toggleCategory(category)}
+                            className={`min-h-10 shrink-0 rounded-full px-3.5 text-xs font-semibold transition-colors ${
+                              checked
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                            }`}
+                          >
+                            {category}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {activeFilterCount > 0 && (
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedDayFilter && selectedDayFilterLabel && (
+                          <button
+                            type="button"
+                            onClick={clearSelectedDayFilter}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                          >
+                            Day: {selectedDayFilterLabel}
+                            <X size={12} aria-hidden="true" />
+                          </button>
+                        )}
+
+                        {selectedCategories.map((category) => (
+                          <button
+                            key={category}
+                            type="button"
+                            onClick={() => removeCategory(category)}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                          >
+                            {category}
+                            <X size={12} aria-hidden="true" />
+                          </button>
+                        ))}
+
+                        {selectedPaymentMethod !== 'All methods' && (
+                          <button
+                            type="button"
+                            onClick={() => handlePaymentMethodChange('All methods')}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                          >
+                            {selectedPaymentMethod}
+                            <X size={12} aria-hidden="true" />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearSelectedCategories();
+                            handlePaymentMethodChange('All methods');
+                            clearSelectedDayFilter();
+                          }}
+                          className="inline-flex min-h-9 items-center rounded-full border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {loading ? (
+                  <TransactionsSkeleton />
+                ) : hasNoTransactions ? (
+                  <EmptyState
+                    icon={Wallet}
+                    headline="No transactions yet."
+                    subtext="Start logging your expenses and income here."
+                    cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
+                    onAddTransaction={openAddTransactionModal}
+                  />
+                ) : hasNoMatches ? (
+                  <EmptyState
+                    icon={SearchX}
+                    headline="No results found."
+                    subtext="Try adjusting your search or filters."
+                    cta={{ label: 'Clear Filters', action: 'clear-filters' }}
+                    onClearFilters={clearSearchAndFilters}
+                  />
+                ) : (
+                  <>
+                    <TransactionList
+                      transactions={paginated}
+                      onDelete={requestDeleteConfirmation}
+                      onEdit={setEditingTransaction}
+                      showDelete
+                      showEdit
+                      mobileFirst
+                      groupByDate
+                      stickyHeaderOffsetClassName="top-28 sm:top-24"
+                    />
+
+                    {totalPages > 1 && (
+                      <div ref={paginationRef} className="mt-6 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">Rows per page</span>
+                          <select
+                            value={pageSize}
+                            onChange={(e) => {
+                              setPageSize(Number(e.target.value));
+                              setPage(1);
+                            }}
+                            className="h-12 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                          >
+                            {[10, 20, 50, 100].map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="min-h-12 rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          >
+                            ← Prev
+                          </button>
+
+                          <span className="min-w-[90px] text-center text-sm text-zinc-500 dark:text-zinc-400">
+                            {page} / {totalPages}
+                          </span>
+
+                          <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="min-h-12 rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            )}
+            </div>
           </>
+        ) : timelineLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <TimelineView events={timelineEvents} onAddTransaction={openAddTransactionModal} />
         )}
       </div>
+
+      <FilterDrawer
+        isOpen={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        onApply={() => setShowFilterDrawer(false)}
+        categories={categoryBreakdown}
+        highestCategoryTotal={highestCategoryTotal}
+        selectedCategories={selectedCategories}
+        onToggleCategory={(category) => toggleCategory(category as CategoryFilter)}
+        selectedPaymentMethod={selectedPaymentMethod}
+        paymentMethodOptions={PAYMENT_FILTER_OPTIONS}
+        onPaymentMethodChange={handlePaymentMethodChange}
+        onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+      />
 
       {pendingDeleteTransaction && (
         <div
@@ -795,7 +1050,10 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      <FloatingAddButton visible={isFabVisible} onClick={openAddTransactionModal} />
+      <FloatingAddButton
+        visible={activeView === 'timeline' ? true : isFabVisible}
+        onClick={openAddTransactionModal}
+      />
       <AddExpenseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

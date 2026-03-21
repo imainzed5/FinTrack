@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import {
   Archive,
@@ -17,9 +17,12 @@ import type {
   SavingsGoalInput,
   SavingsGoalWithDeposits,
   SavingsGoalsSummary,
+  MonthlySavings,
 } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
+import { MonthlySavingsChart } from '@/components/Charts';
+import ConfirmModal from '../ConfirmModal';
 
 interface SavingsClientPageProps {
   data: SavingsGoalsSummary;
@@ -70,6 +73,9 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
   const [goalLoading, setGoalLoading] = useState(false);
   const [depositLoading, setDepositLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
+  const [savingsHistory, setSavingsHistory] = useState<MonthlySavings[]>([]);
+  const [savingsHistoryLoading, setSavingsHistoryLoading] = useState(true);
 
   const [goalInput, setGoalInput] = useState<SavingsGoalInput>({
     name: '',
@@ -105,6 +111,39 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
 
     return nextSummary;
   }
+
+  useEffect(() => {
+    const fetchSavingsHistory = async () => {
+      setSavingsHistoryLoading(true);
+
+      try {
+        const res = await fetch('/api/savings');
+        const json = (await res.json()) as MonthlySavings[];
+        setSavingsHistory(Array.isArray(json) ? json : []);
+      } catch {
+        setSavingsHistory([]);
+      } finally {
+        setSavingsHistoryLoading(false);
+      }
+    };
+
+    void fetchSavingsHistory();
+  }, []);
+
+  const totalSaved = savingsHistory.length > 0
+    ? savingsHistory[savingsHistory.length - 1].cumulative
+    : 0;
+
+  const monthsWithBudget = savingsHistory.filter((month) => month.budget > 0);
+  const avgSavingsRate = monthsWithBudget.length > 0
+    ? monthsWithBudget.reduce((sum, month) => sum + month.savingsRate, 0) / monthsWithBudget.length
+    : 0;
+
+  const bestMonth = savingsHistory.length > 0
+    ? savingsHistory.reduce((best, month) => (month.saved > best.saved ? month : best))
+    : null;
+
+  const savingsHistoryByNewest = [...savingsHistory].reverse();
 
   const activeGoals = useMemo(
     () =>
@@ -423,11 +462,95 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
               </div>
             ) : null}
           </section>
+
+          <section className="mt-6 rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">Savings history</h2>
+              <p className="mt-1 text-sm text-zinc-500">Month-by-month breakdown of what you saved</p>
+            </div>
+
+            {savingsHistoryLoading ? (
+              <p className="mt-6 text-center text-sm text-zinc-500">Loading savings history...</p>
+            ) : savingsHistory.length === 0 ? (
+              <p className="mt-6 text-center text-sm text-zinc-500">No savings history yet. Set a budget and start tracking.</p>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                  <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Total saved (cumulative)</p>
+                    <p className="mt-1 text-[20px] font-medium leading-tight text-zinc-900">{formatCurrency(totalSaved)}</p>
+                  </article>
+
+                  <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Avg savings rate</p>
+                    <p className="mt-1 text-[20px] font-medium leading-tight text-zinc-900">{avgSavingsRate.toFixed(1)}%</p>
+                  </article>
+
+                  <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Best month</p>
+                    <p className="mt-1 text-[20px] font-medium leading-tight text-zinc-900">
+                      {bestMonth ? format(new Date(`${bestMonth.month}-01`), 'MMM yyyy') : '—'}
+                    </p>
+                  </article>
+                </div>
+
+                <div className="mt-4 rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                  <MonthlySavingsChart data={savingsHistory} />
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)]">
+                  <table className="min-w-full divide-y divide-zinc-200 text-sm">
+                    <thead className="bg-zinc-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-zinc-500">Month</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-zinc-500">Budget</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-zinc-500">Spent</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-zinc-500">Saved</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-zinc-500">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 bg-white">
+                      {savingsHistoryByNewest.map((month) => (
+                        <tr key={month.month}>
+                          <td className="px-3 py-2 text-zinc-800">{format(new Date(`${month.month}-01`), 'MMM yyyy')}</td>
+                          <td className="px-3 py-2 text-zinc-600">
+                            {month.budget > 0 ? formatCurrency(month.budget) : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-zinc-600">{formatCurrency(month.spent)}</td>
+                          <td className="px-3 py-2 text-zinc-800">{formatCurrency(month.saved)}</td>
+                          <td className="px-3 py-2">
+                            {month.budget === 0 ? (
+                              <span className="text-zinc-500">—</span>
+                            ) : (
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${
+                                  month.savingsRate >= 30
+                                    ? 'bg-[#E1F5EE] text-[#1D9E75]'
+                                    : month.savingsRate >= 10
+                                      ? 'bg-[#FFF2E0] text-[#B66A12]'
+                                      : 'bg-[#FDECEC] text-[#D85A30]'
+                                }`}
+                              >
+                                {month.savingsRate.toFixed(1)}%
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
         </div>
       </div>
 
       {selectedGoal ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setSelectedGoal(null)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => {
+          setConfirmAction(null);
+          setSelectedGoal(null);
+        }}>
           <div
             className="modal-shell w-full max-w-lg rounded-t-3xl bg-white p-5 animate-slide-up"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 28px)', maxHeight: '90vh', overflowY: 'auto' }}
@@ -435,7 +558,10 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-900">Goal details</h2>
-              <button type="button" onClick={() => setSelectedGoal(null)} className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100">
+              <button type="button" onClick={() => {
+                setConfirmAction(null);
+                setSelectedGoal(null);
+              }} className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100">
                 <X size={18} />
               </button>
             </div>
@@ -518,19 +644,45 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
               </button>
               <button
                 type="button"
-                onClick={() => void archiveGoal(selectedGoal.id)}
+                onClick={() => setConfirmAction('archive')}
                 className="rounded-lg border border-[#EF9F27] px-3 py-2 text-xs font-medium text-[#B66A12]"
               >
                 Archive goal
               </button>
               <button
                 type="button"
-                onClick={() => void deleteGoal(selectedGoal.id)}
+                onClick={() => setConfirmAction('delete')}
                 className="rounded-lg border border-[#D85A30] px-3 py-2 text-xs font-medium text-[#D85A30]"
               >
                 Delete goal
               </button>
             </div>
+
+            <ConfirmModal
+              open={confirmAction === 'archive'}
+              title="Archive this goal?"
+              message="This goal will be moved to your archived goals. You can still view it but won't be able to add savings to it."
+              confirmLabel="Archive goal"
+              confirmVariant="warning"
+              onConfirm={() => {
+                setConfirmAction(null);
+                void archiveGoal(selectedGoal.id);
+              }}
+              onCancel={() => setConfirmAction(null)}
+            />
+
+            <ConfirmModal
+              open={confirmAction === 'delete'}
+              title="Delete this goal?"
+              message="This will permanently delete the goal and all its deposit history. This cannot be undone."
+              confirmLabel="Delete goal"
+              confirmVariant="danger"
+              onConfirm={() => {
+                setConfirmAction(null);
+                void deleteGoal(selectedGoal.id);
+              }}
+              onCancel={() => setConfirmAction(null)}
+            />
 
             {editMode ? (
               <form

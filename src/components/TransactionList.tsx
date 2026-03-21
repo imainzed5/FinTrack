@@ -100,6 +100,15 @@ const PAYMENT_METHOD_ICON_MAP: Record<PaymentMethod, typeof Wallet> = {
   Other: Wallet,
 };
 
+function getIconBackgroundTint(category: string): string {
+  if (category === 'Food') return '#FAECE7';
+  if (category === 'Transportation') return '#E6F1FB';
+  if (category === 'Health') return '#EAF3DE';
+  if (category === 'Subscriptions') return '#EEEDFE';
+  if (category === 'Shopping') return '#FBEAF0';
+  return '#F1EFE8';
+}
+
 interface TransactionListProps {
   transactions: Transaction[];
   onDelete?: (id: string) => void;
@@ -366,6 +375,7 @@ function SwipeableTransactionRow({
   const categoryTone = getCategoryTone(tx);
   const CategoryIcon = getCategoryIcon(tx);
   const PaymentMethodIcon = PAYMENT_METHOD_ICON_MAP[tx.paymentMethod] || Wallet;
+  const iconTint = getIconBackgroundTint(tx.category);
   const amountColorClassName =
     tx.type === 'income'
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -423,11 +433,12 @@ function SwipeableTransactionRow({
         onPointerCancel={handlePointerCancel}
         onClickCapture={handleForegroundClick}
       >
-        <div className={`absolute inset-y-0 left-0 w-1 ${categoryTone.accent}`} aria-hidden="true" />
-
         <div className="flex items-start gap-3 py-4 pl-4 pr-3 sm:pr-4">
-          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] ${categoryTone.icon}`}>
-            <CategoryIcon size={18} />
+          <div
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+            style={{ backgroundColor: iconTint, color: '#1D9E75' }}
+          >
+            <CategoryIcon size={17} />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -643,7 +654,7 @@ export default function TransactionList({
                     <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400">
                       {group.label}
                     </p>
-                    <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs text-[var(--color-text-tertiary)]">
                       {groupTotal}
                     </span>
                   </div>

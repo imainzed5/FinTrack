@@ -4,14 +4,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Search, Filter, Download, ChevronDown, X, Wallet, SearchX } from 'lucide-react';
 import type { WheelEvent as ReactWheelEvent } from 'react';
-import type { Transaction, Category } from '@/lib/types';
+import type { Transaction, Category, TimelineEvent } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { CATEGORIES } from '@/lib/types';
 import TransactionList from '@/components/TransactionList';
+import TimelineView from '@/components/TimelineView';
 import FloatingAddButton from '@/components/FloatingAddButton';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EditTransactionModal from '@/components/EditTransactionModal';
-import { subscribeTransactionUpdates } from '@/lib/transaction-ws';
+import { subscribeAppUpdates, subscribeTransactionUpdates } from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 import EmptyState from '@/components/EmptyState';
 
@@ -61,6 +62,9 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [activeView, setActiveView] = useState<'list' | 'timeline'>('list');
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(true);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const categoryFiltersScrollerRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +146,32 @@ export default function TransactionsPage() {
 
     return unsubscribe;
   }, [fetchTransactions]);
+
+  const fetchTimeline = useCallback(async () => {
+    setTimelineLoading(true);
+
+    try {
+      const res = await fetch('/api/timeline');
+      const json = await res.json();
+      setTimelineEvents(Array.isArray(json) ? json : []);
+    } catch {
+      // offline
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchTimeline();
+  }, [fetchTimeline]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchTimeline();
+    });
+
+    return unsubscribe;
+  }, [fetchTimeline]);
 
   useEffect(() => {
     if (!showExportMenu) return;
@@ -386,7 +416,36 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div className="space-y-3 mb-5">
+        <div className="mb-5 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => setActiveView('list')}
+              className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                activeView === 'list'
+                  ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
+                  : 'border-transparent text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('timeline')}
+              className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                activeView === 'timeline'
+                  ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
+                  : 'border-transparent text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              Timeline
+            </button>
+          </div>
+        </div>
+
+        {activeView === 'list' ? (
+          <>
+            <div className="space-y-3 mb-5">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
@@ -510,9 +569,9 @@ export default function TransactionsPage() {
               <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Use mouse wheel, trackpad, or scrollbar to browse categories.</p>
             </div>
           )}
-        </div>
+          </div>
 
-        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
             Export
           </p>
@@ -579,81 +638,89 @@ export default function TransactionsPage() {
               </div>
             )}
           </div>
-        </div>
+            </div>
 
-        {loading ? (
-          <TransactionsSkeleton />
-        ) : hasNoTransactions ? (
-          <EmptyState
-            icon={Wallet}
-            headline="No transactions yet."
-            subtext="Start logging your expenses and income here."
-            cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
-            onAddTransaction={openAddTransactionModal}
-          />
-        ) : hasNoMatches ? (
-          <EmptyState
-            icon={SearchX}
-            headline="No results found."
-            subtext="Try adjusting your search or filters."
-            cta={{ label: 'Clear Filters', action: 'clear-filters' }}
-            onClearFilters={clearSearchAndFilters}
-          />
-        ) : (
-          <>
-            <TransactionList
-              transactions={paginated}
-              onDelete={requestDeleteConfirmation}
-              onEdit={setEditingTransaction}
-              showDelete
-              showEdit
-              mobileFirst
-              groupByDate
-              stickyHeaderOffsetClassName="top-28 sm:top-24"
-            />
+            {loading ? (
+              <TransactionsSkeleton />
+            ) : hasNoTransactions ? (
+              <EmptyState
+                icon={Wallet}
+                headline="No transactions yet."
+                subtext="Start logging your expenses and income here."
+                cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
+                onAddTransaction={openAddTransactionModal}
+              />
+            ) : hasNoMatches ? (
+              <EmptyState
+                icon={SearchX}
+                headline="No results found."
+                subtext="Try adjusting your search or filters."
+                cta={{ label: 'Clear Filters', action: 'clear-filters' }}
+                onClearFilters={clearSearchAndFilters}
+              />
+            ) : (
+              <>
+                <TransactionList
+                  transactions={paginated}
+                  onDelete={requestDeleteConfirmation}
+                  onEdit={setEditingTransaction}
+                  showDelete
+                  showEdit
+                  mobileFirst
+                  groupByDate
+                  stickyHeaderOffsetClassName="top-28 sm:top-24"
+                />
 
-            {totalPages > 1 && (
-              <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Rows per page</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="h-12 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
-                  >
-                    {[10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                </div>
+                {totalPages > 1 && (
+                  <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Rows per page</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setPage(1);
+                        }}
+                        className="h-12 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                      >
+                        {[10, 20, 50, 100].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="min-h-12 px-4 text-sm font-semibold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    ← Prev
-                  </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="min-h-12 px-4 text-sm font-semibold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        ← Prev
+                      </button>
 
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400 min-w-[90px] text-center">
-                    {page} / {totalPages}
-                  </span>
+                      <span className="text-sm text-zinc-500 dark:text-zinc-400 min-w-[90px] text-center">
+                        {page} / {totalPages}
+                      </span>
 
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="min-h-12 px-4 text-sm font-semibold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    Next →
-                  </button>
-                </div>
-              </div>
+                      <button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="min-h-12 px-4 text-sm font-semibold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </>
+        ) : timelineLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <TimelineView events={timelineEvents} onAddTransaction={openAddTransactionModal} />
         )}
       </div>
 

@@ -9,7 +9,7 @@ import {
   Receipt,
   Lightbulb,
   LogOut,
-  Clock,
+  PiggyBank,
   Settings,
   Wallet,
 } from 'lucide-react';
@@ -19,7 +19,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/insights', label: 'Insights', icon: Lightbulb },
-  { href: '/timeline', label: 'Timeline', icon: Clock },
+  { href: '/savings', label: 'Savings', icon: PiggyBank },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
