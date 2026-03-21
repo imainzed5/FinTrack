@@ -195,6 +195,8 @@ export function detectSpendingSpikes(
     const prev = lastCats[cat] || 0;
     if (prev > 0) {
       const increase = ((amount - prev) / prev) * 100;
+      const categoryTxCount = currentMonth.filter((tx) => tx.category === cat).length;
+      if (categoryTxCount < 3 || amount < 300) continue;
       if (increase >= 30) {
         insights.push({
           id: uuidv4(),
@@ -346,6 +348,10 @@ export function analyzeSpendingPatterns(
 ): Insight[] {
   const insights: Insight[] = [];
   const monthTxs = getMonthTransactions(transactions, now).filter(isExpenseTransaction);
+  const totalSpend = monthTxs.reduce((sum, tx) => sum + tx.amount, 0);
+  if (monthTxs.length < 5 || totalSpend < 500) {
+    return insights;
+  }
 
   // Day-of-week analysis
   const dayTotals: Record<string, number> = {};
