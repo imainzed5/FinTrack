@@ -79,13 +79,23 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.7.9
+### Current version: v0.8.0
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.8.0  ✓ Calendar layout restructure + Spent Today display consistency
+  - Restructured CalendarPanel expanded state into top row (stats + day detail) + full-width bottom (calendar heatmap)
+  - Stats grid (2x2) and day detail panel displayed side-by-side in top row with border separator
+  - Calendar heatmap + legend moved to full-width bottom section
+  - Collapsed state layout unchanged (vertical flex layout with all sections stacked)
+  - Fixed "Spent Today" stat card and modal to count only expense transactions (excludes savings deposits/income)
+  - Updated spentToday calculation in DashboardClientPage.tsx to filter type === 'expense'
+  - Updated SpentTodayPopup to filter for expense-only transactions and apply transaction-aware sign formatting
+  - Removed hardcoded negative sign in modal amount display; now uses transaction.type to determine +/- prefix
+  - Files updated: CalendarPanel.tsx, DashboardClientPage.tsx, SpentTodayPopup.tsx
 v0.7.9  ✓ Savings transaction rendering on dashboard and deposit metadata
   - Set merchant to goal name in addSavingsDeposit() for correct display in transaction list
   - Add description field with deposit/withdrawal context
