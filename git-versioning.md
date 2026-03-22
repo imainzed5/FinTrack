@@ -79,13 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.12.0
+### Current version: v0.12.1
 
 ---
 
 ## Version Roadmap
 
+v0.12.0 ✓ InsightCard hero redesign and visual enhancement
 ```
+v0.12.1 ✓ Transactions page skeleton loader fix
+  - Refined TransactionsSkeleton to only render transaction-list placeholders, removing duplicate stats/sidebar/search blocks
+  - Loader now matches the actual loading region, preventing double UI and layout jump
+  - Files updated: SkeletonLoaders.tsx
 v0.12.0 ✓ InsightCard hero redesign and visual enhancement
   - Redesigned InsightCard layout with hero-number prominence: 3px accent bar → title label → large hero value → secondary message → supporting body
   - Implemented getAccentColor() system: accent bar color reflects insight severity and state (green/amber/red/gray)
