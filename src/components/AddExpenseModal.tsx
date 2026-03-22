@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Plus, Repeat, Trash2, X } from 'lucide-react';
+import { ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import {
   CATEGORIES,
   INCOME_CATEGORIES,
@@ -43,6 +43,13 @@ function parseTags(input: string): string[] {
         .filter(Boolean)
     )
   );
+}
+
+function normalizeDecimalInput(value: string): string {
+  const sanitized = value.replace(/[^0-9.]/g, '');
+  const dotIndex = sanitized.indexOf('.');
+  if (dotIndex === -1) return sanitized;
+  return `${sanitized.slice(0, dotIndex + 1)}${sanitized.slice(dotIndex + 1).replace(/\./g, '')}`;
 }
 
 function nextRecurringRunDate(
@@ -150,6 +157,55 @@ export default function AddExpenseModal({
     () => splitRows.reduce((sum, row) => sum + (Number.parseFloat(row.amount) || 0), 0),
     [splitRows]
   );
+  const splitTotalMatches = Math.abs(splitTotal - (Number.isFinite(amountValue) ? amountValue : 0)) <= 0.01;
+  const showMoreOptions = showOptional;
+  const isRecurring = isIncomeEntry ? incomeRecurringMonthly : recurringEnabled;
+
+  const EXPENSE_CATEGORY_ICONS: Record<string, string> = {
+    Food: '🍜',
+    Transportation: '🚌',
+    Shopping: '🛍️',
+    Health: '💊',
+    Education: '📚',
+    Utilities: '⚡',
+    Entertainment: '🎮',
+    Subscriptions: '📱',
+    Miscellaneous: '✦',
+  };
+
+  const INCOME_CATEGORY_ICONS: Record<string, string> = {
+    Freelance: '💻',
+    Salary: '🏢',
+    'Side Job': '🔧',
+    'Part-time': '⏰',
+    Bonus: '🎁',
+    Refund: '↩️',
+    Gift: '🤝',
+    'Other Income': '✦',
+  };
+
+  const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+    Food: 'Food',
+    Transportation: 'Transit',
+    Shopping: 'Shopping',
+    Health: 'Health',
+    Education: 'Education',
+    Utilities: 'Utilities',
+    Entertainment: 'Entertain',
+    Subscriptions: 'Subscript.',
+    Miscellaneous: 'Misc',
+  };
+
+  const INCOME_CATEGORY_LABELS: Record<string, string> = {
+    Freelance: 'Freelance',
+    Salary: 'Salary',
+    'Side Job': 'Side Job',
+    'Part-time': 'Part-time',
+    Bonus: 'Bonus',
+    Refund: 'Refund',
+    Gift: 'Gift',
+    'Other Income': 'Other',
+  };
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 640px)');
@@ -184,14 +240,10 @@ export default function AddExpenseModal({
       setSplitRows([]);
     }
 
-    if (showOptional) {
-      setShowOptional(false);
-    }
-
     if (recurringFrequency !== 'monthly') {
       setRecurringFrequency('monthly');
     }
-  }, [entryType, recurringFrequency, showOptional, splitEnabled]);
+  }, [entryType, recurringFrequency, splitEnabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -393,6 +445,35 @@ export default function AddExpenseModal({
     onClose();
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAmount(normalizeDecimalInput(e.target.value));
+  };
+
+  const addSplitRow = () => {
+    setSplitRows((prev) => [...prev, createSplitDraft(category)]);
+  };
+
+  const removeSplitRow = (id: string) => {
+    setSplitRows((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  const updateSplitRow = (id: string, field: 'category' | 'subCategory' | 'amount', value: string) => {
+    setSplitRows((prev) => prev.map((entry) => {
+      if (entry.id !== id) return entry;
+      if (field === 'category') {
+        return { ...entry, category: value as Category };
+      }
+      if (field === 'subCategory') {
+        return { ...entry, subCategory: value };
+      }
+      return { ...entry, amount: normalizeDecimalInput(value) };
+    }));
+  };
+
+  const setRecurringFrequencyLabel = (value: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly') => {
+    setRecurringFrequency(value.toLowerCase() as RecurringFrequency);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
@@ -400,441 +481,439 @@ export default function AddExpenseModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-2xl animate-slide-up max-h-[100dvh] sm:max-h-[90dvh] flex flex-col modal-shell"
+        className="relative w-full animate-slide-up"
       >
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-          <h2 id={titleId} className="text-xl font-bold text-zinc-900 dark:text-white">
-            {isIncomeEntry ? 'Log Income' : 'Add Expense'}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={isIncomeEntry ? 'Close log income modal' : 'Close add expense modal'}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <form onSubmit={handleSubmit} className="bg-zinc-100 dark:bg-zinc-900 rounded-3xl p-3 flex flex-col gap-2 w-full max-w-sm mx-auto overflow-y-auto max-h-[100dvh] modal-shell modal-content-scroll">
+          <div className="flex items-center justify-between px-0.5 pt-0.5">
+            <p id={titleId} className="sr-only">{isIncomeEntry ? 'Log Income' : 'Add Expense'}</p>
 
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-4 pb-4 space-y-4 modal-content-scroll">
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-1 grid grid-cols-2 gap-1">
+            <div className="flex bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full p-1 gap-0.5">
+              <button
+                type="button"
+                onClick={() => setEntryType('expense')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  entryType === 'expense'
+                    ? 'bg-[#1D9E75] text-white'
+                    : 'text-zinc-500 dark:text-zinc-400'
+                }`}
+              >
+                Expense
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType('income')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  entryType === 'income'
+                    ? 'bg-[#085041] text-[#9FE1CB]'
+                    : 'text-zinc-500 dark:text-zinc-400'
+                }`}
+              >
+                Income
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={() => setEntryType('expense')}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                !isIncomeEntry
-                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-300'
-              }`}
+              onClick={onClose}
+              aria-label={isIncomeEntry ? 'Close log income modal' : 'Close add expense modal'}
+              className="w-7 h-7 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center"
             >
-              Expense
-            </button>
-            <button
-              type="button"
-              onClick={() => setEntryType('income')}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                isIncomeEntry
-                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-300'
-              }`}
-            >
-              Income
+              <X className="w-3.5 h-3.5 text-zinc-500" />
             </button>
           </div>
 
           {formError && (
-            <div className="px-3 py-2 rounded-xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400">
+            <div className="px-3 py-2 rounded-2xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/30">
               {formError}
             </div>
           )}
 
-          {/* Amount - Primary Input */}
-          <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              {isIncomeEntry ? 'Amount Received' : 'Amount (₱)'}
-            </label>
-            <input
-              ref={amountInputRef}
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full mt-1 text-3xl sm:text-4xl font-bold text-center py-4 border-2 border-zinc-200 dark:border-zinc-700 rounded-2xl bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white focus:border-emerald-500 focus:ring-0 outline-none transition-colors"
-              required
-            />
+          <div className={`rounded-2xl px-4 pt-3.5 pb-3 ${entryType === 'expense' ? 'bg-[#1D9E75]' : 'bg-[#085041]'}`}>
+            <p className={`text-[10px] font-medium uppercase tracking-widest mb-1.5 ${
+              entryType === 'expense' ? 'text-white/55' : 'text-[#5DCAA5]'
+            }`}>
+              {entryType === 'expense' ? 'Amount' : 'Amount received'}
+            </p>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-lg font-medium ${entryType === 'expense' ? 'text-white/65' : 'text-[#5DCAA5]'}`}>₱</span>
+              <input
+                ref={amountInputRef}
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={handleAmountChange}
+                placeholder="0.00"
+                className="bg-transparent text-white text-4xl font-medium tracking-tight leading-none outline-none w-full placeholder-white/30"
+              />
+            </div>
+            <p className={`text-[10px] mt-1.5 ${entryType === 'expense' ? 'text-white/40' : 'text-[#5DCAA5]/60'}`}>
+              {isRecurring
+                ? `Recurring ${isIncomeEntry ? 'monthly' : recurringFrequency}`
+                : splitEnabled
+                ? 'Split across categories'
+                : 'Tap to enter amount'}
+            </p>
           </div>
 
-          {isIncomeEntry && (
-            <div>
-              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Frequency</label>
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIncomeRecurringMonthly(false)}
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                    !incomeRecurringMonthly
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-                  }`}
-                >
-                  One-time
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIncomeRecurringMonthly(true)}
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                    incomeRecurringMonthly
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-                  }`}
-                >
-                  Recurring monthly
-                </button>
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Details</p>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-zinc-400">Description</label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g., Dinner with friends"
+                className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75]"
+              />
+            </div>
+
+            {!isIncomeEntry && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-zinc-400">Sub-category <span className="text-zinc-300">(optional)</span></label>
+                <input
+                  type="text"
+                  value={subCategory}
+                  onChange={(e) => setSubCategory(e.target.value)}
+                  disabled={splitEnabled}
+                  placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
+                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] disabled:opacity-60"
+                />
+              </div>
+            )}
+
+            <div className="h-px bg-zinc-100 dark:bg-zinc-700 -mx-3.5" />
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-zinc-400">
+                  {isIncomeEntry ? 'Received via' : 'Merchant'}
+                </label>
+                <input
+                  type="text"
+                  value={merchant}
+                  onChange={(e) => setMerchant(e.target.value)}
+                  placeholder={isIncomeEntry ? 'e.g., GCash' : 'e.g., Jollibee'}
+                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-zinc-400">Date</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                />
               </div>
             </div>
-          )}
-
-          <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Description</label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g., Dinner with friends"
-              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-            />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Merchant</label>
-            <input
-              type="text"
-              value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
-              placeholder="e.g., Starbucks"
-              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2.5">
+              {isIncomeEntry ? 'Income type' : 'Category'}
+            </p>
+            <div className="grid grid-cols-5 gap-1.5">
+              {(isIncomeEntry ? INCOME_CATEGORIES : CATEGORIES).map((cat) => {
+                const iconMap = isIncomeEntry ? INCOME_CATEGORY_ICONS : EXPENSE_CATEGORY_ICONS;
+                const labelMap = isIncomeEntry ? INCOME_CATEGORY_LABELS : EXPENSE_CATEGORY_LABELS;
+                const activeVal = isIncomeEntry ? incomeCategory : category;
+                const isActive = activeVal === cat;
+                const activeExpenseCls = 'border-[#1D9E75] bg-[#E1F5EE] dark:bg-[#0F6E56]/20';
+                const activeIncomeCls = 'border-[#085041] bg-[#E1F5EE] dark:bg-[#085041]/20';
+                const activeCls = isIncomeEntry ? activeIncomeCls : activeExpenseCls;
 
-          {/* Category */}
-          {!isIncomeEntry && (
-            <div>
-              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Category</label>
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                {CATEGORIES.map((cat) => (
+                return (
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => setCategory(cat)}
-                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
-                      category === cat
-                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                    onClick={() => {
+                      if (isIncomeEntry) {
+                        setIncomeCategory(cat as IncomeCategory);
+                      } else {
+                        setCategory(cat as Category);
+                      }
+                    }}
+                    className={`rounded-[9px] border py-2 px-1 flex flex-col items-center gap-1 transition-colors ${
+                      isActive
+                        ? activeCls
+                        : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900'
                     }`}
                   >
-                    {cat}
+                    <span className="text-sm leading-none">{iconMap[cat] ?? '•'}</span>
+                    <span className={`text-[9px] font-medium text-center leading-tight ${
+                      isActive
+                        ? (isIncomeEntry ? 'text-[#085041] dark:text-[#5DCAA5]' : 'text-[#0F6E56]')
+                        : 'text-zinc-400 dark:text-zinc-500'
+                    }`}>
+                      {labelMap[cat] ?? cat}
+                    </span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
-
-          {isIncomeEntry && (
-            <>
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Income Category</label>
-                <select
-                  value={incomeCategory}
-                  onChange={(e) => setIncomeCategory(e.target.value as IncomeCategory)}
-                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-                >
-                  {INCOME_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Received via</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-                >
-                  {PAYMENT_METHODS.map((pm) => (
-                    <option key={pm} value={pm}>{pm}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes for context"
-                  rows={2}
-                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-                />
-              </div>
-            </>
-          )}
-
-          {!isIncomeEntry && (
-            <div>
-              <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Sub-category (optional)</label>
-              <input
-                type="text"
-                value={subCategory}
-                onChange={(e) => setSubCategory(e.target.value)}
-                disabled={splitEnabled}
-                placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
-                className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors disabled:opacity-60"
-              />
-            </div>
-          )}
-
-          {/* Date */}
-          <div>
-            <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-            />
           </div>
 
-          {!isIncomeEntry && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
-                <span className="font-medium">Split Transaction</span>
-                <input
-                  type="checkbox"
-                  checked={splitEnabled}
-                  onChange={(e) => {
-                    const enabled = e.target.checked;
-                    setSplitEnabled(enabled);
-                    if (enabled && splitRows.length < 2) {
-                      setSplitRows([
-                        createSplitDraft(category),
-                        createSplitDraft('Miscellaneous'),
-                      ]);
-                    }
-                  }}
-                  className="h-4 w-4 accent-emerald-500"
-                />
-              </label>
-              <label className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300">
-                <span className="font-medium flex items-center gap-1.5"><Repeat size={14} />Recurring</span>
-                <input
-                  type="checkbox"
-                  checked={recurringEnabled}
-                  onChange={(e) => setRecurringEnabled(e.target.checked)}
-                  className="h-4 w-4 accent-emerald-500"
-                />
-              </label>
+          {isRecurring && (
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                Recurring schedule
+              </p>
+
+              {!isIncomeEntry ? (
+                <>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['Daily', 'Weekly', 'Monthly', 'Yearly'] as const).map((freq) => (
+                      <button
+                        key={freq}
+                        type="button"
+                        onClick={() => setRecurringFrequencyLabel(freq)}
+                        className={`h-7 rounded-full text-[11px] font-medium border transition-colors ${
+                          recurringFrequency === freq.toLowerCase()
+                            ? 'border-[#1D9E75] bg-[#E1F5EE] text-[#0F6E56] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]'
+                            : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-400'
+                        }`}
+                      >
+                        {freq}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-400">End date <span className="text-zinc-300">(optional)</span></label>
+                    <input
+                      type="date"
+                      value={recurringEndDate}
+                      min={date}
+                      onChange={(e) => setRecurringEndDate(e.target.value)}
+                      className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex gap-1.5">
+                  {(['One-time', 'Monthly'] as const).map((freq) => (
+                    <button
+                      key={freq}
+                      type="button"
+                      onClick={() => setIncomeRecurringMonthly(freq === 'Monthly')}
+                      className={`flex-1 h-7 rounded-full text-[11px] font-medium border transition-colors ${
+                        (incomeRecurringMonthly && freq === 'Monthly') || (!incomeRecurringMonthly && freq === 'One-time')
+                          ? 'border-[#085041] bg-[#E1F5EE] text-[#085041] dark:bg-[#085041]/20 dark:text-[#5DCAA5]'
+                          : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-400'
+                      }`}
+                    >
+                      {freq}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {!isIncomeEntry && splitEnabled && (
-            <div className="space-y-2 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Split Breakdown</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {splitTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  {' / '}
-                  {(Number.isFinite(amountValue) ? amountValue : 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                Split transaction
+              </p>
 
               {splitRows.map((row) => (
-                <div key={row.id} className="grid grid-cols-12 gap-2 items-center">
-                  <select
-                    value={row.category}
-                    onChange={(e) => {
-                      const next = e.target.value as Category;
-                      setSplitRows((prev) => prev.map((entry) => (
-                        entry.id === row.id ? { ...entry, category: next } : entry
-                      )));
-                    }}
-                    className="col-span-4 px-2 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                <div key={row.id} className="flex flex-col gap-1.5">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
+                    <select
+                      value={row.category}
+                      onChange={(e) => updateSplitRow(row.id, 'category', e.target.value)}
+                      className="h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 text-[11px] text-zinc-700 dark:text-zinc-300 outline-none"
+                    >
+                      {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={row.amount}
+                      onChange={(e) => updateSplitRow(row.id, 'amount', e.target.value)}
+                      placeholder="₱0.00"
+                      className="h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 text-[11px] text-zinc-700 dark:text-zinc-300 outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={splitRows.length <= 2}
+                      onClick={() => removeSplitRow(row.id)}
+                      className="w-5 h-5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-400 text-[10px] disabled:opacity-40"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={row.subCategory}
-                    onChange={(e) => {
-                      setSplitRows((prev) => prev.map((entry) => (
-                        entry.id === row.id ? { ...entry, subCategory: e.target.value } : entry
-                      )));
-                    }}
-                    placeholder="Sub-cat"
-                    className="col-span-4 px-2 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                    onChange={(e) => updateSplitRow(row.id, 'subCategory', e.target.value)}
+                    placeholder="Sub-category"
+                    className="h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 text-[11px] text-zinc-700 dark:text-zinc-300 outline-none"
                   />
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={row.amount}
-                    onChange={(e) => {
-                      setSplitRows((prev) => prev.map((entry) => (
-                        entry.id === row.id ? { ...entry, amount: e.target.value } : entry
-                      )));
-                    }}
-                    placeholder="0.00"
-                    className="col-span-3 px-2 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
-                  />
-                  <button
-                    type="button"
-                    disabled={splitRows.length <= 2}
-                    onClick={() => setSplitRows((prev) => prev.filter((entry) => entry.id !== row.id))}
-                    className="col-span-1 p-1.5 text-zinc-400 hover:text-red-500 disabled:opacity-30"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               ))}
 
               <button
                 type="button"
-                onClick={() => setSplitRows((prev) => [...prev, createSplitDraft(category)])}
-                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+                onClick={addSplitRow}
+                className="h-7 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 text-[11px] text-zinc-400 flex items-center justify-center gap-1"
               >
-                <Plus size={12} /> Add line
+                <Plus size={11} /> Add row
               </button>
-            </div>
-          )}
 
-          {!isIncomeEntry && recurringEnabled && (
-            <div className="space-y-3 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 animate-fade-in">
-              <div>
-                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Frequency</label>
-                <select
-                  value={recurringFrequency}
-                  onChange={(e) => setRecurringFrequency(e.target.value as RecurringFrequency)}
-                  className="w-full mt-1 px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
-                >
-                  {RECURRING_FREQUENCIES.map((freq) => (
-                    <option key={freq} value={freq}>
-                      {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">End Date (optional)</label>
-                <input
-                  type="date"
-                  value={recurringEndDate}
-                  min={date}
-                  onChange={(e) => setRecurringEndDate(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
-                />
+              <div className="flex justify-between items-center pt-1 border-t border-zinc-100 dark:border-zinc-700">
+                <span className="text-[10px] text-zinc-400">Total split</span>
+                <span className={`text-[11px] font-medium ${splitTotalMatches ? 'text-[#1D9E75]' : 'text-red-400'}`}>
+                  ₱{splitTotal.toFixed(2)} / ₱{(Number.isFinite(amountValue) ? amountValue : 0).toFixed(2)} {splitTotalMatches ? '✓' : '✗'}
+                </span>
               </div>
             </div>
           )}
 
-          {!isIncomeEntry && (
-            <>
-              {/* Optional Fields Toggle */}
-              <button
-                type="button"
-                onClick={() => setShowOptional(!showOptional)}
-                className="text-sm text-emerald-600 dark:text-emerald-400 font-medium"
-              >
-                {showOptional ? 'Hide' : 'Show'} optional fields
-              </button>
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowOptional((v) => !v)}
+              className="w-full flex items-center justify-between px-3.5 py-2.5"
+            >
+              <span className="text-[11px] font-medium text-zinc-400">More options</span>
+              <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showMoreOptions ? 'rotate-90' : ''}`} />
+            </button>
 
-              {showOptional && (
-                <div className="space-y-3 animate-fade-in">
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Payment Method</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-                >
-                  {PAYMENT_METHODS.map((pm) => (
-                    <option key={pm} value={pm}>{pm}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes for context"
-                  rows={2}
-                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Tags (comma-separated)</label>
-                <input
-                  type="text"
-                  value={tagsInput}
-                  onChange={(e) => setTagsInput(e.target.value)}
-                  placeholder="e.g., work, reimbursable"
-                  className="w-full mt-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Receipt Attachment</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAttachmentChange}
-                  className="w-full mt-1 text-xs text-zinc-500 dark:text-zinc-400"
-                />
-                {attachmentName && (
-                  <div className="mt-2 flex items-center justify-between rounded-lg bg-zinc-100 dark:bg-zinc-800 px-3 py-2">
-                    <span className="text-xs text-zinc-600 dark:text-zinc-300 truncate">{attachmentName}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAttachmentBase64(undefined);
-                        setAttachmentName('');
-                      }}
-                      className="text-xs text-red-500"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-                {attachmentBase64 && (
-                  <div className="relative mt-2 h-24 w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    <Image
-                      src={attachmentBase64}
-                      alt="Receipt preview"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 448px"
-                      unoptimized
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-              </div>
+            {showMoreOptions && (
+              <div className="px-3.5 pb-3 flex flex-col gap-2.5 border-t border-zinc-100 dark:border-zinc-700 pt-2.5 animate-fade-in">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-400">Payment method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                    className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                  >
+                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </div>
-              )}
-            </>
-          )}
 
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-400">Notes</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add a note..."
+                    rows={2}
+                    className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-2 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] resize-none"
+                  />
+                </div>
+
+                {!isIncomeEntry && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-zinc-400">Tags (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={tagsInput}
+                        onChange={(e) => setTagsInput(e.target.value)}
+                        placeholder="e.g., work, reimbursable"
+                        className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75]"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-zinc-400">Receipt attachment</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAttachmentChange}
+                        className="w-full text-xs text-zinc-500 dark:text-zinc-400"
+                      />
+                      {attachmentName && (
+                        <div className="mt-1 flex items-center justify-between rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-2">
+                          <span className="text-xs text-zinc-600 dark:text-zinc-300 truncate">{attachmentName}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttachmentBase64(undefined);
+                              setAttachmentName('');
+                            }}
+                            className="text-xs text-red-500"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                      {attachmentBase64 && (
+                        <div className="relative mt-1 h-20 w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                          <Image
+                            src={attachmentBase64}
+                            alt="Receipt preview"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 448px"
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="border-t border-zinc-100 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-4">
+          <div className="flex items-center gap-1.5 px-0.5 pb-0.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.125rem)]">
+            <button
+              type="button"
+              onClick={() => {
+                if (isIncomeEntry) {
+                  setIncomeRecurringMonthly((v) => !v);
+                  return;
+                }
+                setRecurringEnabled((v) => !v);
+              }}
+              className={`h-9 px-3 rounded-full border text-[11px] font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+                isRecurring
+                  ? 'border-[#1D9E75] bg-[#E1F5EE] text-[#1D9E75] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]'
+                  : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-400'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isRecurring ? 'bg-[#1D9E75]' : 'bg-zinc-300'}`} />
+              Recurring
+            </button>
+
+            {!isIncomeEntry && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSplitEnabled((v) => {
+                    const next = !v;
+                    if (next && splitRows.length < 2) {
+                      setSplitRows([
+                        createSplitDraft(category),
+                        createSplitDraft('Miscellaneous'),
+                      ]);
+                    }
+                    return next;
+                  });
+                }}
+                className={`h-9 px-3 rounded-full border text-[11px] font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+                  splitEnabled
+                    ? 'border-[#1D9E75] bg-[#E1F5EE] text-[#1D9E75] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]'
+                    : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-400'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${splitEnabled ? 'bg-[#1D9E75]' : 'bg-zinc-300'}`} />
+                Split
+              </button>
+            )}
+
             <button
               type="submit"
               disabled={saving || !amount}
-              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white font-bold text-lg rounded-2xl transition-colors shadow-lg shadow-emerald-500/25"
+              className={`flex-1 h-9 rounded-full text-xs font-medium text-white transition-opacity ${
+                saving ? 'opacity-60' : ''
+              } ${entryType === 'expense' ? 'bg-[#1D9E75]' : 'bg-[#085041]'}`}
             >
-              {saving ? 'Saving...' : isIncomeEntry ? 'Log Income' : 'Save Expense'}
+              {saving ? 'Saving...' : isIncomeEntry ? 'Save income' : 'Save expense'}
             </button>
           </div>
         </form>
