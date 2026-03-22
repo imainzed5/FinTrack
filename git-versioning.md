@@ -79,13 +79,27 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.10.0
+### Current version: v0.11.1
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.11.1 ✓ PWA login flow and z-index fixes
+  - Updated manifest.json start_url from "/" to "/login" for PWA home screen launch
+  - Added new /login route that checks session on mount and redirects authenticated users to /dashboard
+  - Uses router.replace() to prevent login page appearing in back-history
+  - Fixed savings goals card z-index: bumped from z-50 to z-[51] to appear above FAB when expanded
+  - Files updated: public/manifest.json, src/app/login/page.tsx, src/components/dashboard/SavingsGoalsDashboardCard.tsx
+v0.11.0 ✓ Transaction modal redesign and input validation
+  - Redesigned AddExpenseModal to card-stack UI layout with collapsible More Options
+  - Redesigned EditTransactionModal to match AddExpenseModal card-stack design
+  - Added numeric-only input validation with real-time sanitization for amount fields
+  - Implemented delete transaction functionality in EditTransactionModal with confirmation dialog
+  - Added emoji icon grids for category selection (5-column layout)
+  - Preserved all existing state management, API behavior, and validation logic
+  - Files updated: AddExpenseModal.tsx, EditTransactionModal.tsx
 v0.10.0 ✓ Dashboard and Transactions UI refinement
   - Moved FilterDrawer to React Portal (document.body) with mounted guard to escape sticky header stacking context
   - Changed FilterDrawer z-index to 9999 to properly overlay FAB (z-50) and bottom nav (z-40)

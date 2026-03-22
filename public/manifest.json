@@ -2,7 +2,7 @@
   "name": "Moneda",
   "short_name": "Moneda",
   "description": "Personal Financial Intelligence Dashboard",
-  "start_url": "/",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#fafafa",
   "theme_color": "#10b981",
