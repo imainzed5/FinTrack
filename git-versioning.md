@@ -79,13 +79,24 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.11.1
+### Current version: v0.12.0
 
 ---
 
 ## Version Roadmap
 
 ```
+v0.12.0 ✓ InsightCard hero redesign and visual enhancement
+  - Redesigned InsightCard layout with hero-number prominence: 3px accent bar → title label → large hero value → secondary message → supporting body
+  - Implemented getAccentColor() system: accent bar color reflects insight severity and state (green/amber/red/gray)
+  - Split payload rendering into renderHero() and renderCardBody() functions for clean visual hierarchy
+  - Added LockedInsightCard component for gated insight display with tier badge and progress tracking
+  - Enhanced currency formatting: Added fmtCurrency() helper (₱ + 2 decimals) for financial hero values (biggest_expense, avg_transaction_size)
+  - Implemented 15 complete insight type renderings with specialized hero display and body support data
+  - Grid improvements: 2-column layout with conditional full-width cards based on FULL_WIDTH_TYPES and pool size
+  - Safe date parsing: Timezone-aware largest_expense date extraction via substring + manual Date constructor
+  - Sub-component library: TwoStat, MiniBarChart, SegmentBar, Badge for composable card body rendering
+  - Files updated: InsightCards.tsx, LockedInsightCard.tsx, insights/page.tsx, insights-engine.ts, types.ts
 v0.11.1 ✓ PWA login flow and z-index fixes
   - Updated manifest.json start_url from "/" to "/login" for PWA home screen launch
   - Added new /login route that checks session on mount and redirects authenticated users to /dashboard

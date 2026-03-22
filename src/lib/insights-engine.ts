@@ -4,7 +4,10 @@ import {
   endOfMonth,
   subMonths,
   subDays,
+  subWeeks,
   addMonths,
+  addDays,
+  startOfWeek,
   format,
   parseISO,
   differenceInDays,
@@ -201,10 +204,14 @@ export function detectSpendingSpikes(
         insights.push({
           id: uuidv4(),
           insightType: 'spending_spike',
+          title: 'Spending spike detected',
           message: `${cat} spending increased by ${Math.round(increase)}% this month compared to last month.`,
           severity: increase >= 50 ? 'critical' : 'warning',
           category: cat as Category,
           createdAt: new Date().toISOString(),
+          tier: 1,
+          requiresTransactionCount: 5,
+          dataPayload: {},
         });
       }
     }
@@ -330,10 +337,14 @@ export function predictBudgetRisk(
       insights.push({
         id: uuidv4(),
         insightType: 'budget_risk',
+        title: 'Budget risk forecast',
         message: `At your current pace, ${label} may exceed budget by ₱${status.projectedOverage.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
         severity: status.projectedOverage > status.effectiveLimit * 0.2 ? 'critical' : 'warning',
         category: status.category === 'Overall' ? undefined : status.category,
         createdAt: new Date().toISOString(),
+        tier: 1,
+        requiresTransactionCount: 5,
+        dataPayload: {},
       });
     }
   }
@@ -367,13 +378,924 @@ export function analyzeSpendingPatterns(
     insights.push({
       id: uuidv4(),
       insightType: 'pattern',
+      title: 'Spending pattern',
       message: `You spend most of your money on ${maxDay[0]}s.`,
       severity: 'info',
       createdAt: new Date().toISOString(),
+      tier: 1,
+      requiresTransactionCount: 5,
+      dataPayload: {},
     });
   }
 
   return insights;
+}
+
+export function generateBudgetBurnRate(
+  transactions: Transaction[],
+  budgets: Budget[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const overallBudget = budgets.find(
+    (budget) => budget.category === 'Overall' && budget.month === currentMonth && !budget.subCategory
+  );
+
+  if (!overallBudget) {
+    return [];
+  }
+
+  const effectiveLimit = getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit;
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+  const totalSpent = roundMoney(sumTransactions(monthExpenses));
+  const remaining = roundMoney(effectiveLimit - totalSpent);
+  const daysElapsed = Math.max(1, now.getDate());
+  const daysInMonth = endOfMonth(now).getDate();
+  const daysLeft = Math.max(0, daysInMonth - daysElapsed);
+  const dailyAverage = roundMoney(daysElapsed > 0 ? totalSpent / daysElapsed : 0);
+  const daysUntilEmpty =
+    dailyAverage > 0 ? Math.floor(remaining / dailyAverage) : daysLeft;
+
+  let state: 'safe' | 'tight' | 'at_risk' = 'safe';
+  if (daysUntilEmpty > daysLeft) {
+    state = 'safe';
+  } else if (daysUntilEmpty >= daysLeft - 5 && daysUntilEmpty <= daysLeft) {
+    state = 'tight';
+  } else {
+    state = 'at_risk';
+  }
+
+  const message =
+    state === 'safe'
+      ? "You're on track — your budget covers the rest of the month."
+      : state === 'tight'
+        ? 'Cutting it close — your budget runs out around the same time as the month.'
+        : `At your current pace, your budget runs out in ${daysUntilEmpty} days — ${daysLeft} days remain.`;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'budget_burn_rate',
+      title: 'Budget burn rate',
+      message,
+      severity: state === 'safe' ? 'info' : state === 'tight' ? 'warning' : 'critical',
+      createdAt: new Date().toISOString(),
+      tier: 1,
+      requiresTransactionCount: 3,
+      dataPayload: {
+        daysUntilEmpty,
+        daysLeft,
+        dailyAverage,
+        remaining,
+        state,
+      },
+    },
+  ];
+}
+
+export function generateBiggestExpense(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+
+  if (monthExpenses.length < 3) {
+    return [];
+  }
+
+  const biggest = monthExpenses.reduce((max, tx) => (tx.amount > max.amount ? tx : max));
+  const amount = roundMoney(biggest.amount);
+  const formattedDate = format(parseISO(biggest.date), 'MMM d, yyyy');
+  const description = biggest.description?.trim();
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'biggest_expense',
+      title: 'Biggest expense this month',
+      message: `Your largest expense was ₱${amount.toFixed(2)} on ${biggest.category}${description ? ` (${description})` : ''} on ${formattedDate}.`,
+      severity: 'info',
+      category: biggest.category,
+      createdAt: new Date().toISOString(),
+      tier: 1,
+      requiresTransactionCount: 3,
+      dataPayload: {
+        amount,
+        category: biggest.category,
+        date: biggest.date,
+        description,
+      },
+    },
+  ];
+}
+
+export function generateCategoryConcentration(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+
+  if (monthExpenses.length < 5) {
+    return [];
+  }
+
+  const totalSpent = roundMoney(sumTransactions(monthExpenses));
+  if (totalSpent <= 0) {
+    return [];
+  }
+
+  const categoryBreakdown = categorySum(monthExpenses);
+  const topEntry = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0];
+  if (!topEntry) {
+    return [];
+  }
+
+  const [topCategory, rawTopAmount] = topEntry;
+  const topAmount = roundMoney(rawTopAmount);
+  const percentage = (topAmount / totalSpent) * 100;
+
+  if (percentage < 40) {
+    return [];
+  }
+
+  const normalizedBreakdown = Object.fromEntries(
+    Object.entries(categoryBreakdown).map(([category, amount]) => [category, roundMoney(amount)])
+  );
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'category_concentration',
+      title: 'Spending concentration',
+      message: `${topCategory} makes up ${percentage.toFixed(0)}% of your spending this month — ₱${topAmount.toFixed(2)} of ₱${totalSpent.toFixed(2)}.`,
+      severity: percentage < 50 ? 'info' : 'warning',
+      category: topCategory as Category,
+      createdAt: new Date().toISOString(),
+      tier: 1,
+      requiresTransactionCount: 5,
+      dataPayload: {
+        topCategory,
+        topAmount,
+        totalSpent,
+        percentage,
+        categoryBreakdown: normalizedBreakdown,
+      },
+    },
+  ];
+}
+
+export function generateWeekComparison(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const thisWeekEnd = now;
+  const lastWeekStart = subWeeks(thisWeekStart, 1);
+  const lastWeekEnd = subDays(thisWeekStart, 1);
+
+  const monthExpenses = transactions.filter(isExpenseTransaction);
+
+  const thisWeekTxs = monthExpenses.filter((tx) => {
+    const date = parseISO(tx.date);
+    return date >= thisWeekStart && date <= thisWeekEnd;
+  });
+
+  const lastWeekTxs = monthExpenses.filter((tx) => {
+    const date = parseISO(tx.date);
+    return date >= lastWeekStart && date <= lastWeekEnd;
+  });
+
+  const thisWeekTotal = roundMoney(sumTransactions(thisWeekTxs));
+  const lastWeekTotal = roundMoney(sumTransactions(lastWeekTxs));
+  if (lastWeekTotal === 0) {
+    return [];
+  }
+
+  const delta = roundMoney(thisWeekTotal - lastWeekTotal);
+  const percentChange = (delta / lastWeekTotal) * 100;
+
+  const thisByCategory = categorySum(thisWeekTxs);
+  const lastByCategory = categorySum(lastWeekTxs);
+  const allCategories = new Set<string>([
+    ...Object.keys(thisByCategory),
+    ...Object.keys(lastByCategory),
+  ]);
+
+  let topDeltaCategory = 'Uncategorized';
+  let maxCategoryDelta = 0;
+  for (const category of allCategories) {
+    const categoryDelta = (thisByCategory[category] || 0) - (lastByCategory[category] || 0);
+    if (Math.abs(categoryDelta) > Math.abs(maxCategoryDelta)) {
+      maxCategoryDelta = categoryDelta;
+      topDeltaCategory = category;
+    }
+  }
+
+  const message =
+    delta <= 0
+      ? `You've spent ₱${Math.abs(delta).toFixed(2)} less than last week — down ${Math.abs(percentChange).toFixed(0)}%.`
+      : `Spending is up ₱${delta.toFixed(2)} vs last week (+${percentChange.toFixed(0)}%). ${topDeltaCategory} drove most of the change.`;
+
+  const severity: Insight['severity'] =
+    delta <= 0 ? 'info' : percentChange < 50 ? 'warning' : 'critical';
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'week_comparison',
+      title: 'Week over week',
+      message,
+      severity,
+      createdAt: new Date().toISOString(),
+      tier: 2,
+      requiresTransactionCount: 15,
+      dataPayload: {
+        thisWeekTotal,
+        lastWeekTotal,
+        delta,
+        percentChange,
+        topDeltaCategory,
+      },
+    },
+  ];
+}
+
+export function generateNoSpendDays(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+  const daysElapsed = Math.max(1, now.getDate());
+  const daysWithSpend = new Set(
+    monthExpenses.map((tx) => tx.date.substring(0, 10))
+  );
+
+  let noSpendCount = 0;
+  for (let day = 1; day <= daysElapsed; day++) {
+    const dayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (!daysWithSpend.has(dayDate)) {
+      noSpendCount += 1;
+    }
+  }
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'no_spend_days',
+      title: 'No-spend days',
+      message: `You've had ${noSpendCount} no-spend day${noSpendCount !== 1 ? 's' : ''} out of ${daysElapsed} days this month.`,
+      severity: 'info',
+      createdAt: new Date().toISOString(),
+      tier: 2,
+      requiresTransactionCount: 10,
+      dataPayload: {
+        noSpendCount,
+        daysElapsed,
+        noSpendRate: noSpendCount / daysElapsed,
+      },
+    },
+  ];
+}
+
+export function generateEssentialsRatio(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const essentials = new Set<Category>(['Food', 'Transportation', 'Utilities', 'Health']);
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+
+  if (monthExpenses.length < 10) {
+    return [];
+  }
+
+  const overallTotal = roundMoney(sumTransactions(monthExpenses));
+  if (overallTotal <= 0) {
+    return [];
+  }
+
+  const essentialsTotal = roundMoney(
+    monthExpenses
+      .filter((tx) => essentials.has(tx.category))
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+  const discretionaryTotal = roundMoney(overallTotal - essentialsTotal);
+  const essentialsPercent = (essentialsTotal / overallTotal) * 100;
+
+  const discretionaryTail =
+    discretionaryTotal > 0 ? ` ₱${discretionaryTotal.toFixed(2)} is discretionary.` : '';
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'essentials_ratio',
+      title: 'Essentials vs discretionary',
+      message: `${essentialsPercent.toFixed(0)}% of your spending goes to essentials (food, transport, utilities, health).${discretionaryTail}`,
+      severity: essentialsPercent <= 70 ? 'info' : 'warning',
+      createdAt: new Date().toISOString(),
+      tier: 2,
+      requiresTransactionCount: 10,
+      dataPayload: {
+        essentialsTotal,
+        discretionaryTotal,
+        essentialsPercent,
+        overallTotal,
+      },
+    },
+  ];
+}
+
+export function generateAvgTransactionSize(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+
+  if (monthExpenses.length < 10) {
+    return [];
+  }
+
+  const count = monthExpenses.length;
+  const total = roundMoney(sumTransactions(monthExpenses));
+  const avgAmount = roundMoney(total / count);
+  const largeCount = monthExpenses.filter((tx) => tx.amount > avgAmount * 2).length;
+
+  const suffix =
+    largeCount > 0
+      ? ` ${largeCount} transaction${largeCount > 1 ? 's were' : ' was'} more than double that — worth reviewing.`
+      : '';
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'avg_transaction_size',
+      title: 'Average transaction size',
+      message: `Your average expense is ₱${avgAmount.toFixed(2)} this month.${suffix}`,
+      severity: 'info',
+      createdAt: new Date().toISOString(),
+      tier: 2,
+      requiresTransactionCount: 10,
+      dataPayload: {
+        avgAmount,
+        count,
+        largeCount,
+      },
+    },
+  ];
+}
+
+export function generatePaymentMethodSplit(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+
+  if (monthExpenses.length < 10) {
+    return [];
+  }
+
+  const totalSpent = roundMoney(sumTransactions(monthExpenses));
+  if (totalSpent <= 0) {
+    return [];
+  }
+
+  const methodTotals: Record<string, number> = {};
+  for (const tx of monthExpenses) {
+    methodTotals[tx.paymentMethod] = (methodTotals[tx.paymentMethod] || 0) + tx.amount;
+  }
+
+  const split: Record<string, { amount: number; percent: number }> = {};
+  for (const [method, amount] of Object.entries(methodTotals)) {
+    const normalizedAmount = roundMoney(amount);
+    split[method] = {
+      amount: normalizedAmount,
+      percent: (normalizedAmount / totalSpent) * 100,
+    };
+  }
+
+  const topEntry = Object.entries(split).sort((a, b) => b[1].percent - a[1].percent)[0];
+  if (!topEntry) {
+    return [];
+  }
+
+  const [topMethod, topSummary] = topEntry;
+  const topPercent = topSummary.percent;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'payment_method_split',
+      title: 'Payment method breakdown',
+      message: `${topMethod} accounts for ${topPercent.toFixed(0)}% of your spending this month.`,
+      severity: 'info',
+      createdAt: new Date().toISOString(),
+      tier: 2,
+      requiresTransactionCount: 10,
+      dataPayload: {
+        split,
+        topMethod,
+        topPercent,
+      },
+    },
+  ];
+}
+
+export function generateWeekendVsWeekday(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+
+  if (monthExpenses.length < 15) {
+    return [];
+  }
+
+  const weekendTotal = roundMoney(
+    monthExpenses
+      .filter((tx) => {
+        const day = parseISO(tx.date).getDay();
+        return day === 0 || day === 6;
+      })
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+
+  const weekdayTotal = roundMoney(
+    monthExpenses
+      .filter((tx) => {
+        const day = parseISO(tx.date).getDay();
+        return day !== 0 && day !== 6;
+      })
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+
+  let weekendDays = 0;
+  let weekdayDays = 0;
+  const daysElapsed = Math.max(1, now.getDate());
+  for (let day = 1; day <= daysElapsed; day++) {
+    const dayOfWeek = new Date(now.getFullYear(), now.getMonth(), day).getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      weekendDays += 1;
+    } else {
+      weekdayDays += 1;
+    }
+  }
+
+  const weekendDailyAvg = roundMoney(weekendDays > 0 ? weekendTotal / weekendDays : 0);
+  const weekdayDailyAvg = roundMoney(weekdayDays > 0 ? weekdayTotal / weekdayDays : 0);
+
+  const message =
+    weekendDailyAvg > weekdayDailyAvg
+      ? `You spend ₱${(weekendDailyAvg - weekdayDailyAvg).toFixed(2)} more per day on weekends than weekdays.`
+      : `Your weekday spending (₱${weekdayDailyAvg.toFixed(2)}/day) is actually higher than weekends.`;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'weekend_vs_weekday',
+      title: 'Weekend vs weekday spending',
+      message,
+      severity: 'info',
+      createdAt: new Date().toISOString(),
+      tier: 2,
+      requiresTransactionCount: 15,
+      dataPayload: {
+        weekendTotal,
+        weekdayTotal,
+        weekendDailyAvg,
+        weekdayDailyAvg,
+        weekendDays,
+        weekdayDays,
+      },
+    },
+  ];
+}
+
+export function generateCategoryDrift(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const previousMonth = format(subMonths(now, 1), 'yyyy-MM');
+
+  const currentExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+  const previousExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(previousMonth) && isExpenseTransaction(tx)
+  );
+
+  const currentByCategory = categorySum(currentExpenses);
+  const previousByCategory = categorySum(previousExpenses);
+  const candidates: Array<{
+    category: string;
+    currentAmount: number;
+    previousAmount: number;
+    delta: number;
+    percentChange: number;
+  }> = [];
+
+  const categories = new Set<string>([
+    ...Object.keys(currentByCategory),
+    ...Object.keys(previousByCategory),
+  ]);
+
+  for (const category of categories) {
+    const currentAmount = roundMoney(currentByCategory[category] || 0);
+    const previousAmount = roundMoney(previousByCategory[category] || 0);
+    if (previousAmount <= 0) continue;
+
+    const delta = roundMoney(currentAmount - previousAmount);
+    const percentChange = (delta / previousAmount) * 100;
+    if (delta >= 200 && percentChange >= 20) {
+      candidates.push({
+        category,
+        currentAmount,
+        previousAmount,
+        delta,
+        percentChange,
+      });
+    }
+  }
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  return candidates
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, 2)
+    .map((candidate) => ({
+      id: uuidv4(),
+      insightType: 'category_drift' as const,
+      title: 'Spending shift',
+      message: `${candidate.category} spending is up ₱${candidate.delta.toFixed(2)} vs last month (+${candidate.percentChange.toFixed(0)}%).`,
+      severity: candidate.percentChange >= 50 ? 'warning' : 'info',
+      category: candidate.category as Category,
+      createdAt: new Date().toISOString(),
+      tier: 3 as const,
+      requiresTransactionCount: 30 as const,
+      dataPayload: {
+        category: candidate.category,
+        currentAmount: candidate.currentAmount,
+        previousAmount: candidate.previousAmount,
+        delta: candidate.delta,
+        percentChange: candidate.percentChange,
+      },
+    }));
+}
+
+export function generateMonthEndProjection(
+  transactions: Transaction[],
+  budgets: Budget[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const overallBudget = budgets.find(
+    (budget) => budget.category === 'Overall' && budget.month === currentMonth && !budget.subCategory
+  );
+
+  if (!overallBudget) {
+    return [];
+  }
+
+  const effectiveLimit = getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit;
+  const monthExpenses = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+  const totalSpent = roundMoney(sumTransactions(monthExpenses));
+  const daysElapsed = Math.max(1, now.getDate());
+  const daysInMonth = endOfMonth(now).getDate();
+  const dailyRate = roundMoney(daysElapsed > 0 ? totalSpent / daysElapsed : 0);
+  const projectedTotal = roundMoney(dailyRate * daysInMonth);
+  const projectedRemaining = roundMoney(effectiveLimit - projectedTotal);
+
+  const severity: Insight['severity'] =
+    projectedRemaining >= 0 ? 'info' : projectedRemaining > -500 ? 'warning' : 'critical';
+
+  const message =
+    projectedRemaining >= 0
+      ? `At your current pace, you'll end the month with ₱${projectedRemaining.toFixed(2)} to spare.`
+      : `You're on track to overshoot your budget by ₱${Math.abs(projectedRemaining).toFixed(2)} by month end.`;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'month_end_projection',
+      title: 'Month-end projection',
+      message,
+      severity,
+      createdAt: new Date().toISOString(),
+      tier: 3,
+      requiresTransactionCount: 20,
+      dataPayload: {
+        projectedTotal,
+        projectedRemaining,
+        dailyRate,
+        daysLeft: Math.max(0, daysInMonth - daysElapsed),
+      },
+    },
+  ];
+}
+
+export function generateSubscriptionCreep(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const subscriptions = detectSubscriptions(transactions);
+  if (subscriptions.length === 0) {
+    return [];
+  }
+
+  const currentMonth = format(now, 'yyyy-MM');
+  const compareMonth = format(subMonths(now, 3), 'yyyy-MM');
+  const monthMinusOne = format(subMonths(now, 1), 'yyyy-MM');
+  const monthMinusTwo = format(subMonths(now, 2), 'yyyy-MM');
+  const monthMinusThree = format(subMonths(now, 3), 'yyyy-MM');
+
+  const expenseTxs = transactions.filter(isExpenseTransaction);
+  const normalizeText = (value: string): string => value.toLowerCase().trim();
+  const descriptor = (tx: Transaction): string =>
+    normalizeText(tx.merchant || tx.description || tx.notes || tx.category);
+
+  const isMatch = (tx: Transaction, name: string, amount: number, category: Category): boolean => {
+    const byName = descriptor(tx) === normalizeText(name);
+    const byCategory = tx.category === category;
+    const byAmount = Math.abs(tx.amount - amount) < 0.01;
+    return byAmount && (byName || byCategory);
+  };
+
+  const stableSubs = subscriptions.filter((sub) => {
+    const hasMonthOne = expenseTxs.some(
+      (tx) => tx.date.startsWith(monthMinusOne) && isMatch(tx, sub.name, sub.amount, sub.category)
+    );
+    const hasMonthTwo = expenseTxs.some(
+      (tx) => tx.date.startsWith(monthMinusTwo) && isMatch(tx, sub.name, sub.amount, sub.category)
+    );
+    const hasMonthThree = expenseTxs.some(
+      (tx) => tx.date.startsWith(monthMinusThree) && isMatch(tx, sub.name, sub.amount, sub.category)
+    );
+    return hasMonthOne && hasMonthTwo && hasMonthThree;
+  });
+
+  if (stableSubs.length === 0) {
+    return [];
+  }
+
+  const currentSubTotal = roundMoney(
+    expenseTxs
+      .filter(
+        (tx) =>
+          tx.date.startsWith(currentMonth) &&
+          stableSubs.some((sub) => isMatch(tx, sub.name, sub.amount, sub.category))
+      )
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+
+  const previousSubTotal = roundMoney(
+    expenseTxs
+      .filter(
+        (tx) =>
+          tx.date.startsWith(compareMonth) &&
+          stableSubs.some((sub) => isMatch(tx, sub.name, sub.amount, sub.category))
+      )
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+
+  const delta = roundMoney(currentSubTotal - previousSubTotal);
+  if (delta < 100) {
+    return [];
+  }
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'subscription_creep',
+      title: 'Subscription creep',
+      message: `Your recurring costs have grown by ₱${delta.toFixed(2)} over the last 3 months.`,
+      severity: 'warning',
+      createdAt: new Date().toISOString(),
+      tier: 3,
+      requiresTransactionCount: 30,
+      dataPayload: {
+        currentSubTotal,
+        previousSubTotal,
+        delta,
+      },
+    },
+  ];
+}
+
+export function generateSavingsRateTrend(
+  transactions: Transaction[],
+  budgets: Budget[],
+  now: Date
+): Insight[] {
+  const history = computeMonthlySavingsHistory(transactions, budgets);
+  if (history.length < 3) {
+    return [];
+  }
+
+  const lastThree = history.slice(-3);
+  if (lastThree.length < 3) {
+    return [];
+  }
+
+  const monthlyRates = lastThree.map((item) => {
+    const monthTransactions = transactions.filter((tx) => tx.date.startsWith(item.month));
+    const income = roundMoney(
+      monthTransactions
+        .filter(isIncomeTransaction)
+        .reduce((sum, tx) => sum + tx.amount, 0)
+    );
+    const expenses = roundMoney(
+      monthTransactions
+        .filter(isExpenseTransaction)
+        .reduce((sum, tx) => sum + tx.amount, 0)
+    );
+    const rate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+    return {
+      month: item.month,
+      rate,
+    };
+  });
+
+  const firstRate = monthlyRates[0].rate;
+  const latestRate = monthlyRates[monthlyRates.length - 1].rate;
+  const change = latestRate - firstRate;
+  const avgRate = monthlyRates.reduce((sum, item) => sum + item.rate, 0) / monthlyRates.length;
+
+  const trend: 'improving' | 'declining' | 'stable' =
+    Math.abs(change) < 5 ? 'stable' : change > 0 ? 'improving' : 'declining';
+
+  const message =
+    trend === 'improving'
+      ? 'Your savings rate has improved over the last 3 months. Keep it up.'
+      : trend === 'declining'
+        ? `Your savings rate has been declining. You saved ${latestRate.toFixed(0)}% of income last month.`
+        : `Your savings rate has been consistent at around ${avgRate.toFixed(0)}% over the last 3 months.`;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'savings_rate_trend',
+      title: 'Savings rate trend',
+      message,
+      severity: trend === 'declining' ? 'warning' : 'info',
+      createdAt: new Date().toISOString(),
+      tier: 3,
+      requiresTransactionCount: 30,
+      dataPayload: {
+        monthlyRates,
+        trend,
+        avgRate,
+      },
+    },
+  ];
+}
+
+export function generatePostIncomeBehavior(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const currentMonth = format(now, 'yyyy-MM');
+  const incomeTransactions = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isIncomeTransaction(tx)
+  );
+
+  if (incomeTransactions.length === 0) {
+    return [];
+  }
+
+  const expenseTransactions = transactions.filter(
+    (tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx)
+  );
+  const daysElapsed = Math.max(1, now.getDate());
+  const totalExpenses = roundMoney(sumTransactions(expenseTransactions));
+  const dailyAvg = roundMoney(daysElapsed > 0 ? totalExpenses / daysElapsed : 0);
+  if (dailyAvg <= 0) {
+    return [];
+  }
+
+  const windowDates = new Set<string>();
+  for (const income of incomeTransactions) {
+    const incomeDate = parseISO(income.date);
+    for (let offset = 1; offset <= 3; offset++) {
+      const windowDate = addDays(incomeDate, offset);
+      if (format(windowDate, 'yyyy-MM') !== currentMonth) continue;
+      windowDates.add(format(windowDate, 'yyyy-MM-dd'));
+    }
+  }
+
+  const windowDays = windowDates.size;
+  if (windowDays === 0) {
+    return [];
+  }
+
+  const postIncomeSpend = roundMoney(
+    expenseTransactions
+      .filter((tx) => windowDates.has(tx.date))
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+  const postIncomeDailyAvg = roundMoney(postIncomeSpend / windowDays);
+  if (postIncomeDailyAvg <= dailyAvg * 1.3) {
+    return [];
+  }
+
+  const multiplier = postIncomeDailyAvg / dailyAvg;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'post_income_behavior',
+      title: 'Post-income spending',
+      message: `You tend to spend ${((multiplier - 1) * 100).toFixed(0)}% more in the days after receiving money.`,
+      severity: 'info',
+      createdAt: new Date().toISOString(),
+      tier: 3,
+      requiresTransactionCount: 20,
+      dataPayload: {
+        postIncomeDailyAvg,
+        dailyAvg,
+        multiplier,
+      },
+    },
+  ];
+}
+
+export function generateBestMonthReplay(
+  transactions: Transaction[],
+  now: Date
+): Insight[] {
+  const history = computeMonthlySavingsHistory(transactions, []);
+  const currentMonth = format(now, 'yyyy-MM');
+
+  const historicalMonths = history.filter((item) => item.month < currentMonth);
+  if (historicalMonths.length < 2) {
+    return [];
+  }
+
+  const qualified = historicalMonths.filter((item) => {
+    const monthCount = transactions.filter(
+      (tx) => tx.date.startsWith(item.month) && isExpenseTransaction(tx)
+    ).length;
+    return monthCount >= 5;
+  });
+
+  if (qualified.length === 0) {
+    return [];
+  }
+
+  const bestMonth = qualified.reduce((best, item) => (item.spent < best.spent ? item : best));
+  const bestMonthTotal = roundMoney(bestMonth.spent);
+
+  const currentTotal = roundMoney(
+    transactions
+      .filter((tx) => tx.date.startsWith(currentMonth) && isExpenseTransaction(tx))
+      .reduce((sum, tx) => sum + tx.amount, 0)
+  );
+  const daysInMonth = endOfMonth(now).getDate();
+  const daysLeft = Math.max(0, daysInMonth - now.getDate());
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'best_month_replay',
+      title: 'Your best month',
+      message: `${bestMonth.month} was your most efficient month — you spent ₱${bestMonthTotal.toFixed(2)} total. This month you're at ₱${currentTotal.toFixed(2)} with ${daysLeft} days to go.`,
+      severity: 'info',
+      createdAt: new Date().toISOString(),
+      tier: 3,
+      requiresTransactionCount: 30,
+      dataPayload: {
+        bestMonth: bestMonth.month,
+        bestMonthTotal,
+        currentTotal,
+        daysLeft,
+      },
+    },
+  ];
 }
 
 // Generate all insights
@@ -386,6 +1308,21 @@ export function generateInsights(
     ...detectSpendingSpikes(transactions, now),
     ...predictBudgetRisk(transactions, budgets, now),
     ...analyzeSpendingPatterns(transactions, now),
+    ...generateBudgetBurnRate(transactions, budgets, now),
+    ...generateBiggestExpense(transactions, now),
+    ...generateCategoryConcentration(transactions, now),
+    ...generateWeekComparison(transactions, now),
+    ...generateNoSpendDays(transactions, now),
+    ...generateEssentialsRatio(transactions, now),
+    ...generateAvgTransactionSize(transactions, now),
+    ...generatePaymentMethodSplit(transactions, now),
+    ...generateWeekendVsWeekday(transactions, now),
+    ...generateCategoryDrift(transactions, now),
+    ...generateMonthEndProjection(transactions, budgets, now),
+    ...generateSubscriptionCreep(transactions, now),
+    ...generateSavingsRateTrend(transactions, budgets, now),
+    ...generatePostIncomeBehavior(transactions, now),
+    ...generateBestMonthReplay(transactions, now),
   ];
 }
 
@@ -394,10 +1331,14 @@ export function generateSubscriptionInsights(subscriptions: Subscription[]): Ins
   return subscriptions.map((sub) => ({
     id: uuidv4(),
     insightType: 'subscription' as const,
+    title: 'Recurring subscription detected',
     message: `Recurring subscription detected: ${sub.name} (₱${sub.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/${sub.billingCycle}).`,
     severity: 'info' as const,
     category: sub.category,
     createdAt: new Date().toISOString(),
+    tier: 1,
+    requiresTransactionCount: 5,
+    dataPayload: {},
   }));
 }
 
