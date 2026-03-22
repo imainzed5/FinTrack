@@ -27,7 +27,7 @@ export default function SavingsGoalsDashboardCard({
     .slice(0, 3);
 
   return open ? (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[51] flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

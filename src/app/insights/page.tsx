@@ -6,18 +6,26 @@ import {
   eachWeekOfInterval,
   endOfMonth,
   format,
-  isSameDay,
   parseISO,
   startOfMonth,
 } from 'date-fns';
-import type { Budget, PaymentMethod, Transaction } from '@/lib/types';
+import type { Budget, Transaction, Insight, InsightType } from '@/lib/types';
 import { InsightsSkeleton } from '@/components/SkeletonLoaders';
-import { Lightbulb, TrendingUp, BarChart2 } from 'lucide-react';
+import { Lightbulb, BarChart2 } from 'lucide-react';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EmptyState from '@/components/EmptyState';
+import InsightCards from '@/components/InsightCards';
 
-type InsightFilter = 'all' | 'spending_spike' | 'subscription' | 'budget_risk' | 'pattern';
+const TABS = ['All', 'Alerts', 'Snapshot', 'Spending', 'Budget', 'Patterns'] as const;
+type InsightsTab = (typeof TABS)[number];
+
+const TAB_INSIGHT_TYPES: Record<string, InsightType[]> = {
+  Alerts: ['spending_spike', 'budget_risk', 'week_comparison', 'category_drift', 'month_end_projection', 'subscription_creep'],
+  Spending: ['spending_spike', 'week_comparison', 'weekend_vs_weekday', 'avg_transaction_size', 'category_drift', 'biggest_expense', 'category_concentration', 'payment_method_split'],
+  Budget: ['budget_risk', 'budget_burn_rate', 'month_end_projection', 'essentials_ratio'],
+  Patterns: ['pattern', 'no_spend_days', 'post_income_behavior', 'best_month_replay', 'savings_rate_trend', 'subscription', 'subscription_creep'],
+};
 
 type CategoryBreakdownItem = {
   category: string;
@@ -34,14 +42,6 @@ type WeeklySummary = {
   multiplier: number;
 };
 
-const FILTER_CHIPS: Array<{ key: InsightFilter; label: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'spending_spike', label: 'Spending Spikes' },
-  { key: 'subscription', label: 'Subscriptions' },
-  { key: 'budget_risk', label: 'Budget Risks' },
-  { key: 'pattern', label: 'Patterns' },
-];
-
 const DAY_OF_WEEK_ORDER: Array<{ label: string; short: string; dayIndex: number }> = [
   { label: 'Monday', short: 'Mon', dayIndex: 1 },
   { label: 'Tuesday', short: 'Tue', dayIndex: 2 },
@@ -52,8 +52,8 @@ const DAY_OF_WEEK_ORDER: Array<{ label: string; short: string; dayIndex: number 
   { label: 'Sunday', short: 'Sun', dayIndex: 0 },
 ];
 
-const SECTION_LABEL_CLASS =
-  'font-body text-[10px] sm:text-[11px] uppercase tracking-[0.16em] font-semibold text-zinc-500 dark:text-zinc-400';
+const ZONE_LABEL_CLASS =
+  'text-[11px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3';
 
 function formatPeso(value: number): string {
   return value.toLocaleString('en-PH', {
@@ -103,37 +103,14 @@ function getTransactionAllocations(tx: Transaction): Array<{ category: string; a
   ];
 }
 
-function transactionLabel(tx: Transaction): string {
-  return tx.merchant || tx.description || tx.notes || tx.category;
-}
-
-function isSubscriptionTransaction(tx: Transaction): boolean {
-  const normalizedTags = Array.isArray(tx.tags)
-    ? tx.tags.map((tag) => tag.toLowerCase())
-    : [];
-
-  return (
-    Boolean(tx.recurring) ||
-    tx.category === 'Subscriptions' ||
-    normalizedTags.some((tag) => tag.includes('recurring') || tag.includes('subscription'))
-  );
-}
-
-function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
-  return (
-    <span className="font-body inline-flex items-center rounded-full border-[0.5px] border-zinc-300/80 dark:border-zinc-700 bg-white/75 dark:bg-zinc-900/60 px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
-      {method}
-    </span>
-  );
-}
-
 export default function InsightsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<InsightFilter>('all');
+  const [activeTab, setActiveTab] = useState<InsightsTab>('All');
 
   const openAddTransactionModal = useCallback(() => {
     setShowAddModal(true);
@@ -145,22 +122,25 @@ export default function InsightsPage() {
     }
 
     try {
-      const [transactionsRes, budgetsRes] = await Promise.all([
+      const [transactionsRes, budgetsRes, insightsRes] = await Promise.all([
         fetch('/api/transactions'),
         fetch('/api/budgets'),
+        fetch('/api/insights'),
       ]);
 
-      if (!transactionsRes.ok || !budgetsRes.ok) {
+      if (!transactionsRes.ok || !budgetsRes.ok || !insightsRes.ok) {
         throw new Error('Failed to load insights data.');
       }
 
-      const [transactionsJson, budgetsJson] = await Promise.all([
+      const [transactionsJson, budgetsJson, insightsJson] = await Promise.all([
         transactionsRes.json() as Promise<Transaction[]>,
         budgetsRes.json() as Promise<Budget[]>,
+        insightsRes.json() as Promise<Insight[]>,
       ]);
 
       setTransactions(Array.isArray(transactionsJson) ? transactionsJson : []);
       setBudgets(Array.isArray(budgetsJson) ? budgetsJson : []);
+      setInsights(Array.isArray(insightsJson) ? insightsJson : []);
       setError(null);
     } catch {
       setError('Unable to refresh insights right now.');
@@ -291,10 +271,6 @@ export default function InsightsPage() {
 
     const topCategory = categoryBreakdown[0] ?? null;
 
-    const subscriptionTransactions = [...transactions]
-      .filter(isSubscriptionTransaction)
-      .sort((a, b) => safeParseDate(b.date).getTime() - safeParseDate(a.date).getTime());
-
     const savingsRate =
       monthlyBudget > 0 ? ((monthlyBudget - totalSpentThisMonth) / monthlyBudget) * 100 : 0;
     const hasSpendingSpike = Boolean(primarySpike);
@@ -347,7 +323,6 @@ export default function InsightsPage() {
       highestDayAmount,
       categoryBreakdown,
       topCategory,
-      subscriptionTransactions,
       savingsRate,
       financialHealthScore,
       scoreLabel,
@@ -357,30 +332,34 @@ export default function InsightsPage() {
       ringOffset,
     };
   }, [transactions, budgets]);
-
-  const showAlertsSection =
-    filter === 'all' || filter === 'spending_spike' || filter === 'budget_risk';
-  const showPatternsSection = filter === 'all' || filter === 'pattern';
-  const showSubscriptionsSection = filter === 'all' || filter === 'subscription';
-
-  const showOvershootCard =
-    model.hasBudgetOvershoot && (filter === 'all' || filter === 'budget_risk');
-  const showSpikeCard = model.hasSpendingSpike && (filter === 'all' || filter === 'spending_spike');
-
-  const spentProgress =
-    model.monthlyBudget > 0
-      ? clamp((model.totalSpentThisMonth / model.monthlyBudget) * 100, 0, 100)
-      : 0;
-  const dailyCutTarget =
-    model.daysRemaining > 0 ? model.overshootAmount / model.daysRemaining : model.overshootAmount;
-
-  const alertsEmptyMessage =
-    filter === 'budget_risk'
-      ? 'No projected budget overshoot this month.'
-      : filter === 'spending_spike'
-        ? 'No weekly spending spike detected this month.'
-        : 'No active alerts for this month.';
   const showInsightsEmptyState = transactions.length === 0 && !error;
+  const currentMonthTransactionCount = useMemo(() => {
+    const month = format(new Date(), 'yyyy-MM');
+    return transactions.filter((tx) => tx.date.startsWith(month)).length;
+  }, [transactions]);
+
+  const visibleInsights = useMemo(() => {
+    if (activeTab === 'All' || activeTab === 'Snapshot' || activeTab === 'Alerts') {
+      return insights;
+    }
+
+    const allowed = TAB_INSIGHT_TYPES[activeTab] ?? [];
+    return insights.filter((insight) => allowed.includes(insight.insightType));
+  }, [activeTab, insights]);
+
+  const urgentInsights = useMemo(
+    () => visibleInsights.filter((insight) => insight.severity === 'warning' || insight.severity === 'critical'),
+    [visibleInsights]
+  );
+
+  const infoInsights = useMemo(
+    () => visibleInsights.filter((insight) => insight.severity === 'info'),
+    [visibleInsights]
+  );
+
+  const zoneNeedsAttentionVisible = urgentInsights.length > 0;
+  const zoneSnapshotVisible = activeTab === 'All' || activeTab === 'Snapshot';
+  const zoneDeeperVisible = activeTab !== 'Snapshot' && infoInsights.length > 0;
 
   return (
     <>
@@ -400,17 +379,17 @@ export default function InsightsPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-6">
-          {FILTER_CHIPS.map((type) => (
+          {TABS.map((tab) => (
             <button
-              key={type.key}
-              onClick={() => setFilter(type.key)}
-              className={`font-body px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                filter === type.key
-                  ? 'bg-emerald-600 border-emerald-600 text-white'
-                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-emerald-300 dark:hover:border-emerald-600'
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`text-[13px] px-4 py-1.5 rounded-full cursor-pointer transition-colors ${
+                activeTab === tab
+                  ? 'bg-[#1D9E75] text-white border-[#1D9E75]'
+                  : 'border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
               }`}
             >
-              {type.label}
+              {tab}
             </button>
           ))}
         </div>
@@ -431,296 +410,149 @@ export default function InsightsPage() {
               <p className="font-body text-sm text-red-600 dark:text-red-400">{error}</p>
             )}
 
-          {showAlertsSection && (
-            <section className="space-y-3">
-              <p className={SECTION_LABEL_CLASS}>Alerts</p>
+            {zoneNeedsAttentionVisible && (
+              <section>
+                <p className={ZONE_LABEL_CLASS}>Needs attention</p>
+                <InsightCards insights={urgentInsights} transactionCount={currentMonthTransactionCount} />
+              </section>
+            )}
 
-              <div className="space-y-3">
-                {showOvershootCard && (
-                  <article className="rounded-[12px] border-[0.5px] border-amber-300/80 dark:border-amber-500/30 bg-amber-50/80 dark:bg-amber-500/10 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-body text-sm font-semibold text-amber-900 dark:text-amber-200">
-                          Budget overshoot risk
-                        </p>
-                        <p className="font-body text-xs text-amber-700 dark:text-amber-300/80 mt-1">
-                          Projected month-end spend
-                        </p>
-                        <p className="font-display text-2xl leading-tight text-amber-900 dark:text-amber-100 mt-1">
-                          {formatPeso(model.projectedMonthEnd)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-body text-xs uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300/80">
-                          Overshoot
-                        </p>
-                        <p className="font-display text-xl text-amber-900 dark:text-amber-100 mt-1">
-                          {formatPeso(model.overshootAmount)}
-                        </p>
-                      </div>
-                    </div>
+            {zoneNeedsAttentionVisible && (zoneSnapshotVisible || zoneDeeperVisible) && (
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-6" />
+            )}
 
-                    <div className="mt-3">
-                      <div className="h-2 rounded-full bg-amber-200/80 dark:bg-amber-500/20 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-amber-500"
-                          style={{ width: `${spentProgress}%` }}
-                        />
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200/90">
-                        <span>Spent {formatPeso(model.totalSpentThisMonth)}</span>
-                        <span>Budget {formatPeso(model.monthlyBudget)}</span>
-                      </div>
-                    </div>
-
-                    <p className="font-body mt-3 text-sm text-amber-900 dark:text-amber-100">
-                      Cut ₱{dailyCutTarget.toFixed(0)}/day to stay on track.
+            {zoneSnapshotVisible && (
+              <section>
+                <p className={ZONE_LABEL_CLASS}>This month at a glance</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <article className="sm:col-span-2 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 p-4">
+                    <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      You spend most on {model.highestDay.label}.
                     </p>
-                  </article>
-                )}
 
-                {showSpikeCard && model.primarySpike && (
-                  <article className="rounded-[12px] border-[0.5px] border-red-300/80 dark:border-red-500/30 bg-red-50/85 dark:bg-red-500/10 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-body text-sm font-semibold text-red-900 dark:text-red-200">
-                          Spending spike detected
-                        </p>
-                        <p className="font-body text-xs text-red-700 dark:text-red-300/80 mt-1">
-                          Spike week: {model.primarySpike.label}
-                        </p>
-                      </div>
-                      <TrendingUp size={18} className="text-red-600 dark:text-red-300" />
-                    </div>
+                    <div className="mt-4 grid grid-cols-7 gap-2">
+                      {model.spendByDayOfWeek.map((day) => {
+                        const isHighest = model.highestDayAmount > 0 && day.amount === model.highestDayAmount;
+                        const barHeight =
+                          model.highestDayAmount > 0
+                            ? clamp((day.amount / model.highestDayAmount) * 100, 10, 100)
+                            : 10;
 
-                    <div className="mt-2">
-                      <p className="font-display text-2xl leading-tight text-red-900 dark:text-red-100">
-                        {formatPeso(model.primarySpike.amount)}
-                      </p>
-                      <p className="font-body text-sm text-red-800 dark:text-red-200/90 mt-1">
-                        {model.primarySpike.multiplier.toFixed(1)}x vs weekly average ({formatPeso(model.weeklyAverage)})
-                      </p>
-                    </div>
-
-                    {model.largestSpikeTransaction && (
-                      <div className="mt-3 rounded-[10px] border-[0.5px] border-red-300/60 dark:border-red-500/30 bg-white/55 dark:bg-zinc-900/35 p-3">
-                        <p className="font-body text-xs uppercase tracking-[0.12em] text-red-700 dark:text-red-300/80">
-                          Largest transaction that week
-                        </p>
-                        <div className="mt-1 flex items-center justify-between gap-3">
-                          <p className="font-body text-sm font-medium text-red-900 dark:text-red-100 truncate">
-                            {transactionLabel(model.largestSpikeTransaction)}
-                          </p>
-                          <p className="font-display text-lg text-red-900 dark:text-red-100">
-                            {formatPeso(model.largestSpikeTransaction.amount)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </article>
-                )}
-
-                {!showOvershootCard && !showSpikeCard && (
-                  <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">{alertsEmptyMessage}</p>
-                )}
-              </div>
-            </section>
-          )}
-
-          {showPatternsSection && (
-            <section className="space-y-3">
-              <p className={SECTION_LABEL_CLASS}>Patterns</p>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <article className="sm:col-span-2 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 p-4">
-                  <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                    You spend most on {model.highestDay.label}.
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-7 gap-2">
-                    {model.spendByDayOfWeek.map((day) => {
-                      const isHighest = model.highestDayAmount > 0 && day.amount === model.highestDayAmount;
-                      const barHeight =
-                        model.highestDayAmount > 0
-                          ? clamp((day.amount / model.highestDayAmount) * 100, 10, 100)
-                          : 10;
-
-                      return (
-                        <div key={day.short} className="flex flex-col items-center gap-1.5">
-                          <div className="h-24 w-full max-w-[44px] rounded-md bg-emerald-100/90 dark:bg-emerald-500/20 flex items-end overflow-hidden">
-                            <div
-                              className={`w-full rounded-md ${isHighest ? 'bg-emerald-500' : 'bg-emerald-500/30'}`}
-                              style={{ height: `${barHeight}%` }}
-                            />
-                          </div>
-                          <p className="font-body text-[10px] uppercase tracking-[0.08em] text-emerald-800 dark:text-emerald-200">
-                            {day.short}
-                          </p>
-                          <p className="font-body text-[10px] leading-tight text-center text-emerald-900 dark:text-emerald-100">
-                            {formatPeso(day.amount)}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </article>
-
-                <article className="rounded-[12px] border-[0.5px] border-blue-300/80 dark:border-blue-500/30 bg-blue-50/75 dark:bg-blue-500/10 p-4">
-                  <p className="font-body text-sm font-semibold text-blue-900 dark:text-blue-200">
-                    Top category
-                  </p>
-
-                  {model.topCategory ? (
-                    <div className="mt-2 space-y-1.5">
-                      <p className="font-body text-xs uppercase tracking-[0.13em] text-blue-700 dark:text-blue-300/80">
-                        {model.topCategory.category}
-                      </p>
-                      <p className="font-display text-2xl leading-tight text-blue-900 dark:text-blue-100">
-                        {formatPeso(model.topCategory.amount)}
-                      </p>
-                      <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
-                        {model.topCategory.percentage.toFixed(1)}% of monthly spend
-                      </p>
-                      <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
-                        Avg transaction size: {formatPeso(model.topCategory.averageTransactionSize)}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="font-body mt-2 text-sm text-blue-800 dark:text-blue-200/90">
-                      Add transactions this month to reveal category patterns.
-                    </p>
-                  )}
-                </article>
-
-                <article className="rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/75 dark:bg-emerald-500/10 p-4">
-                  <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                    Financial Health Score
-                  </p>
-
-                  <div className="mt-3 flex items-center gap-4">
-                    <div className="relative h-32 w-32 shrink-0">
-                      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="52"
-                          fill="none"
-                          strokeWidth="10"
-                          className="text-emerald-200 dark:text-emerald-900"
-                          stroke="currentColor"
-                        />
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="52"
-                          fill="none"
-                          strokeWidth="10"
-                          strokeLinecap="round"
-                          className="text-emerald-500"
-                          stroke="currentColor"
-                          strokeDasharray={model.ringCircumference}
-                          strokeDashoffset={model.ringOffset}
-                        />
-                      </svg>
-
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <p className="font-display text-3xl leading-none text-emerald-900 dark:text-emerald-100">
-                          {model.financialHealthScore}
-                        </p>
-                        <p className="font-body text-[10px] uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300/80">
-                          out of 100
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="font-body text-lg font-semibold text-emerald-900 dark:text-emerald-100">
-                        {model.scoreLabel}
-                      </p>
-                      <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90 mt-1">
-                        {model.scoreSummaryLine1}
-                      </p>
-                      <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90">
-                        {model.scoreSummaryLine2}
-                      </p>
-                    </div>
-                  </div>
-                </article>
-              </div>
-            </section>
-          )}
-
-          {showSubscriptionsSection && (
-            <section className="space-y-3">
-              <p className={SECTION_LABEL_CLASS}>Subscriptions</p>
-
-              {model.subscriptionTransactions.length === 0 ? (
-                <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">
-                  No recurring or subscription-tagged transactions yet.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {model.subscriptionTransactions.map((tx, index) => {
-                    const txDate = safeParseDate(tx.date);
-                    const previousDate =
-                      index > 0 ? safeParseDate(model.subscriptionTransactions[index - 1].date) : null;
-                    const showDateHeader = index === 0 || (previousDate && !isSameDay(txDate, previousDate));
-                    const annualCost = tx.amount * 12;
-
-                    return (
-                      <div key={tx.id} className="space-y-2">
-                        {showDateHeader && (
-                          <p className="font-body text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 pt-1">
-                            {format(txDate, 'MMM d').toUpperCase()}
-                          </p>
-                        )}
-
-                        <article className="rounded-[12px] border-[0.5px] border-zinc-200 dark:border-zinc-800 bg-zinc-50/75 dark:bg-zinc-900/75 p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-body text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                                {transactionLabel(tx)}
-                              </p>
-                              <div className="mt-1">
-                                <PaymentMethodBadge method={tx.paymentMethod} />
-                              </div>
+                        return (
+                          <div key={day.short} className="flex flex-col items-center gap-1.5">
+                            <div className="h-24 w-full max-w-[44px] rounded-md bg-emerald-100/90 dark:bg-emerald-500/20 flex items-end overflow-hidden">
+                              <div
+                                className={`w-full rounded-md ${isHighest ? 'bg-emerald-500' : 'bg-emerald-500/30'}`}
+                                style={{ height: `${barHeight}%` }}
+                              />
                             </div>
-
-                            <p className="font-display text-xl leading-tight text-zinc-900 dark:text-zinc-100">
-                              {formatPeso(tx.amount)}
+                            <p className="font-body text-[10px] uppercase tracking-[0.08em] text-emerald-800 dark:text-emerald-200">
+                              {day.short}
+                            </p>
+                            <p className="font-body text-[10px] leading-tight text-center text-emerald-900 dark:text-emerald-100">
+                              {formatPeso(day.amount)}
                             </p>
                           </div>
+                        );
+                      })}
+                    </div>
+                  </article>
 
-                          <div className="mt-3 grid grid-cols-2 gap-3">
-                            <div>
-                              <p className="font-body text-[11px] uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                Monthly cost
-                              </p>
-                              <p className="font-display text-lg text-zinc-900 dark:text-zinc-100">
-                                {formatPeso(tx.amount)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="font-body text-[11px] uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                Annual cost
-                              </p>
-                              <p className="font-display text-lg text-zinc-900 dark:text-zinc-100">
-                                {formatPeso(annualCost)}
-                              </p>
-                            </div>
-                          </div>
+                  <article className="rounded-[12px] border-[0.5px] border-blue-300/80 dark:border-blue-500/30 bg-blue-50/75 dark:bg-blue-500/10 p-4">
+                    <p className="font-body text-sm font-semibold text-blue-900 dark:text-blue-200">
+                      Top category
+                    </p>
 
-                          <p className="font-body mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                            This costs {formatPeso(annualCost)} per year.
-                          </p>
-                        </article>
+                    {model.topCategory ? (
+                      <div className="mt-2 space-y-1.5">
+                        <p className="font-body text-xs uppercase tracking-[0.13em] text-blue-700 dark:text-blue-300/80">
+                          {model.topCategory.category}
+                        </p>
+                        <p className="font-display text-2xl leading-tight text-blue-900 dark:text-blue-100">
+                          {formatPeso(model.topCategory.amount)}
+                        </p>
+                        <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
+                          {model.topCategory.percentage.toFixed(1)}% of monthly spend
+                        </p>
+                        <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
+                          Avg transaction size: {formatPeso(model.topCategory.averageTransactionSize)}
+                        </p>
                       </div>
-                    );
-                  })}
+                    ) : (
+                      <p className="font-body mt-2 text-sm text-blue-800 dark:text-blue-200/90">
+                        Add transactions this month to reveal category patterns.
+                      </p>
+                    )}
+                  </article>
+
+                  <article className="rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/75 dark:bg-emerald-500/10 p-4">
+                    <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      Financial Health Score
+                    </p>
+
+                    <div className="mt-3 flex items-center gap-4">
+                      <div className="relative h-32 w-32 shrink-0">
+                        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                          <circle
+                            cx="60"
+                            cy="60"
+                            r="52"
+                            fill="none"
+                            strokeWidth="10"
+                            className="text-emerald-200 dark:text-emerald-900"
+                            stroke="currentColor"
+                          />
+                          <circle
+                            cx="60"
+                            cy="60"
+                            r="52"
+                            fill="none"
+                            strokeWidth="10"
+                            strokeLinecap="round"
+                            className="text-emerald-500"
+                            stroke="currentColor"
+                            strokeDasharray={model.ringCircumference}
+                            strokeDashoffset={model.ringOffset}
+                          />
+                        </svg>
+
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <p className="font-display text-3xl leading-none text-emerald-900 dark:text-emerald-100">
+                            {model.financialHealthScore}
+                          </p>
+                          <p className="font-body text-[10px] uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300/80">
+                            out of 100
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="font-body text-lg font-semibold text-emerald-900 dark:text-emerald-100">
+                          {model.scoreLabel}
+                        </p>
+                        <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90 mt-1">
+                          {model.scoreSummaryLine1}
+                        </p>
+                        <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90">
+                          {model.scoreSummaryLine2}
+                        </p>
+                      </div>
+                    </div>
+                  </article>
                 </div>
-              )}
-            </section>
-          )}
+              </section>
+            )}
+
+            {zoneSnapshotVisible && zoneDeeperVisible && (
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-6" />
+            )}
+
+            {zoneDeeperVisible && (
+              <section>
+                <p className={ZONE_LABEL_CLASS}>Deeper insights</p>
+                <InsightCards insights={infoInsights} transactionCount={currentMonthTransactionCount} />
+              </section>
+            )}
           </div>
         )}
       </div>

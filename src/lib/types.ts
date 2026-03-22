@@ -160,13 +160,39 @@ export interface TimelineEvent {
   amount?: number;    // optional monetary highlight
 }
 
+export type InsightType =
+  | 'spending_spike'
+  | 'subscription'
+  | 'budget_risk'
+  | 'pattern'
+  | 'saving'
+  | 'budget_burn_rate'
+  | 'biggest_expense'
+  | 'category_concentration'
+  | 'week_comparison'
+  | 'no_spend_days'
+  | 'essentials_ratio'
+  | 'avg_transaction_size'
+  | 'payment_method_split'
+  | 'weekend_vs_weekday'
+  | 'category_drift'
+  | 'month_end_projection'
+  | 'subscription_creep'
+  | 'savings_rate_trend'
+  | 'post_income_behavior'
+  | 'best_month_replay';
+
 export interface Insight {
   id: string;
-  insightType: 'spending_spike' | 'subscription' | 'budget_risk' | 'pattern' | 'saving';
+  insightType: InsightType;
+  title: string;
   message: string;
   severity: 'info' | 'warning' | 'critical';
   category?: Category;
   createdAt: string;
+  tier: 1 | 2 | 3;
+  requiresTransactionCount: number;
+  dataPayload?: Record<string, unknown>;
 }
 
 export interface BudgetStatus {
