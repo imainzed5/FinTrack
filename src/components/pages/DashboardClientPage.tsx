@@ -429,6 +429,7 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
           }}
           topCategories={topCategories}
           onCategorySelect={handleCategorySelect}
+          visible={!showSavingsGoalsPopup}
         />
       </div>
 
