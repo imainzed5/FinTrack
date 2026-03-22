@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import ConfirmModal from '@/components/ConfirmModal';
 import {
   CATEGORIES,
   PAYMENT_METHODS,
@@ -91,6 +92,7 @@ export default function EditTransactionModal({
   const [recurringFrequency, setRecurringFrequency] = useState<RecurringFrequency>('monthly');
   const [recurringEndDate, setRecurringEndDate] = useState('');
   const [showOptional, setShowOptional] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [autoFocusAmount, setAutoFocusAmount] = useState(false);
@@ -210,6 +212,7 @@ export default function EditTransactionModal({
     }
 
     setShowOptional(false);
+    setShowDeleteConfirm(false);
     setFormError(null);
   }, [transaction]);
 
@@ -263,13 +266,11 @@ export default function EditTransactionModal({
     }));
   };
 
-  const handleDelete = async () => {
+  const handleDeleteConfirmed = async () => {
     if (!transaction) return;
 
-    const confirmed = window.confirm('Delete this transaction? This action cannot be undone.');
-    if (!confirmed) return;
-
     setSaving(true);
+    setShowDeleteConfirm(false);
     setFormError(null);
 
     try {
@@ -385,7 +386,7 @@ export default function EditTransactionModal({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 disabled={saving}
                 className="w-7 h-7 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center disabled:opacity-50"
               >
@@ -729,6 +730,16 @@ export default function EditTransactionModal({
           </div>
         </form>
       </div>
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Delete transaction?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
