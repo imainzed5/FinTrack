@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { getBudgets, setBudget, deleteBudget } from '@/lib/db';
 import type { Budget, BudgetInput } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
-import { broadcastBudgetEvent } from '@/lib/transaction-ws-server';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 const VALID_THRESHOLDS = [50, 80, 100] as const;
@@ -80,8 +79,6 @@ export async function POST(request: NextRequest) {
     };
 
     const savedBudget = await setBudget(budget);
-    broadcastBudgetEvent(existingBudget ? 'budget:edit' : 'budget:add', savedBudget);
-
     return NextResponse.json(savedBudget, { status: existingBudget ? 200 : 201 });
   } catch (error) {
     if (isAuthRequiredError(error)) {
@@ -104,8 +101,6 @@ export async function DELETE(request: NextRequest) {
     if (!deleted) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-
-    broadcastBudgetEvent('budget:delete', { id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

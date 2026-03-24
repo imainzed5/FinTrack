@@ -133,7 +133,7 @@ export default function AddExpenseModal({
   const [subCategory, setSubCategory] = useState('');
   const [description, setDescription] = useState('');
   const [merchant, setMerchant] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Bank Transfer');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [attachmentBase64, setAttachmentBase64] = useState<string | undefined>(undefined);

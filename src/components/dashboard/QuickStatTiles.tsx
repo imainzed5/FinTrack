@@ -7,6 +7,7 @@ interface QuickStatTilesProps {
   spentThisMonth: number;
   remaining: number;
   monthlyLimit: number;
+  incomeBoost?: number;
   spentToday: number;
   savingsTotalSaved: number;
   savingsActiveGoalCount: number;
@@ -22,7 +23,7 @@ interface QuickStatTilesProps {
 interface TileProps {
   label: string;
   value: string;
-  subLabel: string;
+  subLabel: string | React.ReactNode;
   icon: React.ReactNode;
   onClick?: () => void;
   delay?: number;
@@ -53,6 +54,7 @@ export default function QuickStatTiles({
   spentThisMonth,
   remaining,
   monthlyLimit,
+  incomeBoost = 0,
   spentToday,
   savingsTotalSaved,
   savingsActiveGoalCount,
@@ -84,9 +86,18 @@ export default function QuickStatTiles({
       />
 
       <Tile
-        label="Remaining budget"
+        label="Safe to spend"
         value={formatCurrency(remaining)}
-        subLabel={`of ${formatCurrency(monthlyLimit)} total`}
+        subLabel={
+          <span className="flex items-center gap-1.5 flex-wrap">
+            Cap: {formatCurrency(monthlyLimit)}
+            {incomeBoost > 0 && (
+              <span className="inline-flex items-center text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-sm">
+                +{formatCurrency(incomeBoost)} income
+              </span>
+            )}
+          </span>
+        }
         icon={<Target size={16} color="#185FA5" />}
         onClick={onRemainingBudgetTap}
         delay={50}

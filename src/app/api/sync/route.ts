@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addTransaction } from '@/lib/db';
 import type { Transaction } from '@/lib/types';
-import { broadcastTransactionEvent } from '@/lib/transaction-ws-server';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
@@ -16,7 +15,6 @@ export async function POST(request: NextRequest) {
     for (const tx of body.transactions) {
       const saved = await addTransaction({ ...tx, synced: true });
       synced.push(saved.id);
-      broadcastTransactionEvent('transaction:add', saved);
     }
 
     return NextResponse.json({ synced });

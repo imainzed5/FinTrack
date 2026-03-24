@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { format, parseISO } from 'date-fns';
-import { Search, Filter, Download, ChevronDown, X, Wallet, SearchX } from 'lucide-react';
+import { differenceInCalendarDays, parseISO, format } from 'date-fns';
+import { Search, Filter, Download, ChevronDown, X, Wallet, SearchX, RefreshCw, StopCircle } from 'lucide-react';
 import type { WheelEvent as ReactWheelEvent } from 'react';
 import type { Transaction, Category, TimelineEvent } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -62,7 +62,10 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [activeView, setActiveView] = useState<'list' | 'timeline'>('list');
+  const [activeView, setActiveView] = useState<'list' | 'timeline' | 'recurring'>('list');
+  const [recurringTransactions, setRecurringTransactions] = useState<Transaction[]>([]);
+  const [recurringLoading, setRecurringLoading] = useState(true);
+  const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -161,9 +164,44 @@ export default function TransactionsPage() {
     }
   }, []);
 
+  const fetchRecurring = useCallback(async () => {
+    setRecurringLoading(true);
+    try {
+      const res = await fetch('/api/transactions/recurring');
+      if (res.ok) {
+        const json = await res.json();
+        setRecurringTransactions(Array.isArray(json) ? json : []);
+      }
+    } catch {
+      // offline
+    } finally {
+      setRecurringLoading(false);
+    }
+  }, []);
+
+  const handleStopRecurring = async (tx: Transaction) => {
+    setStoppingId(tx.id);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await fetch(`/api/transactions?id=${encodeURIComponent(tx.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recurring: { ...tx.recurring, endDate: today } }),
+      });
+      if (res.ok) {
+        void fetchRecurring();
+      }
+    } catch {
+      // offline
+    } finally {
+      setStoppingId(null);
+    }
+  };
+
   useEffect(() => {
     void fetchTimeline();
-  }, [fetchTimeline]);
+    void fetchRecurring();
+  }, [fetchTimeline, fetchRecurring]);
 
   useEffect(() => {
     const unsubscribe = subscribeAppUpdates(() => {
@@ -440,6 +478,23 @@ export default function TransactionsPage() {
             >
               Timeline
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('recurring')}
+              className={`flex items-center gap-1.5 border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                activeView === 'recurring'
+                  ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
+                  : 'border-transparent text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              <RefreshCw size={13} />
+              Recurring
+              {recurringTransactions.length > 0 && (
+                <span className="ml-0.5 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] px-1">
+                  {recurringTransactions.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -715,6 +770,84 @@ export default function TransactionsPage() {
               </>
             )}
           </>
+        ) : activeView === 'recurring' ? (
+          <div className="space-y-3">
+            {recurringLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : recurringTransactions.length === 0 ? (
+              <div className="text-center py-16">
+                <RefreshCw size={32} className="mx-auto mb-3 text-zinc-300 dark:text-zinc-600" />
+                <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">No active recurring transactions.</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Add a recurring expense or income from the + button.</p>
+              </div>
+            ) : (
+              recurringTransactions.map((tx) => {
+                const nextRunDate = tx.recurring?.nextRunDate
+                  ? parseISO(tx.recurring.nextRunDate)
+                  : null;
+                const daysUntilNext = nextRunDate
+                  ? differenceInCalendarDays(nextRunDate, new Date())
+                  : null;
+                const freqLabel =
+                  tx.recurring?.frequency
+                    ? tx.recurring.frequency.charAt(0).toUpperCase() + tx.recurring.frequency.slice(1)
+                    : '';
+
+                return (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-4"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
+                          tx.type === 'income'
+                            ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                        }`}>
+                          {tx.type === 'income' ? 'Income' : tx.category}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-700 rounded-full px-1.5 py-0.5">
+                          <RefreshCw size={8} />
+                          {freqLabel}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
+                        {tx.description || tx.merchant || tx.category}
+                      </p>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                        {formatCurrency(tx.amount)}
+                        {nextRunDate && (
+                          <> · Next: {format(nextRunDate, 'MMM d, yyyy')}
+                            {daysUntilNext !== null && daysUntilNext >= 0 && (
+                              <span className="ml-1 text-zinc-300 dark:text-zinc-600">
+                                ({daysUntilNext === 0 ? 'today' : `in ${daysUntilNext}d`})
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {tx.recurring?.endDate && (
+                          <> · Ends {format(parseISO(tx.recurring.endDate), 'MMM d, yyyy')}</>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleStopRecurring(tx)}
+                      disabled={stoppingId === tx.id}
+                      title="Stop this recurring transaction"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-500 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 disabled:opacity-50 transition-colors shrink-0"
+                    >
+                      <StopCircle size={13} />
+                      {stoppingId === tx.id ? 'Stopping…' : 'Stop'}
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
         ) : timelineLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />

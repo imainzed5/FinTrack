@@ -8,7 +8,6 @@ import {
   processRecurringTransactions,
   buildRecurringConfig,
 } from '@/lib/db';
-import { broadcastTransactionEvent } from '@/lib/transaction-ws-server';
 import type {
   Category,
   IncomeCategory,
@@ -267,7 +266,6 @@ export async function POST(request: NextRequest) {
     };
 
     const created = await upsertTransaction(transaction);
-    broadcastTransactionEvent('transaction:add', created);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     return handleRouteError(error, 'Failed to add transaction.');
@@ -285,8 +283,6 @@ export async function DELETE(request: NextRequest) {
     if (!deleted) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-
-    broadcastTransactionEvent('transaction:delete', { id });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -427,8 +423,6 @@ export async function PUT(request: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-
-    broadcastTransactionEvent('transaction:edit', updated);
 
     return NextResponse.json(updated);
   } catch (error) {
