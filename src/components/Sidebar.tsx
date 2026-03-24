@@ -15,12 +15,23 @@ import {
 } from 'lucide-react';
 import type { SessionUser } from '@/lib/auth-contract';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/transactions', label: 'Transactions', icon: Receipt },
-  { href: '/insights', label: 'Insights', icon: Lightbulb },
-  { href: '/savings', label: 'Savings', icon: PiggyBank },
-  { href: '/settings', label: 'Settings', icon: Settings },
+const navSections = [
+  {
+    label: 'Overview',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/transactions', label: 'Transactions', icon: Receipt },
+      { href: '/insights', label: 'Insights', icon: Lightbulb },
+    ],
+  },
+  {
+    label: 'Plan',
+    items: [{ href: '/savings', label: 'Savings', icon: PiggyBank }],
+  },
+  {
+    label: 'Account',
+    items: [{ href: '/settings', label: 'Settings', icon: Settings }],
+  },
 ];
 
 interface SidebarProps {
@@ -116,39 +127,48 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
   };
 
   return (
-    <aside className="hidden sm:flex flex-col w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen fixed left-0 top-0">
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center">
-          <Wallet size={18} className="text-white" />
+    <aside className="hidden sm:flex flex-col w-56 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen fixed left-0 top-0">
+      <div className="flex items-center gap-2.5 px-4 py-5">
+        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+          <Wallet size={16} className="text-white" />
         </div>
         <div>
-          <h1 className="font-bold text-zinc-900 dark:text-white text-base">Moneda</h1>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Financial Intelligence</p>
+          <p className="text-sm font-semibold text-zinc-900 dark:text-white leading-tight">Moneda</p>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight">
+            Financial Intelligence
+          </p>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200'
-              }`}
-            >
-              <Icon size={18} strokeWidth={isActive ? 2.5 : 1.5} />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        {navSections.map((section) => (
+          <div key={section.label} className="mb-4">
+            <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-widest px-3 mb-1">
+              {section.label}
+            </p>
+            {section.items.map((item) => {
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all mb-0.5 ${
+                    isActive
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Icon size={15} strokeWidth={isActive ? 2.5 : 1.5} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
-      <div className="px-4 py-4 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+      <div className="px-3 py-3 border-t border-zinc-200 dark:border-zinc-800">
         <div ref={menuRef} className="relative">
           {isMenuOpen ? (
             <div className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
@@ -179,33 +199,29 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
               setIsMenuOpen((previous) => !previous);
               setLogoutError('');
             }}
-            className="w-full flex items-center justify-between gap-2 rounded-xl border border-zinc-200 px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
             aria-expanded={isMenuOpen}
             aria-haspopup="menu"
           >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-                {initials}
-              </div>
-              <div className="min-w-0 text-left">
-                <p className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                  {displayName}
-                </p>
-                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
-              </div>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100 leading-tight">
+                {displayName}
+              </p>
+              <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500 leading-tight">
+                {user.email}
+              </p>
             </div>
             <ChevronUp
-              size={14}
-              className={`shrink-0 text-zinc-500 transition-transform dark:text-zinc-400 ${
+              size={13}
+              className={`shrink-0 text-zinc-400 transition-transform dark:text-zinc-500 ${
                 isMenuOpen ? '' : 'rotate-180'
               }`}
             />
           </button>
         </div>
-
-        <p className="text-xs text-zinc-400 dark:text-zinc-600 text-center">
-          Personal Financial Intelligence
-        </p>
       </div>
     </aside>
   );
