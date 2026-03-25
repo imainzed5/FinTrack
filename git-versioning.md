@@ -79,14 +79,13 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.14.0
+### Current version: v0.15.0
 
 ---
 
 ## Version Roadmap
 
 
-```
 v0.14.0 ✓ Berde contextual mascot integration
   - Berde mascot now appears on Debts, Savings, and Settings pages with context-aware moods and tips
   - New Berde sprite states: motivational, celebratory, helper, excited
@@ -95,6 +94,20 @@ v0.14.0 ✓ Berde contextual mascot integration
   - No breaking changes; all new features are additive
   - Files updated: DebtsPanel, SavingsClientPage, SettingsPage, BerdeSprite, berde.types, berde.logic, berde-messages
 v0.13.0 ✓ Debts & Splits ledger with edit/delete and confirmation flows
+v0.15.0 ✓ Berde message pool & rotation expansion
+  - Expanded Berde message pools for Debts, Savings, and Settings pages
+  - Centralized all page/state message pools in src/lib/berde/page-messages.ts
+  - Improved daily-seeded message rotation logic for more variety and accuracy
+  - No message flash on initial load (skeleton loader until data ready)
+  - Server userId now used for first-render message seeding
+  - Files updated: page-messages.ts, DebtsPanel, SavingsClientPage, SettingsPage, berde.logic, berde.types
+v0.14.0 ✓ Berde contextual mascot integration
+  - Berde mascot now appears on Debts, Savings, and Settings pages with context-aware moods and tips
+  - New Berde sprite states: motivational, celebratory, helper, excited
+  - Each page uses a state resolver to select Berde's mood and message based on live data
+  - EmptyState for debts now uses Berde mascot
+  - No breaking changes; all new features are additive
+  - Files updated: DebtsPanel, SavingsClientPage, SettingsPage, BerdeSprite, berde.types, berde.logic, berde-messages
   - Added Supabase debts table migration with RLS policies and optimized indexes
   - Added new debts API endpoints for create, update, settle, and delete actions
   - Added Debts & Splits dedicated page and Sidebar navigation entry (BottomNav unchanged)
