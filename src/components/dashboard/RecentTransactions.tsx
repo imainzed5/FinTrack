@@ -2,9 +2,40 @@
 
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
-import { useMemo } from 'react';
-import type { Transaction } from '@/lib/types';
+import React, { useMemo } from 'react';
+import type { Transaction, Category, PaymentMethod } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import {
+  CreditCard,
+  Landmark,
+  ReceiptText,
+  Repeat,
+  Smartphone,
+  SplitSquareHorizontal,
+  Tag,
+  Wallet,
+} from 'lucide-react';
+const CATEGORY_ICON_MAP: Record<Category, typeof Wallet> = {
+  Food: ReceiptText,
+  Transportation: Landmark,
+  Subscriptions: Repeat,
+  Utilities: CreditCard,
+  Shopping: Tag,
+  Entertainment: Wallet,
+  Health: Wallet,
+  Education: SplitSquareHorizontal,
+  Miscellaneous: Wallet,
+};
+
+const PAYMENT_METHOD_ICON_MAP: Record<PaymentMethod, typeof Wallet> = {
+  Cash: Wallet,
+  'Credit Card': CreditCard,
+  'Debit Card': CreditCard,
+  GCash: Smartphone,
+  Maya: Smartphone,
+  'Bank Transfer': Landmark,
+  Other: Wallet,
+};
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -171,13 +202,22 @@ export default function RecentTransactions({
               >
                 <div className="flex min-w-0 items-start gap-2.5">
                   <div
-                    className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                    className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                     style={{
                       backgroundColor: palette.iconBg,
                       color: palette.iconText,
                     }}
                   >
-                    {palette.label.slice(0, 1).toUpperCase()}
+                    {/* Use Lucide icon for category or payment method */}
+                    {transaction.type === 'income' ? (
+                      <Wallet size={20} />
+                    ) : transaction.type === 'savings' ? (
+                      <Wallet size={20} />
+                    ) : CATEGORY_ICON_MAP[transaction.category as Category] ? (
+                      React.createElement(CATEGORY_ICON_MAP[transaction.category as Category], { size: 20 })
+                    ) : (
+                      <Wallet size={20} />
+                    )}
                   </div>
 
                   <div className="min-w-0">

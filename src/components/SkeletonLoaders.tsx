@@ -131,33 +131,87 @@ export function DashboardSkeleton() {
 
 export function InsightsSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="h-8 w-32 bg-zinc-200 dark:bg-zinc-700 rounded-lg animate-pulse mb-2" />
-        <div className="h-4 w-48 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-      </div>
+    <div className="space-y-7">
+      <section>
+        <div className="mb-3 h-3 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <article
+              key={`alert-${index}`}
+              className="rounded-[14px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5"
+            >
+              <div className="mb-3 h-[3px] w-full rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div className="mt-2 h-9 w-28 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-2 h-3 w-10/12 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-3 space-y-2">
+                <div className="h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div className="h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
-      {/* Filter buttons */}
-      <div className="flex gap-2 pb-4 mb-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-10 w-24 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-        ))}
-      </div>
+      <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
 
-      {/* Insight cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-            <div className="h-5 w-32 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-3" />
-            <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, j) => (
-                <div key={j} className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+      <section>
+        <div className="mb-3 h-3 w-44 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <article className="sm:col-span-2 rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+            <div className="h-4 w-52 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div className="mt-4 grid grid-cols-7 gap-2">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={`day-${i}`} className="flex flex-col items-center gap-1.5">
+                  <div className="h-24 w-full max-w-[44px] rounded-md bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                  <div className="h-2.5 w-7 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                  <div className="h-2.5 w-10 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                </div>
               ))}
             </div>
-          </div>
-        ))}
-      </div>
+          </article>
+
+          <article className="rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+            <div className="h-4 w-24 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div className="mt-2 h-3 w-28 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div className="mt-2 h-8 w-32 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div className="mt-2 h-3 w-36 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div className="mt-2 h-3 w-40 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+          </article>
+
+          <article className="rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+            <div className="h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div className="mt-3 flex items-center gap-4">
+              <div className="h-24 w-24 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-24 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div className="h-3 w-full rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div className="h-3 w-11/12 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+
+      <section>
+        <div className="mb-3 h-3 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <article
+              key={`info-${index}`}
+              className="rounded-[14px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5"
+            >
+              <div className="mb-3 h-[3px] w-full rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div className="h-3 w-20 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div className="mt-2 h-8 w-24 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-2 h-3 w-9/12 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-3 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -199,46 +253,39 @@ export function SettingsSkeleton() {
 
 export function TransactionsSkeleton() {
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-4 pb-6">
-      <div className="mb-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-        <div className="h-7 w-40 bg-zinc-200 dark:bg-zinc-700 rounded-lg animate-pulse mb-2" />
-        <div className="h-5 w-28 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse mb-3" />
-        <div className="h-4 w-48 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-      </div>
+    <div className="space-y-3">
+      {Array.from({ length: 2 }).map((_, sectionIndex) => (
+        <section key={`group-${sectionIndex}`} className="space-y-2">
+          <div className="h-4 w-20 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
 
-      <div className="space-y-3 mb-5">
-        <div className="flex gap-2">
-          <div className="h-12 flex-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl animate-pulse" />
-          <div className="h-12 w-28 bg-zinc-100 dark:bg-zinc-800 rounded-xl animate-pulse" />
-        </div>
-        <div className="h-3 w-56 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 p-3">
-          <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-          <div className="flex gap-2 overflow-hidden">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-10 w-24 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {Array.from({ length: 2 }).map((_, sectionIndex) => (
-          <div key={sectionIndex} className="space-y-2">
-            <div className="h-4 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-            {Array.from({ length: 3 }).map((__, rowIndex) => (
-              <div
-                key={`${sectionIndex}-${rowIndex}`}
-                className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800"
-              >
-                <div className="h-8 w-32 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-3" />
-                <div className="h-5 w-40 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-                <div className="h-4 w-28 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2" />
-                <div className="h-3 w-20 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+          {Array.from({ length: 3 }).map((__, rowIndex) => (
+            <article
+              key={`row-${sectionIndex}-${rowIndex}`}
+              className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4"
+            >
+              <div className="h-6 w-28 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-2 h-4 w-44 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-2 h-3 w-28 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-3 flex items-center gap-2">
+                <div className="h-6 w-20 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div className="h-6 w-20 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
               </div>
-            ))}
-          </div>
-        ))}
+            </article>
+          ))}
+        </section>
+      ))}
+
+      <div className="mt-6 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between gap-3">
+          <div className="h-3 w-20 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+          <div className="h-12 w-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="h-12 w-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+          <div className="h-4 w-16 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+          <div className="h-12 w-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+        </div>
       </div>
     </div>
   );

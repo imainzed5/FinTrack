@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload, Sun, Moon } from 'lucide-react';
@@ -22,6 +23,9 @@ export default function SettingsPage() {
   const [newLimit, setNewLimit] = useState('');
   const [newRollover, setNewRollover] = useState(false);
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [nextPayday, setNextPayday] = useState('');
+  const [paydaySaving, setPaydaySaving] = useState(false);
+  const [paydayStatus, setPaydayStatus] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -39,8 +43,43 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchUserSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/user-settings');
+      if (res.ok) {
+        const json = await res.json();
+        setNextPayday(json.next_payday ?? '');
+      }
+    } catch {
+      // offline
+    }
+  }, []);
+
+  const handleSavePayday = async () => {
+    setPaydaySaving(true);
+    setPaydayStatus(null);
+    try {
+      const res = await fetch('/api/user-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ next_payday: nextPayday || null }),
+      });
+      if (res.ok) {
+        setPaydayStatus('Saved!');
+      } else {
+        setPaydayStatus('Failed to save.');
+      }
+    } catch {
+      setPaydayStatus('Failed to save.');
+    } finally {
+      setPaydaySaving(false);
+      setTimeout(() => setPaydayStatus(null), 3000);
+    }
+  };
+
   useEffect(() => {
     fetchBudgets();
+    fetchUserSettings();
     setOnline(navigator.onLine);
 
     const unsubscribeRealtime = subscribeBudgetUpdates(() => {
@@ -68,7 +107,7 @@ export default function SettingsPage() {
       window.removeEventListener('offline', handleOffline);
       unsubscribeRealtime();
     };
-  }, [fetchBudgets]);
+  }, [fetchBudgets, fetchUserSettings]);
 
   const handleAddBudget = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,6 +379,44 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Payday Settings */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
+        <div className="flex items-center gap-2 mb-1">
+          <CalendarDays size={16} className="text-emerald-500" />
+          <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white">Payday Settings</h3>
+        </div>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+          Set your next expected payday so the dashboard can show accurate cash-flow countdown instead of a generic month-end estimate. Leave blank to hide the payday stat.
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={nextPayday}
+            onChange={(e) => setNextPayday(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500"
+          />
+          <button
+            onClick={handleSavePayday}
+            disabled={paydaySaving}
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {paydaySaving ? 'Saving...' : 'Save'}
+          </button>
+          {nextPayday && (
+            <button
+              onClick={() => setNextPayday('')}
+              className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+              title="Clear payday"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {paydayStatus && (
+          <p className={`mt-2 text-xs ${paydayStatus === 'Saved!' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{paydayStatus}</p>
         )}
       </div>
 

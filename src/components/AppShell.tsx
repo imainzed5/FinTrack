@@ -123,8 +123,8 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
       <main
         className={
           isDashboardPath
-            ? 'sm:ml-64 pb-20 mobile-nav-offset sm:pb-0 min-h-screen'
-            : 'space-y-4 p-5 sm:ml-64 sm:p-8'
+            ? 'sm:ml-56 pb-20 mobile-nav-offset sm:pb-0 min-h-screen'
+            : 'space-y-4 p-5 sm:ml-56 sm:p-8'
         }
       >
         {isDashboardPath ? (
@@ -439,7 +439,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar user={session.user} onLoggedOut={handleLoggedOut} />
-      <main className="sm:ml-64 pb-20 mobile-nav-offset sm:pb-0 min-h-screen">{children}</main>
+      <main className="sm:ml-56 pb-20 mobile-nav-offset sm:pb-0 min-h-screen">{children}</main>
       <BottomNav />
       <ConsentModal
         open={shouldShowConsentModal}

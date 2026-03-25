@@ -679,6 +679,28 @@ export async function getTransactions(): Promise<Transaction[]> {
   return (data ?? []).map((row) => toTransaction(row as TransactionRow));
 }
 
+/**
+ * Returns all root recurring transactions (the origin transaction) that are
+ * still active — i.e. recurring_frequency is set and recurring_end_at is
+ * either null (runs forever) or in the future.
+ */
+export async function getActiveRecurringTransactions(): Promise<Transaction[]> {
+  const { supabase } = await getAuthedClient();
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select(TRANSACTION_SELECT)
+    .not('recurring_frequency', 'is', null)
+    .is('recurring_origin_id', null) // only origin (root) recurring transactions
+    .or(`recurring_end_at.is.null,recurring_end_at.gte.${today}`)
+    .order('recurring_next_run_at', { ascending: true });
+
+  throwIfError('Failed to load recurring transactions', error);
+
+  return (data ?? []).map((row) => toTransaction(row as TransactionRow));
+}
+
 export async function saveTransactions(transactions: Transaction[]): Promise<void> {
   const { supabase, userId } = await getAuthedClient();
 

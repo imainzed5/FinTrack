@@ -210,6 +210,9 @@ function StatisticsContent({
                     },
                     tooltip: {
                       enabled: true,
+                      callbacks: {
+                        label: (ctx: any) => ` ${formatCurrency(ctx.raw)}`,
+                      },
                     },
                   },
                 }}

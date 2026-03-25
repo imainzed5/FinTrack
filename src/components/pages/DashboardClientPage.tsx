@@ -101,7 +101,8 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
 
   const spentThisMonth = overallBudget?.spent ?? 0;
   const remaining = overallBudget?.remaining ?? 0;
-  const monthlyLimit = overallBudget?.limit ?? 0;
+  const strictCap = overallBudget?.baseLimit ?? overallBudget?.limit ?? 0;
+  const incomeBoost = overallBudget?.incomeBoost ?? 0;
 
   const spentToday = data.recentTransactions
     .filter(
@@ -361,7 +362,8 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
               <QuickStatTiles
                 spentThisMonth={spentThisMonth}
                 remaining={remaining}
-                monthlyLimit={monthlyLimit}
+                monthlyLimit={strictCap}
+                incomeBoost={incomeBoost}
                 spentToday={spentToday}
                 savingsTotalSaved={savingsSummary?.totalSaved ?? 0}
                 savingsActiveGoalCount={savingsSummary?.activeGoalCount ?? 0}

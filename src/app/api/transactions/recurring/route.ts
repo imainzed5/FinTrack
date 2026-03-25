@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { processRecurringTransactions } from '@/lib/db';
-import { broadcastTransactionEvent } from '@/lib/transaction-ws-server';
+import { processRecurringTransactions, getActiveRecurringTransactions } from '@/lib/db';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 function handleRouteError(error: unknown): NextResponse {
@@ -12,34 +11,26 @@ function handleRouteError(error: unknown): NextResponse {
   return NextResponse.json({ error: message }, { status: 500 });
 }
 
-export async function POST() {
+/**
+ * GET /api/transactions/recurring
+ * Returns all active recurring origin transactions for the management UI.
+ */
+export async function GET() {
   try {
-    const result = await processRecurringTransactions();
-
-    if (result.created > 0) {
-      broadcastTransactionEvent('transaction:edit', {
-        reason: 'recurring',
-        created: result.created,
-      });
-    }
-
-    return NextResponse.json(result);
+    const transactions = await getActiveRecurringTransactions();
+    return NextResponse.json(transactions);
   } catch (error) {
     return handleRouteError(error);
   }
 }
 
-export async function GET() {
+/**
+ * POST /api/transactions/recurring
+ * Triggers the recurring transaction processor (creates due instances).
+ */
+export async function POST() {
   try {
     const result = await processRecurringTransactions();
-
-    if (result.created > 0) {
-      broadcastTransactionEvent('transaction:edit', {
-        reason: 'recurring',
-        created: result.created,
-      });
-    }
-
     return NextResponse.json(result);
   } catch (error) {
     return handleRouteError(error);
