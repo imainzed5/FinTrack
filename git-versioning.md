@@ -201,6 +201,13 @@ v1.0.0  — Public launch
 
 ---
 
+## [dev] 2026-03-24
+- Patch: Sidebar redesign (grouped sections, 56px width), floating BottomNav restored, AppShell offset updated to sm:ml-56.
+- No breaking changes. TypeScript clean.
+- See commit 8289974 (feat(nav): sidebar sectioned nav, floating mobile nav, and 56px offset (patch))
+
+---
+
 ## Tagging a Release
 
 ```bash
