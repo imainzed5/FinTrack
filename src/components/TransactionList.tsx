@@ -435,8 +435,8 @@ function SwipeableTransactionRow({
       >
         <div className="flex items-start gap-3 py-4 pl-4 pr-3 sm:pr-4">
           <div
-            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-            style={{ backgroundColor: iconTint, color: '#1D9E75' }}
+            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${categoryTone.icon}`}
+            style={{ backgroundColor: iconTint }}
           >
             <CategoryIcon size={17} />
           </div>
