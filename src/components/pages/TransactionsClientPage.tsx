@@ -305,41 +305,368 @@ export default function TransactionsPage() {
   };
 
   const handleExportPDF = () => {
-    const rows = filtered
-      .map(
-        (tx) =>
-          `<tr>
-            <td>${format(parseISO(tx.date), 'MMM d, yyyy')}</td>
-            <td>${tx.type === 'income' ? 'Income' : tx.category}</td>
-            <td>${tx.type === 'income' ? (tx.incomeCategory || '') : (tx.subCategory || '')}</td>
-            <td style="text-align:right">₱${tx.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${tx.merchant || ''}</td>
-            <td>${tx.description || ''}</td>
-            <td>${tx.paymentMethod}</td>
-            <td>${tx.notes || ''}</td>
-          </tr>`
-      )
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const formatPeso = (value: number) =>
+      `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const categoryKey = (tx: Transaction) => (tx.type === 'income' ? 'Income' : tx.category);
+
+    const categoryClassMap: Record<string, string> = {
+      food: 'badge-food',
+      transportation: 'badge-transportation',
+      subscriptions: 'badge-subscriptions',
+      utilities: 'badge-utilities',
+      shopping: 'badge-shopping',
+      entertainment: 'badge-entertainment',
+      health: 'badge-health',
+      education: 'badge-education',
+      miscellaneous: 'badge-miscellaneous',
+      income: 'badge-income',
+    };
+
+    const paymentClass = (method: string) => {
+      const normalized = method.trim().toLowerCase();
+      if (normalized === 'gcash') return 'pay-gcash';
+      if (normalized === 'maya') return 'pay-maya';
+      if (normalized === 'cash') return 'pay-cash';
+      return 'pay-default';
+    };
+
+    const total = filtered.reduce((sum, tx) => sum + tx.amount, 0);
+    const uniqueCategoryCount = new Set(filtered.map((tx) => categoryKey(tx))).size;
+    const largestSpend = filtered.reduce<Transaction | null>(
+      (max, tx) => (!max || tx.amount > max.amount ? tx : max),
+      null
+    );
+
+    const categoryStats = filtered.reduce<Record<string, { total: number; count: number }>>((acc, tx) => {
+      const key = categoryKey(tx);
+      if (!acc[key]) {
+        acc[key] = { total: 0, count: 0 };
+      }
+      acc[key].total += tx.amount;
+      acc[key].count += 1;
+      return acc;
+    }, {});
+
+    const topCategoryEntry = Object.entries(categoryStats).sort((a, b) => b[1].total - a[1].total)[0] || null;
+    const periodDate = filtered.length > 0 ? parseISO(filtered[0].date) : new Date();
+    const periodLabel = format(periodDate, 'MMMM yyyy');
+    const exportDate = format(new Date(), 'MMMM d, yyyy');
+
+    const groupedByDay = filtered.reduce<Record<string, Transaction[]>>((acc, tx) => {
+      const dayKey = tx.date.split('T')[0];
+      if (!acc[dayKey]) {
+        acc[dayKey] = [];
+      }
+      acc[dayKey].push(tx);
+      return acc;
+    }, {});
+
+    const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
+
+    const rows = sortedDays
+      .map((dayKey) => {
+        const groupRows = groupedByDay[dayKey]
+          .map((tx) => {
+            const category = categoryKey(tx);
+            const categoryClass = categoryClassMap[category.toLowerCase()] || 'badge-default';
+            const merchant = tx.merchant ? escapeHtml(tx.merchant) : '—';
+            const description = tx.description ? escapeHtml(tx.description) : '—';
+            return `<tr>
+              <td class="muted-date">${format(parseISO(tx.date), 'MMM d')}</td>
+              <td><span class="category-badge ${categoryClass}">${escapeHtml(category)}</span></td>
+              <td class="description-cell">${description}</td>
+              <td class="merchant-cell">${merchant}</td>
+              <td><span class="payment-badge ${paymentClass(tx.paymentMethod)}">${escapeHtml(tx.paymentMethod)}</span></td>
+              <td class="amount-cell">${formatPeso(tx.amount)}</td>
+            </tr>`;
+          })
+          .join('');
+
+        return `<tr class="group-row"><td colspan="6">${format(parseISO(dayKey), 'MMM d').toUpperCase()}</td></tr>${groupRows}`;
+      })
       .join('');
-    const total = filtered.reduce((s, tx) => s + tx.amount, 0);
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Transactions</title>
+
+    const topCategoryName = topCategoryEntry ? topCategoryEntry[0] : 'No category';
+    const topCategoryTotal = topCategoryEntry ? topCategoryEntry[1].total : 0;
+    const topCategoryCount = topCategoryEntry ? topCategoryEntry[1].count : 0;
+    const largestSpendLabel = largestSpend ? categoryKey(largestSpend) : 'No transactions';
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Transaction Export</title>
       <style>
-        body { font-family: sans-serif; padding: 24px; color: #111; }
-        h1 { font-size: 20px; margin-bottom: 4px; }
-        p { font-size: 13px; color: #666; margin-bottom: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background: #10b981; color: #fff; padding: 8px 10px; text-align: left; }
-        td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
-        tr:nth-child(even) td { background: #f9fafb; }
-        tfoot td { font-weight: bold; border-top: 2px solid #10b981; }
-        @media print { body { padding: 0; } }
+        :root {
+          --moneda-green: #0e9f6e;
+          --moneda-green-soft: #e8f7f1;
+          --text-strong: #1f2937;
+          --text-muted: #6b7280;
+          --border-soft: #e5e7eb;
+          --surface-soft: #f3f4f6;
+          --surface-table: #f8fafc;
+        }
+        * { box-sizing: border-box; }
+        body {
+          font-family: "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
+          margin: 0;
+          padding: 32px;
+          color: var(--text-strong);
+          background: #ffffff;
+        }
+        .report {
+          max-width: 980px;
+          margin: 0 auto;
+        }
+        .brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          color: var(--moneda-green);
+          font-size: 31px;
+          line-height: 1;
+          margin-bottom: 8px;
+        }
+        .brand-name {
+          font-size: 29px;
+          font-weight: 600;
+          letter-spacing: 0.2px;
+        }
+        h1 {
+          margin: 0;
+          font-size: 42px;
+          line-height: 1.1;
+          font-weight: 650;
+          color: #111827;
+        }
+        .subtitle {
+          margin-top: 10px;
+          font-size: 19px;
+          color: var(--text-muted);
+        }
+        .separator {
+          margin: 24px 0;
+          border: none;
+          border-top: 1px solid var(--border-soft);
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 24px;
+        }
+        .summary-card {
+          border: 1px solid var(--border-soft);
+          background: var(--surface-soft);
+          border-radius: 12px;
+          padding: 14px 16px;
+        }
+        .summary-label {
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #6b7280;
+          margin-bottom: 4px;
+        }
+        .summary-value {
+          font-size: 38px;
+          font-weight: 600;
+          line-height: 1.15;
+          color: #111827;
+          letter-spacing: -0.01em;
+          min-width: 0;
+        }
+        .summary-value.currency {
+          font-size: clamp(24px, 4vw, 34px);
+          font-variant-numeric: tabular-nums;
+          line-height: 1.2;
+          overflow-wrap: anywhere;
+        }
+        .summary-value.summary-accent {
+          color: var(--moneda-green);
+        }
+        .summary-note {
+          margin-top: 6px;
+          color: #9ca3af;
+          font-size: 12px;
+        }
+        .section-title {
+          margin: 8px 0 10px;
+          font-size: 13px;
+          letter-spacing: 0.08em;
+          color: #6b7280;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+        table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+          font-size: 12px;
+          border: 1px solid var(--border-soft);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        thead th {
+          background: var(--moneda-green-soft);
+          color: var(--moneda-green);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-size: 11px;
+          font-weight: 700;
+          text-align: left;
+          padding: 10px 12px;
+          border-bottom: 1px solid #b7e3d3;
+        }
+        tbody tr:not(.group-row):nth-child(even) {
+          background: var(--surface-table);
+        }
+        tbody td {
+          padding: 9px 12px;
+          border-bottom: 1px solid #eef2f7;
+          vertical-align: middle;
+        }
+        .group-row td {
+          background: #f8fafc;
+          color: #9ca3af;
+          font-weight: 700;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          font-size: 11px;
+          border-top: 1px solid #e5e7eb;
+          border-bottom: 1px solid #e5e7eb;
+          padding: 8px 12px;
+        }
+        .muted-date { color: #9ca3af; width: 84px; }
+        .description-cell { color: #111827; }
+        .merchant-cell { color: #6b7280; }
+        .amount-cell {
+          text-align: right;
+          font-size: 13px;
+          font-weight: 500;
+          color: #111827;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+          width: 140px;
+        }
+        .category-badge,
+        .payment-badge {
+          display: inline-block;
+          border-radius: 999px;
+          padding: 2px 10px;
+          font-size: 11px;
+          line-height: 1.35;
+          border: 1px solid transparent;
+          white-space: nowrap;
+        }
+        .badge-default { background: #f3f4f6; color: #374151; }
+        .badge-food { background: #fff0db; color: #b45309; }
+        .badge-transportation { background: #dbeafe; color: #1d4ed8; }
+        .badge-subscriptions { background: #e0e7ff; color: #3730a3; }
+        .badge-utilities { background: #e0f2fe; color: #0369a1; }
+        .badge-shopping { background: #fce7f3; color: #9d174d; }
+        .badge-entertainment { background: #ede9fe; color: #6d28d9; }
+        .badge-health { background: #dcfce7; color: #166534; }
+        .badge-education { background: #fef3c7; color: #92400e; }
+        .badge-miscellaneous { background: #f3e8ff; color: #7e22ce; }
+        .badge-income { background: #dcfce7; color: #166534; }
+        .pay-default { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+        .pay-cash { background: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
+        .pay-gcash { background: #e7f8f1; color: #0e9f6e; border-color: #9edfc4; }
+        .pay-maya { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .table-total-row td {
+          background: #e7f8f1;
+          color: #0e9f6e;
+          border-top: 1px solid #9edfc4;
+          border-bottom: none;
+          font-size: 15px;
+          padding-top: 11px;
+          padding-bottom: 11px;
+        }
+        .table-total-row .total-amount {
+          text-align: right;
+          font-weight: 650;
+          font-variant-numeric: tabular-nums;
+        }
+        .footer {
+          margin-top: 16px;
+          padding-top: 10px;
+          border-top: 1px solid var(--border-soft);
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          color: #9ca3af;
+          font-size: 11px;
+        }
+        .footer .moneda {
+          color: var(--moneda-green);
+          text-decoration: none;
+        }
+        @media print {
+          body { padding: 16px; }
+          .report { max-width: 100%; }
+        }
       </style></head><body>
-      <h1>Expense Tracker — Transactions</h1>
-      <p>Exported on ${format(new Date(), 'MMMM d, yyyy')} · ${filtered.length} transactions</p>
-      <table>
-        <thead><tr><th>Date</th><th>Category</th><th>Sub-cat</th><th>Amount</th><th>Merchant</th><th>Description</th><th>Payment</th><th>Notes</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="3">Total</td><td style="text-align:right">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td colspan="4"></td></tr></tfoot>
-      </table>
+      <main class="report">
+        <div class="brand"><span aria-hidden="true">●</span><span class="brand-name">Moneda</span></div>
+        <h1>Transaction Export</h1>
+        <p class="subtitle">${periodLabel} · ${filtered.length} transactions · Exported ${exportDate}</p>
+        <hr class="separator" />
+
+        <section class="summary-grid" aria-label="Export summary">
+          <article class="summary-card">
+            <p class="summary-label">Total Spent</p>
+            <p class="summary-value currency summary-accent">${formatPeso(total)}</p>
+            <p class="summary-note">this period</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-label">Transactions</p>
+            <p class="summary-value">${filtered.length}</p>
+            <p class="summary-note">across ${uniqueCategoryCount} categories</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-label">Largest Spend</p>
+            <p class="summary-value currency">${largestSpend ? formatPeso(largestSpend.amount) : '₱0.00'}</p>
+            <p class="summary-note">${escapeHtml(largestSpendLabel)}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-label">Top Category</p>
+            <p class="summary-value">${escapeHtml(topCategoryName)}</p>
+            <p class="summary-note">${formatPeso(topCategoryTotal)} · ${topCategoryCount} entr${topCategoryCount === 1 ? 'y' : 'ies'}</p>
+          </article>
+        </section>
+
+        <h2 class="section-title">Transactions</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Merchant</th>
+              <th>Payment</th>
+              <th style="text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr class="table-total-row">
+              <td colspan="5">Total · ${periodLabel}</td>
+              <td class="total-amount">${formatPeso(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <footer class="footer">
+          <span>Generated by <span class="moneda">Moneda</span> · moneda-nine.vercel.app</span>
+          <span>Page 1 of 1</span>
+        </footer>
+      </main>
       <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
       </body></html>`;
     const win = window.open('', '_blank');

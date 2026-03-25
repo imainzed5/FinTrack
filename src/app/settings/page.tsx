@@ -9,9 +9,46 @@ import { useTheme } from '@/components/ThemeProvider';
 import AccountSecuritySection from '@/components/settings/AccountSecuritySection';
 import type { Budget, Category, Transaction } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
+import type { BerdeState } from '@/lib/berde/berde.types';
 import { formatCurrency } from '@/lib/utils';
 import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
 import { SettingsSkeleton } from '@/components/SkeletonLoaders';
+import BerdeSprite from '@/components/BerdeSprite';
+
+function resolveSettingsBerdeContext(params: {
+  loading: boolean;
+  showAddBudget: boolean;
+  monthBudgets: Budget[];
+}): { state: BerdeState; message: string } {
+  const { loading, showAddBudget, monthBudgets } = params;
+
+  if (loading || showAddBudget) {
+    return {
+      state: 'helper',
+      message: 'Need a setup hand? Berde can help you shape a realistic budget for this month.',
+    };
+  }
+
+  if (monthBudgets.length === 0) {
+    return {
+      state: 'worried',
+      message: 'No budget set yet. Add an Overall budget first so your spending has a clear limit.',
+    };
+  }
+
+  const hasOverallBudget = monthBudgets.some((budget) => budget.category === 'Overall' && !budget.subCategory);
+  if (hasOverallBudget) {
+    return {
+      state: 'proud',
+      message: 'Great setup. You have an Overall budget in place. Keep refining categories as needed.',
+    };
+  }
+
+  return {
+    state: 'neutral',
+    message: 'Your budget categories are in place. Consider adding an Overall cap for stronger guardrails.',
+  };
+}
 
 export default function SettingsPage() {
   const { theme, toggle } = useTheme();
@@ -239,6 +276,12 @@ export default function SettingsPage() {
       return aLabel.localeCompare(bLabel);
     });
 
+  const berdeSettingsContext = resolveSettingsBerdeContext({
+    loading,
+    showAddBudget,
+    monthBudgets,
+  });
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center gap-3 mb-6">
@@ -252,6 +295,18 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
+            <BerdeSprite state={berdeSettingsContext.state} size={54} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde guide</p>
+            <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeSettingsContext.message}</p>
+          </div>
+        </div>
+      </section>
 
       {/* Budget Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">

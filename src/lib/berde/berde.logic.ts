@@ -1,7 +1,17 @@
 import type { BerdeContext, BerdeInputs, BerdeState } from '@/lib/berde/berde.types';
 
-// Priority order: hype > worried > proud > sarcastic > neutral
+// Priority order: celebratory > excited > hype > worried > motivational > proud > sarcastic > helper > neutral
 const QUOTES: Record<BerdeState, string[]> = {
+  celebratory: [
+    'Debt cleared. Budget alive. Savings up. Berde is throwing invisible confetti.',
+    'Major milestone unlocked. Today we celebrate. Tomorrow we keep the streak.',
+    'You did the hard thing and it worked. Big win. Big smile. Big energy.',
+  ],
+  excited: [
+    'New streak. New momentum. Berde is bouncing and cannot be stopped.',
+    'Unexpected win logged. Keep the energy, keep the discipline.',
+    'This is the kind of update that makes Berde do tiny victory jumps.',
+  ],
   hype: [
     "PAYDAY. You earned it. Now please don't spend it all in one weekend.",
     'NEW MONTH. Clean slate. You know what to do. GO.',
@@ -45,6 +55,16 @@ const QUOTES: Record<BerdeState, string[]> = {
     "That's the same merchant again. At this point just pay them a salary.",
     'Malaki ang ginastos mo ngayon. Sana masaya ka naman.',
   ],
+  motivational: [
+    'Progress is progress. Small steps still count. Keep going.',
+    'You are doing the hard reset. One tracked choice at a time.',
+    'Not perfect. Still improving. Berde is with you on this one.',
+  ],
+  helper: [
+    'Need a setup hand? Berde can guide you through budgets and settings.',
+    'Quick tune-up time. Set limits first, then let your month breathe.',
+    'I am in assistant mode. Tell me what you want to fix first.',
+  ],
   neutral: [
     "Spending's under control. Nothing to complain about... yet.",
     "You haven't done anything stupid today. I'm watching.",
@@ -84,13 +104,16 @@ export function resolveBerdeState(inputs: BerdeInputs, userId?: string): BerdeCo
   };
 
   if (inputs.savingsMilestoneHit) {
-    return buildContext('hype', 'Savings milestone hit');
+    return buildContext('excited', 'Savings streak or milestone momentum');
+  }
+  if (inputs.savingsGoalHit) {
+    return buildContext('celebratory', 'Major savings goal hit');
   }
   if (inputs.isFirstTransaction) {
     return buildContext('hype', 'First transaction of the month');
   }
   if (inputs.daysUntilPayday === 0) {
-    return buildContext('hype', 'Payday today');
+    return buildContext('excited', 'Payday today');
   }
   if (inputs.monthSpend === 0) {
     return buildContext('hype', 'Month starts at P0');
@@ -109,9 +132,10 @@ export function resolveBerdeState(inputs: BerdeInputs, userId?: string): BerdeCo
     return buildContext('worried', 'Payday still 2+ weeks away');
   }
 
-  if (inputs.savingsGoalHit) {
-    return buildContext('proud', 'Savings goal hit');
+  if (inputs.budgetUsedPercent >= 55 && inputs.budgetUsedPercent < 80) {
+    return buildContext('motivational', 'Budget under pressure but recoverable');
   }
+
   if (inputs.savingsRate >= 70) {
     return buildContext('proud', 'Savings rate >= 70%');
   }

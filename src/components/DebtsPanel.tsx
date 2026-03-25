@@ -5,9 +5,11 @@ import { format, parseISO } from 'date-fns';
 import { CheckCircle2, Pencil, Trash2, Users } from 'lucide-react';
 import type { Debt, DebtInput } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import type { BerdeState } from '@/lib/berde/berde.types';
 import AddDebtModal from '@/components/AddDebtModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import EmptyState from '@/components/EmptyState';
+import BerdeSprite from '@/components/BerdeSprite';
 
 type DebtsTab = 'active' | 'settled';
 
@@ -29,6 +31,65 @@ function formatDebtDate(date: string): string {
 
 interface DebtsPanelProps {
   showHeader?: boolean;
+}
+
+function resolveDebtBerdeContext(params: {
+  debts: Debt[];
+  activeDebts: Debt[];
+  settledDebts: Debt[];
+  totalOwing: number;
+}): { state: BerdeState; message: string } {
+  const { debts, activeDebts, settledDebts, totalOwing } = params;
+  const now = new Date();
+
+  const overdueOwingCount = activeDebts.filter((debt) => {
+    if (debt.direction !== 'owing') {
+      return false;
+    }
+    const parsedDate = parseISO(debt.date);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return false;
+    }
+    const daysOld = Math.floor((now.getTime() - parsedDate.getTime()) / 86400000);
+    return daysOld >= 30;
+  }).length;
+
+  const hasHighDebt = totalOwing >= 15000;
+  const isPayingDown = settledDebts.length > 0 && activeDebts.length > 0;
+  const allDebtsCleared = debts.length > 0 && activeDebts.length === 0;
+
+  if (allDebtsCleared) {
+    return {
+      state: 'celebratory',
+      message: 'All debt entries are settled. Big win. Protect this momentum with a small weekly buffer.',
+    };
+  }
+
+  if (overdueOwingCount > 0 || hasHighDebt) {
+    return {
+      state: 'worried',
+      message: 'You have pending pressure on debt. Prioritize oldest balances first, then snowball the rest.',
+    };
+  }
+
+  if (isPayingDown) {
+    return {
+      state: 'motivational',
+      message: 'You are paying things down. Keep a steady cadence and clear the smallest active balance next.',
+    };
+  }
+
+  if (debts.length === 0) {
+    return {
+      state: 'helper',
+      message: 'No debt logs yet. Add one entry so Berde can help you track who owes who clearly.',
+    };
+  }
+
+  return {
+    state: 'neutral',
+    message: 'Debts are stable right now. Stay consistent and review balances every week.',
+  };
 }
 
 export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
@@ -178,6 +239,11 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
   const owingPeopleCount = new Set(owedByMe.map((debt) => debt.personName.toLowerCase())).size;
   const owedPeopleCount = new Set(owedToMe.map((debt) => debt.personName.toLowerCase())).size;
 
+  const berdeDebtContext = useMemo(
+    () => resolveDebtBerdeContext({ debts, activeDebts, settledDebts, totalOwing }),
+    [debts, activeDebts, settledDebts, totalOwing]
+  );
+
   const renderActiveCard = (debt: Debt) => {
     const isOwing = debt.direction === 'owing';
 
@@ -308,6 +374,18 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
           </div>
         )}
 
+        <article className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
+              <BerdeSprite state={berdeDebtContext.state} size={54} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde on debts</p>
+              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeDebtContext.message}</p>
+            </div>
+          </div>
+        </article>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <article className="rounded-2xl border border-red-200 bg-red-50/70 dark:border-red-900/40 dark:bg-red-900/10 p-4">
             <p className="text-[11px] font-semibold tracking-wide text-red-500 uppercase">You owe</p>
@@ -356,7 +434,7 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
         ) : tab === 'active' ? (
           activeDebts.length === 0 ? (
             <EmptyState
-              icon={Users}
+              icon="berde"
               headline="No active debts yet."
               subtext="Track who owes who for shared lunches, rides, and subscriptions."
               cta={{ label: 'Add Debt', action: 'add-transaction' }}

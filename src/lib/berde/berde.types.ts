@@ -1,4 +1,13 @@
-export type BerdeState = 'neutral' | 'proud' | 'worried' | 'hype' | 'sarcastic';
+export type BerdeState =
+  | 'neutral'
+  | 'proud'
+  | 'worried'
+  | 'hype'
+  | 'sarcastic'
+  | 'motivational'
+  | 'celebratory'
+  | 'helper'
+  | 'excited';
 
 export interface BerdeContext {
   state: BerdeState;
