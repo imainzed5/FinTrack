@@ -273,6 +273,31 @@ export interface TransactionInput {
   };
 }
 
+export type DebtDirection = 'owed' | 'owing';
+export type DebtStatus = 'active' | 'settled';
+
+export interface Debt {
+  id: string;
+  userId: string;
+  direction: DebtDirection;
+  personName: string;
+  amount: number;
+  reason: string;
+  date: string; // YYYY-MM-DD
+  status: DebtStatus;
+  settledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DebtInput {
+  direction: DebtDirection;
+  personName: string;
+  amount: number;
+  reason: string;
+  date?: string;
+}
+
 export type SavingsGoalStatus = 'active' | 'completed' | 'archived';
 export type SavingsDepositType = 'deposit' | 'withdrawal';
 

@@ -11,6 +11,7 @@ import {
   LogOut,
   PiggyBank,
   Settings,
+  Users,
   Wallet,
 } from 'lucide-react';
 import type { SessionUser } from '@/lib/auth-contract';
@@ -21,6 +22,7 @@ const navSections = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/transactions', label: 'Transactions', icon: Receipt },
+      { href: '/debts', label: 'Debts & Splits', icon: Users },
       { href: '/insights', label: 'Insights', icon: Lightbulb },
     ],
   },

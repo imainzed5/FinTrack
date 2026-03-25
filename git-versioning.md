@@ -79,14 +79,23 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.12.1
+### Current version: v0.13.0
 
 ---
 
 ## Version Roadmap
 
-v0.12.0 ✓ InsightCard hero redesign and visual enhancement
+
 ```
+v0.13.0 ✓ Debts & Splits ledger with edit/delete and confirmation flows
+  - Added Supabase debts table migration with RLS policies and optimized indexes
+  - Added new debts API endpoints for create, update, settle, and delete actions
+  - Added Debts & Splits dedicated page and Sidebar navigation entry (BottomNav unchanged)
+  - Added Debts tab inside Transactions page
+  - Implemented Add/Edit debt sheet using shared modal layout for consistent UX
+  - Added delete confirmation modal for both active and settled debt entries
+  - Active debts now support edit, settle, and delete actions for misinputs
+  - Files updated: migrations, debts API/data layer, DebtsPanel, AddDebtModal, Sidebar, transactions page, types
 v0.12.1 ✓ Transactions page skeleton loader fix
   - Refined TransactionsSkeleton to only render transaction-list placeholders, removing duplicate stats/sidebar/search blocks
   - Loader now matches the actual loading region, preventing double UI and layout jump
