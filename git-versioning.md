@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.13.0
+### Current version: v0.14.0
 
 ---
 
@@ -219,19 +219,26 @@ v1.0.0  — Public launch
 
 ## Tagging a Release
 
-```bash
-git tag -a v0.x.x -m "Moneda v0.x.x — description"
-git push origin v0.x.x
 ```
-
-### View all tags
-```bash
-git tag
+v0.14.0 ✓ Berde contextual mascot integration
+  - Berde mascot now appears on Debts, Savings, and Settings pages with context-aware moods and tips
+  - New Berde sprite states: motivational, celebratory, helper, excited
+  - Each page uses a state resolver to select Berde's mood and message based on live data
+  - EmptyState for debts now uses Berde mascot
+  - No breaking changes; all new features are additive
+  - Files updated: DebtsPanel, SavingsClientPage, SettingsPage, BerdeSprite, berde.types, berde.logic, berde-messages
+v0.13.0 ✓ Debts & Splits ledger with edit/delete and confirmation flows
+  - Added Supabase debts table migration with RLS policies and optimized indexes
+  - Added new debts API endpoints for create, update, settle, and delete actions
+  - Added Debts & Splits dedicated page and Sidebar navigation entry (BottomNav unchanged)
+  - Added Debts tab inside Transactions page
+  - Implemented Add/Edit debt sheet using shared modal layout for consistent UX
+  - Added delete confirmation modal for both active and settled debt entries
+  - Active debts now support edit, settle, and delete actions for misinputs
+  - Files updated: migrations, debts API/data layer, DebtsPanel, AddDebtModal, Sidebar, transactions page, types
+v0.12.1 ✓ Transactions page skeleton loader fix
+  - Refined TransactionsSkeleton to only render transaction-list placeholders, removing duplicate stats/sidebar/search blocks
 ```
-
-### View tag details
-```bash
-git show v0.7.0
 ```
 
 ---
