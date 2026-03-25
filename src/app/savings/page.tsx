@@ -1,5 +1,6 @@
 import SavingsClientPage from '@/components/pages/SavingsClientPage';
 import { getSavingsGoalsSummary } from '@/lib/db';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { SavingsGoalsSummary } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,7 @@ const EMPTY_SUMMARY: SavingsGoalsSummary = {
 
 export default async function SavingsPage() {
   let summary = EMPTY_SUMMARY;
+  let viewerUserId = '';
 
   try {
     summary = await getSavingsGoalsSummary();
@@ -20,5 +22,15 @@ export default async function SavingsPage() {
     summary = EMPTY_SUMMARY;
   }
 
-  return <SavingsClientPage data={summary} savingsRate={summary.savingsRate} />;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    viewerUserId = user?.id ?? '';
+  } catch {
+    viewerUserId = '';
+  }
+
+  return <SavingsClientPage data={summary} savingsRate={summary.savingsRate} userId={viewerUserId} />;
 }

@@ -6,6 +6,8 @@ import { CheckCircle2, Pencil, Trash2, Users } from 'lucide-react';
 import type { Debt, DebtInput } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import type { BerdeState } from '@/lib/berde/berde.types';
+import { getDailyPageBerdeMessage } from '@/lib/berde/page-messages';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import AddDebtModal from '@/components/AddDebtModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import EmptyState from '@/components/EmptyState';
@@ -31,6 +33,7 @@ function formatDebtDate(date: string): string {
 
 interface DebtsPanelProps {
   showHeader?: boolean;
+  initialUserId?: string;
 }
 
 function resolveDebtBerdeContext(params: {
@@ -92,7 +95,7 @@ function resolveDebtBerdeContext(params: {
   };
 }
 
-export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
+export default function DebtsPanel({ showHeader = true, initialUserId = '' }: DebtsPanelProps) {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +105,7 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [pendingDeleteDebt, setPendingDeleteDebt] = useState<Debt | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<string>(initialUserId);
 
   const fetchDebts = useCallback(async () => {
     setLoading(true);
@@ -125,6 +129,26 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
   useEffect(() => {
     void fetchDebts();
   }, [fetchDebts]);
+
+  useEffect(() => {
+    if (initialUserId) {
+      return;
+    }
+
+    async function loadViewerUserId() {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setViewerUserId(user?.id ?? '');
+      } catch {
+        setViewerUserId('');
+      }
+    }
+
+    void loadViewerUserId();
+  }, [initialUserId]);
 
   const handleCreateDebt = async (input: DebtInput) => {
     const response = await fetch('/api/debts', {
@@ -239,10 +263,20 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
   const owingPeopleCount = new Set(owedByMe.map((debt) => debt.personName.toLowerCase())).size;
   const owedPeopleCount = new Set(owedToMe.map((debt) => debt.personName.toLowerCase())).size;
 
-  const berdeDebtContext = useMemo(
-    () => resolveDebtBerdeContext({ debts, activeDebts, settledDebts, totalOwing }),
-    [debts, activeDebts, settledDebts, totalOwing]
-  );
+  const berdeDebtContext = useMemo(() => {
+    const context = resolveDebtBerdeContext({ debts, activeDebts, settledDebts, totalOwing });
+    const message = getDailyPageBerdeMessage({
+      page: 'debts',
+      state: context.state,
+      userId: viewerUserId,
+      fallbackMessage: context.message,
+    });
+
+    return {
+      state: context.state,
+      message,
+    };
+  }, [debts, activeDebts, settledDebts, totalOwing, viewerUserId]);
 
   const renderActiveCard = (debt: Debt) => {
     const isOwing = debt.direction === 'owing';
@@ -374,17 +408,29 @@ export default function DebtsPanel({ showHeader = true }: DebtsPanelProps) {
           </div>
         )}
 
-        <article className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
-              <BerdeSprite state={berdeDebtContext.state} size={54} />
+        {loading ? (
+          <article className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10 animate-pulse">
+            <div className="flex items-start gap-3">
+              <div className="h-[70px] w-[70px] rounded-xl bg-white/70 dark:bg-zinc-900/70" />
+              <div className="flex-1 pt-1">
+                <div className="h-3 w-28 rounded bg-emerald-200/80 dark:bg-emerald-800/50" />
+                <div className="mt-2 h-3 w-full max-w-[420px] rounded bg-emerald-200/70 dark:bg-emerald-800/40" />
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde on debts</p>
-              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeDebtContext.message}</p>
+          </article>
+        ) : (
+          <article className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
+                <BerdeSprite state={berdeDebtContext.state} size={54} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde on debts</p>
+                <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeDebtContext.message}</p>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <article className="rounded-2xl border border-red-200 bg-red-50/70 dark:border-red-900/40 dark:bg-red-900/10 p-4">

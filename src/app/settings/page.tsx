@@ -296,17 +296,29 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
-        <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
-            <BerdeSprite state={berdeSettingsContext.state} size={54} />
+      {loading ? (
+        <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10 animate-pulse">
+          <div className="flex items-start gap-3">
+            <div className="h-[70px] w-[70px] rounded-xl bg-white/70 dark:bg-zinc-900/70" />
+            <div className="flex-1 pt-1">
+              <div className="h-3 w-24 rounded bg-emerald-200/80 dark:bg-emerald-800/50" />
+              <div className="mt-2 h-3 w-full max-w-[420px] rounded bg-emerald-200/70 dark:bg-emerald-800/40" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde guide</p>
-            <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeSettingsContext.message}</p>
+        </section>
+      ) : (
+        <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
+              <BerdeSprite state={berdeSettingsContext.state} size={54} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde guide</p>
+              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeSettingsContext.message}</p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Budget Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">

@@ -20,6 +20,8 @@ import type {
   MonthlySavings,
 } from '@/lib/types';
 import type { BerdeState } from '@/lib/berde/berde.types';
+import { getDailyPageBerdeMessage } from '@/lib/berde/page-messages';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils';
 import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
 import { MonthlySavingsChart } from '@/components/Charts';
@@ -29,6 +31,7 @@ import BerdeSprite from '@/components/BerdeSprite';
 interface SavingsClientPageProps {
   data: SavingsGoalsSummary;
   savingsRate: number;
+  userId?: string;
 }
 
 const EMOJI_PRESETS = ['🎯', '🏠', '✈️', '💻', '🚗', '📚', '💍', '🛍️'];
@@ -119,7 +122,7 @@ function resolveSavingsBerdeContext(params: {
   };
 }
 
-export default function SavingsClientPage({ data, savingsRate }: SavingsClientPageProps) {
+export default function SavingsClientPage({ data, savingsRate, userId = '' }: SavingsClientPageProps) {
   const [summary, setSummary] = useState<SavingsGoalsSummary>(data);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoalWithDeposits | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
@@ -134,6 +137,7 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
   const [savingsHistory, setSavingsHistory] = useState<MonthlySavings[]>([]);
   const [savingsHistoryLoading, setSavingsHistoryLoading] = useState(true);
+  const [viewerUserId, setViewerUserId] = useState<string>(userId);
 
   const [goalInput, setGoalInput] = useState<SavingsGoalInput>({
     name: '',
@@ -188,6 +192,26 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
     void fetchSavingsHistory();
   }, []);
 
+  useEffect(() => {
+    if (userId) {
+      return;
+    }
+
+    async function loadViewerUserId() {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setViewerUserId(user?.id ?? '');
+      } catch {
+        setViewerUserId('');
+      }
+    }
+
+    void loadViewerUserId();
+  }, [userId]);
+
   const totalSaved = savingsHistory.length > 0
     ? savingsHistory[savingsHistory.length - 1].cumulative
     : 0;
@@ -220,15 +244,25 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
     [summary.goals]
   );
 
-  const berdeSavingsContext = useMemo(
-    () =>
-      resolveSavingsBerdeContext({
-        activeGoals,
-        allGoals: summary.goals,
-        savingsRate,
-      }),
-    [activeGoals, summary.goals, savingsRate]
-  );
+  const berdeSavingsContext = useMemo(() => {
+    const context = resolveSavingsBerdeContext({
+      activeGoals,
+      allGoals: summary.goals,
+      savingsRate,
+    });
+
+    const message = getDailyPageBerdeMessage({
+      page: 'savings',
+      state: context.state,
+      userId: viewerUserId,
+      fallbackMessage: context.message,
+    });
+
+    return {
+      state: context.state,
+      message,
+    };
+  }, [activeGoals, summary.goals, savingsRate, viewerUserId]);
 
   async function submitNewGoal(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
