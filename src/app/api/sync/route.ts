@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addTransaction } from '@/lib/db';
+import { addTransaction, resolveDefaultAccountId } from '@/lib/db';
 import type { Transaction } from '@/lib/types';
 import { isAuthRequiredError } from '@/lib/supabase/server';
+
+async function resolveDefaultAccountIdWithRetry(maxAttempts = 3): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await resolveDefaultAccountId();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Failed to resolve default account.');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +28,23 @@ export async function POST(request: NextRequest) {
     }
 
     const synced: string[] = [];
+    let defaultAccountId: string | null = null;
+
     for (const tx of body.transactions) {
-      const saved = await addTransaction({ ...tx, synced: true });
-      synced.push(saved.id);
+      try {
+        let accountId = tx.accountId;
+        if (!accountId) {
+          if (!defaultAccountId) {
+            defaultAccountId = await resolveDefaultAccountIdWithRetry();
+          }
+          accountId = defaultAccountId;
+        }
+
+        const saved = await addTransaction({ ...tx, accountId, synced: true });
+        synced.push(saved.id);
+      } catch {
+        // Keep unsynced transaction in queue; next sync pass can retry safely.
+      }
     }
 
     return NextResponse.json({ synced });

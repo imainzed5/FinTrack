@@ -34,6 +34,12 @@ interface SplitDraft {
   amount: string;
 }
 
+interface AccountOption {
+  id: string;
+  name: string;
+  type: string;
+}
+
 function parseTags(input: string): string[] {
   return Array.from(
     new Set(
@@ -147,6 +153,8 @@ export default function AddExpenseModal({
   const [showOptional, setShowOptional] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [autoFocusAmount, setAutoFocusAmount] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
@@ -160,6 +168,7 @@ export default function AddExpenseModal({
   const splitTotalMatches = Math.abs(splitTotal - (Number.isFinite(amountValue) ? amountValue : 0)) <= 0.01;
   const showMoreOptions = showOptional;
   const isRecurring = isIncomeEntry ? incomeRecurringMonthly : recurringEnabled;
+  const requiresAccountSelection = accounts.length > 0;
 
   const EXPENSE_CATEGORY_ICONS: Record<string, string> = {
     Food: '🍜',
@@ -248,6 +257,36 @@ export default function AddExpenseModal({
   useEffect(() => {
     if (!open) return;
 
+    let cancelled = false;
+
+    async function fetchAccounts() {
+      try {
+        const res = await fetch('/api/accounts', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = (await res.json()) as AccountOption[];
+        const nextAccounts = Array.isArray(json) ? json : [];
+        if (cancelled) return;
+
+        setAccounts(nextAccounts);
+        if (nextAccounts.length === 1) {
+          setSelectedAccountId(nextAccounts[0].id);
+        } else if (nextAccounts.length > 1) {
+          setSelectedAccountId((prev) => prev || nextAccounts[0].id);
+        }
+      } catch {
+        // Fallback to server-side default account resolution.
+      }
+    }
+
+    void fetchAccounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -289,6 +328,7 @@ export default function AddExpenseModal({
     setRecurringEndDate('');
     setShowOptional(false);
     setFormError(null);
+    setSelectedAccountId('');
   };
 
   const handleAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -320,6 +360,15 @@ export default function AddExpenseModal({
 
     if (!amount || !Number.isFinite(amountValue) || amountValue <= 0) {
       setFormError('Amount must be greater than zero.');
+      return;
+    }
+
+    if (requiresAccountSelection && !selectedAccountId) {
+      setFormError(
+        isIncomeEntry
+          ? 'Select which account will receive this income.'
+          : 'Select which account this expense should be deducted from.'
+      );
       return;
     }
 
@@ -380,6 +429,7 @@ export default function AddExpenseModal({
     const input: TransactionInput = {
       amount: Number(amountValue.toFixed(2)),
       type: resolvedType,
+      accountId: selectedAccountId || undefined,
       incomeCategory: isIncomeEntry ? incomeCategory : undefined,
       category: resolvedCategory,
       subCategory: isIncomeEntry
@@ -420,6 +470,7 @@ export default function AddExpenseModal({
         id: uuidv4(),
         amount: input.amount,
         type: resolvedType,
+        accountId: selectedAccountId || undefined,
         incomeCategory: isIncomeEntry ? incomeCategory : undefined,
         category: input.category,
         subCategory: input.subCategory,
@@ -557,6 +608,30 @@ export default function AddExpenseModal({
 
           <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5">
             <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Details</p>
+
+            {accounts.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-zinc-400">
+                  {isIncomeEntry ? 'Receive into account' : 'Deduct from account'}
+                </label>
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                >
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name} ({account.type})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-zinc-400">
+                  {isIncomeEntry
+                    ? 'Income will increase this account balance.'
+                    : 'Expense will reduce this account balance.'}
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-zinc-400">Description</label>

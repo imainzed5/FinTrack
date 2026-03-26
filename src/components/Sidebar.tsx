@@ -28,7 +28,10 @@ const navSections = [
   },
   {
     label: 'Plan',
-    items: [{ href: '/savings', label: 'Savings', icon: PiggyBank }],
+    items: [
+      { href: '/savings', label: 'Savings', icon: PiggyBank },
+      { href: '/accounts', label: 'Accounts', icon: Wallet },
+    ],
   },
   {
     label: 'Account',

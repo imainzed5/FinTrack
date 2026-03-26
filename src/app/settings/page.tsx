@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CalendarDays } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import AccountSecuritySection from '@/components/settings/AccountSecuritySection';
+import AccountsSection from '@/components/settings/AccountsSection';
 import type { Budget, Category, Transaction } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import type { BerdeState } from '@/lib/berde/berde.types';
@@ -319,6 +321,23 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+
+      <div className="mb-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+        <Link
+          href="/accounts"
+          className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+        >
+          Open dedicated Accounts page
+        </Link>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Quick access for mobile since Accounts is not in bottom navigation.
+        </p>
+      </div>
+
+      {/* Budget Management */}
+      <div className="mb-4">
+        <AccountsSection />
+      </div>
 
       {/* Budget Management */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">

@@ -38,13 +38,13 @@ export default function RemainingBudgetPopup({
   const displayDaysLeft = Math.max(0, endOfMonth.getDate() - now.getDate());
   const divisorDaysLeft = Math.max(1, displayDaysLeft);
 
-  const effectiveLimit = overallBudget?.effectiveLimit ?? 0;
+  const budgetCap = overallBudget?.baseLimit ?? overallBudget?.effectiveLimit ?? 0;
   const remaining = overallBudget?.remaining ?? 0;
 
   const savedPercentage =
-    effectiveLimit > 0 ? Math.round((remaining / effectiveLimit) * 100) : 0;
+    budgetCap > 0 ? Math.round((remaining / budgetCap) * 100) : 0;
 
-  const progressRatio = effectiveLimit > 0 ? 1 - remaining / effectiveLimit : 0;
+  const progressRatio = budgetCap > 0 ? 1 - remaining / budgetCap : 0;
 
   const strokeDashoffset = useMemo(
     () =>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { differenceInCalendarDays, format, parseISO, subMonths } from 'date-fns';
-import { Search, Filter, Download, X, Wallet, SearchX, RefreshCw, StopCircle } from 'lucide-react';
+import { Search, Filter, Download, X, Wallet, SearchX, RefreshCw, StopCircle, ArrowLeftRight } from 'lucide-react';
 import type { Transaction, Category, PaymentMethod } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { CATEGORIES } from '@/lib/types';
@@ -13,6 +13,7 @@ import FloatingAddButton from '@/components/FloatingAddButton';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EditTransactionModal from '@/components/EditTransactionModal';
 import FilterDrawer from '@/components/FilterDrawer';
+import TransferModal from '@/components/TransferModal';
 import { subscribeAppUpdates, subscribeTransactionUpdates } from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 import EmptyState from '@/components/EmptyState';
@@ -88,6 +89,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -995,17 +997,27 @@ export default function TransactionsPage() {
               <p className="text-xs text-zinc-400 dark:text-zinc-500">
                 Page {page} of {totalPages} · Swipe right to edit, swipe left to delete
               </p>
-              <button
-                type="button"
-                onClick={() => setShowFilterDrawer(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:text-zinc-400"
-              >
-                <Filter size={12} />
-                Filters
-                {hasCategoryOrPaymentFilter && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#1D9E75]" />
-                )}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:text-zinc-400"
+                >
+                  <ArrowLeftRight size={12} />
+                  Transfer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterDrawer(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:text-zinc-400"
+                >
+                  <Filter size={12} />
+                  Filters
+                  {hasCategoryOrPaymentFilter && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#1D9E75]" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <p className="mt-2 hidden text-[11px] font-medium text-zinc-500 dark:text-zinc-400 md:block">
@@ -1203,6 +1215,15 @@ export default function TransactionsPage() {
                         className="h-12 w-full rounded-xl border border-zinc-200 bg-white pl-11 pr-4 text-sm text-zinc-900 outline-none transition-colors focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                       />
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowTransferModal(true)}
+                      className="h-12 shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-[#1D9E75] hover:text-[#1D9E75] inline-flex items-center gap-1.5"
+                    >
+                      <ArrowLeftRight size={14} />
+                      Transfer
+                    </button>
 
                   </div>
 
@@ -1538,6 +1559,15 @@ export default function TransactionsPage() {
         transaction={editingTransaction}
         onClose={() => setEditingTransaction(null)}
         onUpdated={fetchTransactions}
+      />
+      <TransferModal
+        open={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        onCreated={() => {
+          void fetchTransactions();
+          void fetchRecurring();
+          void fetchTimeline();
+        }}
       />
     </>
   );

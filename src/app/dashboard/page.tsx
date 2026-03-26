@@ -1,6 +1,7 @@
 import DashboardClientPage from '../../components/pages/DashboardClientPage';
 import {
   getBudgets,
+  getTotalBalance,
   getTransactions,
   processRecurringTransactions,
   saveBudgets,
@@ -15,6 +16,7 @@ export const dynamic = 'force-dynamic';
 const EMPTY_DASHBOARD_DATA: DashboardData = {
   totalSpentThisMonth: 0,
   totalSpentLastMonth: 0,
+  totalBalance: 0,
   remainingBudget: 0,
   monthlyBudget: 0,
   savingsRate: 0,
@@ -33,7 +35,11 @@ const EMPTY_DASHBOARD_DATA: DashboardData = {
 async function loadDashboardData(): Promise<DashboardData> {
   try {
     await processRecurringTransactions();
-    const [transactions, budgets] = await Promise.all([getTransactions(), getBudgets()]);
+    const [transactions, budgets, totalBalance] = await Promise.all([
+      getTransactions(),
+      getBudgets(),
+      getTotalBalance(),
+    ]);
     const dashboard = buildDashboardData(transactions, budgets);
 
     if (dashboard.budgetAlerts.length > 0) {
@@ -44,7 +50,7 @@ async function loadDashboardData(): Promise<DashboardData> {
       ]);
     }
 
-    return dashboard;
+    return { ...dashboard, totalBalance };
   } catch (error) {
     if (!isAuthRequiredError(error)) {
       console.error('Failed to load dashboard data:', error);

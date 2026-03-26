@@ -41,6 +41,12 @@ function normalizeText(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function normalizeUuid(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 function normalizeTags(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return Array.from(
@@ -247,6 +253,7 @@ export async function POST(request: NextRequest) {
       amount: normalizedSplit ? splitTotal : Number(body.amount.toFixed(2)),
       type,
       incomeCategory,
+      accountId: normalizeUuid(body.accountId),
       category: resolvedCategory,
       subCategory: type === 'income'
         ? undefined
@@ -416,6 +423,10 @@ export async function PUT(request: NextRequest) {
 
     if (Object.prototype.hasOwnProperty.call(updates, 'recurring')) {
       normalizedUpdates.recurring = recurring;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'accountId')) {
+      normalizedUpdates.accountId = normalizeUuid(updates.accountId);
     }
 
     const updated = await updateTransaction(id, normalizedUpdates);

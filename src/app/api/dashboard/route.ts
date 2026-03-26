@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   getTransactions,
   getBudgets,
+  getTotalBalance,
   processRecurringTransactions,
   saveBudgets,
   saveBudgetThresholdAlerts,
@@ -15,6 +16,7 @@ export async function GET() {
     const transactions = await getTransactions();
     const budgets = await getBudgets();
     const dashboard = buildDashboardData(transactions, budgets);
+    const totalBalance = await getTotalBalance();
 
     if (dashboard.budgetAlerts.length > 0) {
       const merged = mergeTriggeredBudgetThresholds(budgets, dashboard.budgetAlerts);
@@ -24,7 +26,7 @@ export async function GET() {
       ]);
     }
 
-    return NextResponse.json(dashboard);
+    return NextResponse.json({ ...dashboard, totalBalance });
   } catch (error) {
     if (isAuthRequiredError(error)) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });

@@ -5,6 +5,19 @@ export function formatCurrency(amount: number): string {
   })}`;
 }
 
+export function formatCurrencySigned(amount: number): string {
+  const absolute = `₱${Math.abs(amount).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+  if (amount < 0) {
+    return `-${absolute}`;
+  }
+
+  return absolute;
+}
+
 const APP_TIME_ZONE = 'Asia/Manila';
 
 export function getTodayDateKeyInManila(): string {
