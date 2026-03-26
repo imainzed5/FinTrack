@@ -91,72 +91,35 @@
 
 ---
 
-## Outstanding Items
+## Outstanding Items (as of v0.15.1)
 
 ### Immediate fixes (queued)
-- **Berde HiDPI sprite rendering fix** — canvas pixel-art appears pixelated on retina displays
-  - Prompt written; scaling adjustment via devicePixelRatio
-- **Financial Insights copy** — references Berde by name (should be narrative/impersonal)
-  - Quick copy pass needed in InsightCards.tsx and berde-messages.ts
+- **Berde HiDPI sprite rendering fix** — canvas pixel-art appears pixelated on retina displays (scaling via devicePixelRatio)
+- **Financial Insights copy** — remove Berde name references for impersonal narrative (InsightCards.tsx, berde-messages.ts)
 
-### Deferred to dashboard polish sprint
-- Top stat row (Spent This Month, Remaining Budget, etc.) lacks actionability (tap → expand popup was removed)
-- Budget Progress card visual prominence (may need larger fonts or redesigned layout)
-- Monthly Savings History empty space (deferred for separate layout exploration)
+### Dashboard/UI Polish Sprint (deferred)
+- Top stat row lacks actionability (expand popup removed)
+- Budget Progress card needs more visual prominence
+- Monthly Savings History empty space (layout exploration needed)
 
 ### Performance & Architecture
-- **Server Component migration** — Dashboard, Insights, Timeline, Transactions planned but not yet executed
+- **Server Component migration** — Dashboard, Insights, Timeline, Transactions planned
 - **Supabase HTTP latency** — Auth middleware overhead on every request
-  - Lowest-effort fix: direct TCP via postgres.js + PgBouncer pooling
-  - Cleanest fix: full Neon migration (db agnostic, managed connection pooling)
-- **WebSocket server (server.mjs)** — currently incompatible with Vercel serverless
-  - Workaround: use Supabase realtime instead of custom server
-  - Monitoring: Vercel Analytics, Supabase logs (Sentry/PostHog deferred)
+  - Direct TCP via postgres.js + PgBouncer pooling (lowest effort)
+  - Neon migration (cleanest, managed pooling)
+- **WebSocket server** — not Vercel-compatible; Supabase realtime is fallback
+- Monitoring: Vercel Analytics, Supabase logs (Sentry/PostHog deferred)
 
 ### Configuration & Setup
-- Custom domain sender email for Resend (currently using onboarding@resend.dev)
-- Admin dashboard deferred until Supabase raw dashboard becomes inconvenient
+- Custom domain sender email for Resend (still onboarding@resend.dev)
+- Admin dashboard deferred until Supabase dashboard is insufficient
 
 ---
 
-## Architecture & Patterns
-
-### Data Flow
-1. **Client components** (all pages use `'use client'`) render immediately with skeleton loaders
-2. **useEffect hooks** fetch data from `/api/*` routes after mount
-3. **API routes** (`/api/dashboard`, `/api/transactions`, etc.) validate auth via `requireSupabaseUser()` and query Supabase
-4. **Supabase** provides auth, PostgreSQL data, RLS policy enforcement
-5. **WebSocket subscriptions** (via `transaction-ws.ts`) refresh data on real-time updates from other tabs/devices
-6. **IndexedDB** queues pending transactions offline; syncs via `/api/sync` when reconnected
-
-### Key Files Updated in v0.10.0
-- `src/components/FilterDrawer.tsx` — portal wrapper, z-index, background colors
-- `src/app/transactions/page.tsx` — header layout split, quick-add removal, stat typography
-- `src/components/dashboard/CalendarPanel.tsx` — mobile inline block restructure
-- `src/components/pages/DashboardClientPage.tsx` — main section visibility condition
-- `src/lib/berde-messages.ts` — daily seed logic, expanded message pools, signal data enrichment
-- `src/lib/berde/berde.logic.ts` — daily seed utility, state context build
-- `src/lib/insights-engine.ts` — minimum transaction/spend thresholds for pattern insights
-- `git-versioning.md` — updated to v0.10.0
-
-### Berde Mascot Integration
-- **Quote selection:** deterministic daily seed per user (hash of userId + date)
-- **Emotional states:** neutral, proud, worried, hype, sarcastic (driven by budget%, transaction count, savings rate, expense growth)
-- **Card placement:** Budget Progress card (dashboard) + Recent Transactions card (dashboard only)
-- **Sprite rendering:** HiDPI canvas with pixel-art style (animated, 4-frame cycles)
-
-### FilterDrawer Portal Pattern
-- Mounted guard: `const [mounted, setMounted] = useState(false); useEffect(() => setMounted(true), [])`
-- Avoids SSR issues and stacking context entrapment from backdrop-filter on sticky headers
-- Portal escape prevents z-index layering battles between fixed elements
-- Mobile: `md:hidden` shows only on screens < 768px
-- Desktop: sidebar filters (permanent, no drawer)
-
-### Income as Transaction Type
-- Clean data model: income stored as full transaction record (not separate stored field)
-- Computable at runtime: filter `type === 'income'` to sum and boost Overall budget
-- Full audit trail: all deposits/withdrawals tracked in transactions list
-- Categories: Freelance, Side Job, Salary, Part-time, Bonus, Refund, Gift, Other Income
+## Other Notable Changes
+- Category, income, and payment method constants expanded
+- TypeScript, ESLint, and build process improvements
+- Versioning and branching strictly enforced (see git-versioning.md)
 
 ---
 
@@ -210,10 +173,10 @@
 - **Architectural:** Performance fixes staged: lowest-effort first, then escalating migrations
 
 **Version strategy:**
-- `PATCH` (0.7.x): Small fixes, polish, copy changes
+- `PATCH` (0.15.x): Small fixes, polish, copy changes
 - `MINOR` (0.x.0): New feature batches merged to main
 - `MAJOR` (x.0.0): Public launch, breaking redesigns
-- Current: v0.10.0 (Dashboard & Transactions UI refinement)
+- Current: v0.15.1 (Debts, Berde expansion, UI/insight improvements)
 
 ---
 
@@ -258,7 +221,7 @@ npx supabase db push # Apply pending migrations
 
 ---
 
-**Last updated:** March 22, 2026 (v0.10.0)  
-**Branches synced:** dev, main  
-**TypeScript status:** ✅ Passing (TS_EXIT:0)  
+**Last updated:** March 26, 2026 (v0.15.1)
+**Branches synced:** dev, main
+**TypeScript status:** ✅ Passing (TS_EXIT:0)
 **Vercel auto-deploy:** Active on main branch push

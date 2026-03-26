@@ -421,7 +421,7 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
       />
 
       <div
-        className={`${isAnyPanelOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-20 md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
+        className={`${isAnyPanelOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-[20] md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
         style={{ right: fabRight }}
       >
         <FloatingAddButton
