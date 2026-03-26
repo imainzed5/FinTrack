@@ -79,11 +79,21 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.15.1
+### Current version: v0.16.0
 
 ---
 
 ## Version Roadmap
+v0.16.0 ✓ Accounts/Wallets feature, budget/account decoupling, dedicated Accounts page, UI/UX polish
+  - Implemented full Accounts/Wallets system: accounts table, account-linked transactions, transfer support, and manual adjustment.
+  - Decoupled budgets from account balances: budgets now operate independently of account balances, no more "income boost" logic.
+  - Clarified expense deduction flow: all expenses require explicit account selection, and deduction is always from the chosen account.
+  - Added dedicated /accounts page (sidebar Plan section) for account management, history, and analytics.
+  - Improved account management: signed currency display, starting balance, manual adjustment, delete-as-archive, and transfer modal.
+  - UI/UX polish: dashboard stat tiles, modals, and widgets now reflect budget/account separation; clearer labels and validation in Add/Edit/Transfer modals.
+  - Compatibility fallback: legacy schema support for missing account_id column.
+  - All tests and build passing after changes.
+  - Files updated: migrations, db.ts, types.ts, insights-engine.ts, indexeddb.ts, API routes, dashboard/settings/accounts/transactions UI, modal components, tests, and more.
 v0.15.1 ✓ TransactionList icon color fix
   - Transaction category icons in the transactions page now use category-based color (not all green)
   - Matches dashboard/category color logic for visual consistency
