@@ -82,15 +82,15 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ### Current version: v0.16.1
 
 ---
-### Patch v0.16.1 — 2026-03-27
-
-- fix: Exclude income and manual balance adjustments from insights "spend-by-day" and "This month at a glance" calculations.
-- Files updated: `src/app/insights/page.tsx`, `src/components/pages/InsightsClientPage.tsx`
+### Patch 
 
 
 ---
 
 ## Version Roadmap
+v0.16.1 — 2026-03-27
+  - fix: Exclude income and manual balance adjustments from insights "spend-by-day" and "This month at a glance" calculations.
+  - Files updated: `src/app/insights/page.tsx`, `src/components/pages/InsightsClientPage.tsx`
 v0.16.0 ✓ Accounts/Wallets feature, budget/account decoupling, dedicated Accounts page, UI/UX polish
   - Implemented full Accounts/Wallets system: accounts table, account-linked transactions, transfer support, and manual adjustment.
   - Decoupled budgets from account balances: budgets now operate independently of account balances, no more "income boost" logic.
