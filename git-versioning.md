@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.17.1
+### Current version: v0.17.2
 
 ---
 ### Patch 
@@ -88,6 +88,10 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.17.2 — 2026-03-28
+  - feat: Accounts — Account detail client page for `/accounts/[id]` wired to real APIs; added Balance & This Month stats, Deposit/Withdraw/Transfer/Adjust actions, grouped transaction history, not-found + skeleton UI.
+  - Files updated: `src/components/accounts/AccountDetailClientPage.tsx`
+
 v0.17.1 — 2026-03-28
   - fix: Accounts hero — added a dedicated skeleton state for the Accounts hero card to prevent a fallback Berde state while accounts load.
   - Files updated: `src/components/accounts/AccountsClientPage.tsx`

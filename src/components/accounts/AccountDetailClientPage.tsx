@@ -320,13 +320,13 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
     <>
       <div className="mx-auto w-full max-w-5xl px-4 pb-8 pt-4 sm:px-6">
         <section className="overflow-hidden rounded-[32px] bg-[#1D9E75] text-white">
-          <div className="p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
               <Link
                 href="/accounts"
-                className="inline-flex items-center gap-2 text-base font-medium text-white/90 transition-colors hover:text-white"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white/90 transition-colors hover:text-white sm:text-base"
               >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={16} />
                 Back to accounts
               </Link>
 
@@ -334,63 +334,64 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
                 <button
                   type="button"
                   onClick={() => setShowEditDialog(true)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/60 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-white/60 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 sm:min-h-10 sm:px-3 sm:text-sm"
                 >
-                  <Pencil size={15} />
+                  <Pencil size={13} />
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowArchiveConfirm(true)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/60 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-white/60 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 sm:min-h-10 sm:px-3 sm:text-sm"
                 >
-                  <Archive size={15} />
+                  <Archive size={13} />
                   {account.isArchived ? 'Restore' : 'Archive'}
                 </button>
               </div>
             </div>
 
-            <div className="mt-7 flex items-start gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-white/12">
-                <AccountIcon size={30} />
+            <div className="mt-5 flex items-start gap-3 sm:mt-7 sm:gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white/12 sm:h-16 sm:w-16 sm:rounded-[22px]">
+                <AccountIcon size={24} className="sm:hidden" />
+                <AccountIcon size={30} className="hidden sm:block" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 sm:text-sm">
                   {getAccountTypeBadge(account.type)}
                 </p>
-                <h1 className="mt-2 truncate font-display text-4xl font-bold">
+                <h1 className="mt-1.5 truncate font-display text-[2.25rem] font-bold leading-none sm:mt-2 sm:text-4xl">
                   {account.name}
                 </h1>
-                <p className="mt-2 text-sm text-white/75">{getAccountTypeLabel(account.type)}</p>
+                <p className="mt-1.5 text-sm text-white/75 sm:mt-2">{getAccountTypeLabel(account.type)}</p>
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white/15 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
-                    Balance
+            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-3">
+              <div className="rounded-2xl bg-white/15 p-3 sm:p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 sm:text-sm">
+                  Balance
+                </p>
+                <div className="mt-2 flex items-center justify-between gap-2 sm:mt-3">
+                  <p className="inline-flex min-w-0 text-[1.45rem] font-semibold leading-none tabular-nums sm:min-w-[10ch] sm:text-4xl">
+                    {visible ? formatPeso(account.computedBalance) : HIDDEN_BALANCE}
                   </p>
                   <button
                     type="button"
                     onClick={toggle}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10"
                     aria-label={visible ? 'Hide account balance' : 'Show account balance'}
                   >
                     {visible ? <Eye size={16} /> : <EyeOff size={16} />}
                   </button>
                 </div>
-                <p className="mt-3 inline-flex min-w-[10ch] text-4xl font-semibold tabular-nums">
-                  {visible ? formatPeso(account.computedBalance) : HIDDEN_BALANCE}
-                </p>
               </div>
 
-              <div className="rounded-2xl bg-white/15 p-4">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
+              <div className="rounded-2xl bg-white/15 p-3 sm:p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 sm:text-sm">
                   This Month
                 </p>
                 <p
-                  className={`mt-3 text-4xl font-semibold tabular-nums ${
+                  className={`mt-2 text-[1.45rem] font-semibold leading-none tabular-nums sm:mt-3 sm:text-4xl ${
                     monthlyFlow < 0 ? 'text-red-200' : 'text-white'
                   }`}
                 >
@@ -400,49 +401,53 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 border-t border-zinc-200 bg-white px-4 py-5 text-center text-sm sm:px-6 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="grid grid-cols-4 gap-2 border-t border-zinc-200 bg-white px-4 py-4 text-center text-sm sm:gap-3 sm:px-6 sm:py-5 dark:border-zinc-800 dark:bg-zinc-950">
             <button
               type="button"
               onClick={() => setActiveAction('deposit')}
-              className="flex flex-col items-center gap-3"
+              className="flex flex-col items-center gap-2 sm:gap-3"
             >
-              <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600">
-                <ArrowDown size={28} />
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 sm:h-16 sm:w-16 sm:rounded-3xl">
+                <ArrowDown size={22} className="sm:hidden" />
+                <ArrowDown size={28} className="hidden sm:block" />
               </span>
-              <span className="font-medium text-emerald-600">Deposit</span>
+              <span className="text-[13px] font-medium text-emerald-600 sm:text-sm">Deposit</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveAction('withdraw')}
-              className="flex flex-col items-center gap-3"
+              className="flex flex-col items-center gap-2 sm:gap-3"
             >
-              <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-red-50 text-red-500">
-                <ArrowDown size={28} className="rotate-180" />
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500 sm:h-16 sm:w-16 sm:rounded-3xl">
+                <ArrowDown size={22} className="rotate-180 sm:hidden" />
+                <ArrowDown size={28} className="hidden rotate-180 sm:block" />
               </span>
-              <span className="font-medium text-red-500">Withdraw</span>
+              <span className="text-[13px] font-medium text-red-500 sm:text-sm">Withdraw</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveAction('transfer')}
-              className="flex flex-col items-center gap-3"
+              className="flex flex-col items-center gap-2 sm:gap-3"
             >
-              <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-50 text-blue-500">
-                <ArrowRightLeft size={28} />
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-500 sm:h-16 sm:w-16 sm:rounded-3xl">
+                <ArrowRightLeft size={22} className="sm:hidden" />
+                <ArrowRightLeft size={28} className="hidden sm:block" />
               </span>
-              <span className="font-medium text-blue-500">Transfer</span>
+              <span className="text-[13px] font-medium text-blue-500 sm:text-sm">Transfer</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveAction('adjust')}
-              className="flex flex-col items-center gap-3"
+              className="flex flex-col items-center gap-2 sm:gap-3"
             >
-              <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800">
-                <Wallet size={28} />
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800 sm:h-16 sm:w-16 sm:rounded-3xl">
+                <Wallet size={22} className="sm:hidden" />
+                <Wallet size={28} className="hidden sm:block" />
               </span>
-              <span className="font-medium text-zinc-500">Adjust</span>
+              <span className="text-[13px] font-medium text-zinc-500 sm:text-sm">Adjust</span>
             </button>
           </div>
         </section>
