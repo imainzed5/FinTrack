@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.17.0
+### Current version: v0.17.1
 
 ---
 ### Patch 
@@ -88,12 +88,15 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.17.1 — 2026-03-28
+  - fix: Accounts hero — added a dedicated skeleton state for the Accounts hero card to prevent a fallback Berde state while accounts load.
+  - Files updated: `src/components/accounts/AccountsClientPage.tsx`
+
 v0.17.0 — 2026-03-28
   - feat: Accounts — redesigned Accounts list and Account detail screens (list + detail + forms + adjust dialog).
   - List screen: net worth hero from account balances, visibility toggle persisted via `moneda_nw_visible`, local filter chips, two-column responsive grid, archived section, and navigation to account detail on card tap.
   - Detail screen: account-backed stats from `/api/accounts`, This Month computed from `/api/transactions` scoped to the account, account-scoped transaction history, edit/archive actions, and account balance adjust dialog.
   - Files added/updated: `src/app/accounts/page.tsx`, `src/app/accounts/[id]/page.tsx`, `src/components/accounts/AccountsClientPage.tsx`, `src/components/accounts/AccountDetailClientPage.tsx`, `src/components/accounts/AccountFormDialog.tsx`, `src/components/accounts/AccountAdjustDialog.tsx`, `src/hooks/useNetWorthVisibility.ts`
-
 v0.16.1 — 2026-03-27
   - fix: Exclude income and manual balance adjustments from insights "spend-by-day" and "This month at a glance" calculations.
   - Files updated: `src/app/insights/page.tsx`, `src/components/pages/InsightsClientPage.tsx`
