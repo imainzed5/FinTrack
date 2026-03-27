@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.17.2
+### Current version: v0.18.0
 
 ---
 ### Patch 
@@ -88,6 +88,13 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.18.0 — 2026-03-28
+  - feat: Rework withdraws to a transfer-ledger model and add stable cash-wallet support: introduce `is_system_cash_wallet` flag and helper; add a `withdraw` mode to the transfer modal (cash / internal / external), withdraw balance preview, `Withdraw all`, and Record-as-expense handoff into the expense modal; include transfer validation and balance checks for withdraw paths.
+  - feat: Transaction & server updates: add transaction `metadata` and linked `transfer-group` support; add external withdrawal requests with pending/completed/failed lifecycle and API routes; updated migrations and server RPCs for transfers/withdrawals.
+  - perf/analytics: Exclude transfer/adjustment rows from spend analytics by default and add a `Real spending only / Include transfers & adjustments` toggle that affects both the stat cards and the visible Transactions list; align export summaries with current filtered view; improve transaction row labels and defensive filtering (dashboard recent transactions and RecentTransactions component).
+  - ux/mobile: Mobile Transactions & Dashboard refinements — smaller FAB, list-first Transactions layout, slimmed mobile header, compact filter/transfer action row, horizontally scrollable tabs, hidden large analytics card on mobile, horizontal stat scroller, full-width search, expanded filter drawer (spend-view toggle, month picker, filters, export), and extra bottom spacing to avoid FAB/bottom-nav overlap.
+  - chore: Added shared operational-transaction classifier (`transaction-classification.ts` line 12) and documentation updates for withdraw semantics and external-withdraw flow.
+
 v0.17.2 — 2026-03-28
   - feat: Accounts — Account detail client page for `/accounts/[id]` wired to real APIs; added Balance & This Month stats, Deposit/Withdraw/Transfer/Adjust actions, grouped transaction history, not-found + skeleton UI.
   - Files updated: `src/components/accounts/AccountDetailClientPage.tsx`
