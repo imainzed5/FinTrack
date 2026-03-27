@@ -1,0 +1,306 @@
+{
+  "version": "2.9",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": -83,
+      "y": -48,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#FFFFFF",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "kDYsz",
+          "x": 0,
+          "y": 0,
+          "name": "Expense Tracker Dashboard — Monochrome Type",
+          "width": 800,
+          "height": 600,
+          "fill": "#FFFFFF",
+          "children": [
+            {
+              "type": "frame",
+              "id": "tjdzB",
+              "name": "Sidebar",
+              "width": 280,
+              "height": 600,
+              "fill": "#FFFFFF",
+              "stroke": {
+                "thickness": {
+                  "right": 1
+                },
+                "fill": "#E0E0E0"
+              },
+              "layout": "vertical",
+              "gap": 48,
+              "padding": [
+                40,
+                28
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "fVEIg",
+                  "fill": "#000000",
+                  "content": "☰",
+                  "fontFamily": "Inter",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "TNHBw",
+                  "fill": "#000000",
+                  "content": "Dashboard",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "sw44m",
+                  "fill": "#888888",
+                  "content": "Transactions",
+                  "fontFamily": "Inter",
+                  "fontSize": 16
+                },
+                {
+                  "type": "text",
+                  "id": "etydJ",
+                  "fill": "#888888",
+                  "content": "Budgets",
+                  "fontFamily": "Inter",
+                  "fontSize": 16
+                },
+                {
+                  "type": "text",
+                  "id": "e6mye",
+                  "fill": "#888888",
+                  "content": "Savings",
+                  "fontFamily": "Inter",
+                  "fontSize": 16
+                },
+                {
+                  "type": "text",
+                  "id": "4wOXy",
+                  "fill": "#888888",
+                  "content": "Settings",
+                  "fontFamily": "Inter",
+                  "fontSize": 16
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "SlhBe",
+              "name": "Content",
+              "width": 520,
+              "height": 600,
+              "fill": "#FFFFFF",
+              "layout": "vertical",
+              "gap": 64,
+              "padding": [
+                48,
+                56
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "JhBSG",
+                  "name": "Header",
+                  "layout": "vertical",
+                  "gap": 32,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "430oP",
+                      "fill": "#000000",
+                      "content": "Expense Tracker Dashboard",
+                      "fontFamily": "Playfair Display",
+                      "fontSize": 36,
+                      "letterSpacing": -2,
+                      "fontStyle": "italic"
+                    },
+                    {
+                      "type": "text",
+                      "id": "KohsC",
+                      "fill": "#666666",
+                      "content": "Overview of your spending, budgets, and savings.",
+                      "fontFamily": "Inter",
+                      "fontSize": 16
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "VlUMV",
+                  "name": "Metrics",
+                  "layout": "vertical",
+                  "gap": 40,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "yDzCO",
+                      "name": "metricRow",
+                      "gap": 32,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "QQN5l",
+                          "name": "metric1",
+                          "width": 140,
+                          "fill": "#FFFFFF",
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 24,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "i3Glx",
+                              "fill": "#000000",
+                              "content": "₱12,500",
+                              "fontFamily": "Playfair Display",
+                              "fontSize": 28,
+                              "fontStyle": "italic"
+                            },
+                            {
+                              "type": "text",
+                              "id": "2EuPH",
+                              "fill": "#888888",
+                              "content": "Spent This Month",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "wr7k1",
+                          "name": "metric2",
+                          "width": 140,
+                          "fill": "#FFFFFF",
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 24,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Vu2yk",
+                              "fill": "#000000",
+                              "content": "₱3,200",
+                              "fontFamily": "Playfair Display",
+                              "fontSize": 28,
+                              "fontStyle": "italic"
+                            },
+                            {
+                              "type": "text",
+                              "id": "58vyn",
+                              "fill": "#888888",
+                              "content": "Remaining Budget",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Vh2zE",
+                          "name": "metric3",
+                          "width": 140,
+                          "fill": "#FFFFFF",
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 24,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "9QZEQ",
+                              "fill": "#000000",
+                              "content": "₱1,800",
+                              "fontFamily": "Playfair Display",
+                              "fontSize": 28,
+                              "fontStyle": "italic"
+                            },
+                            {
+                              "type": "text",
+                              "id": "2xhwO",
+                              "fill": "#888888",
+                              "content": "Savings",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xNfsr",
+                  "name": "Chart Section",
+                  "width": "fit_content(0)",
+                  "height": "fit_content(0)",
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E0E0E0"
+                  },
+                  "layout": "vertical",
+                  "gap": 32,
+                  "padding": 28
+                },
+                {
+                  "type": "frame",
+                  "id": "FNV5U",
+                  "name": "List Section",
+                  "width": "fit_content(0)",
+                  "height": "fit_content(0)",
+                  "layout": "vertical",
+                  "gap": 24
+                },
+                {
+                  "type": "frame",
+                  "id": "OpZxm",
+                  "name": "Table Section",
+                  "width": "fit_content(0)",
+                  "height": "fit_content(0)",
+                  "layout": "vertical",
+                  "gap": 24
+                },
+                {
+                  "type": "frame",
+                  "id": "XaxjA",
+                  "name": "Gallery Section",
+                  "width": "fit_content(0)",
+                  "height": "fit_content(0)",
+                  "layout": "vertical",
+                  "gap": 24
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

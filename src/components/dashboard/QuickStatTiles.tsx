@@ -75,22 +75,14 @@ export default function QuickStatTiles({
       : 'No last month baseline yet';
 
   return (
-    <section className="grid grid-cols-2 gap-[10px] md:grid-cols-5">
-      <Tile
-        label="Total balance"
-        value={formatCurrencySigned(totalBalance)}
-        subLabel="Across active accounts"
-        icon={<Landmark size={16} color="#185FA5" />}
-        delay={0}
-      />
-
+    <section className="grid grid-cols-2 gap-[10px] md:grid-cols-4">
       <Tile
         label="Spent this month"
         value={formatCurrency(spentThisMonth)}
         subLabel={monthChangeLabel}
         icon={<Wallet size={16} color="#1D9E75" />}
         onClick={onSpentThisMonthTap}
-        delay={30}
+        delay={0}
       />
 
       <Tile
@@ -103,7 +95,7 @@ export default function QuickStatTiles({
         }
         icon={<Target size={16} color="#185FA5" />}
         onClick={onRemainingBudgetTap}
-        delay={60}
+        delay={30}
       />
 
       <Tile
@@ -112,7 +104,7 @@ export default function QuickStatTiles({
         subLabel={latestTransactionName || 'No transaction yet today'}
         icon={<Sun size={16} color="#B66A12" />}
         onClick={onSpentTodayTap}
-        delay={90}
+        delay={60}
       />
 
       <Tile
@@ -127,7 +119,7 @@ export default function QuickStatTiles({
         }
         icon={<PiggyBank size={16} color="#7F77DD" />}
         onClick={onSavingsGoalsTap}
-        delay={120}
+        delay={90}
       />
     </section>
   );

@@ -79,7 +79,14 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.16.0
+### Current version: v0.16.1
+
+---
+### Patch v0.16.1 — 2026-03-27
+
+- fix: Exclude income and manual balance adjustments from insights "spend-by-day" and "This month at a glance" calculations.
+- Files updated: `src/app/insights/page.tsx`, `src/components/pages/InsightsClientPage.tsx`
+
 
 ---
 
