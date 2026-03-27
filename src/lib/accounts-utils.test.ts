@@ -19,6 +19,7 @@ test('resolvePreferredDefaultAccount picks active cash first', () => {
   const base: Omit<Account, 'id' | 'name' | 'type'> = {
     userId: 'u1',
     initialBalance: 0,
+    isSystemCashWallet: false,
     isArchived: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -42,6 +43,7 @@ test('resolvePreferredDefaultAccount falls back to first active account', () => 
       name: 'Archived Cash',
       type: 'Cash',
       initialBalance: 0,
+      isSystemCashWallet: false,
       isArchived: true,
       createdAt: now,
       updatedAt: now,
@@ -52,6 +54,38 @@ test('resolvePreferredDefaultAccount falls back to first active account', () => 
       name: 'Bank',
       type: 'Bank',
       initialBalance: 0,
+      isSystemCashWallet: false,
+      isArchived: false,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+
+  const preferred = resolvePreferredDefaultAccount(accounts);
+  assert.equal(preferred?.id, 'a2');
+});
+
+test('resolvePreferredDefaultAccount prefers the system cash wallet over name matching', () => {
+  const now = new Date().toISOString();
+  const accounts: Account[] = [
+    {
+      id: 'a1',
+      userId: 'u1',
+      name: 'Cash',
+      type: 'Cash',
+      initialBalance: 0,
+      isSystemCashWallet: false,
+      isArchived: false,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'a2',
+      userId: 'u1',
+      name: 'Pocket Cash',
+      type: 'Cash',
+      initialBalance: 0,
+      isSystemCashWallet: true,
       isArchived: false,
       createdAt: now,
       updatedAt: now,

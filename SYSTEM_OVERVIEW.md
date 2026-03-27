@@ -22,6 +22,11 @@ The Expense Tracker is a web application designed to help users manage their per
 - **Expense Tracking:**
   - Add, edit, and delete transactions
   - Categorize expenses
+- **Accounts & Transfers:**
+  - Multi-account balances with a system Cash wallet
+  - Internal transfers recorded as linked ledger rows
+  - Withdraw-to-cash flow that moves funds without counting them as spending
+  - External withdrawals created as pending payout requests before ledger posting
 - **Budget Management:**
   - Set and track budgets
   - View budget status
@@ -56,13 +61,14 @@ The Expense Tracker is a web application designed to help users manage their per
 ## Current Progress
 
 - Core pages and navigation implemented
-- API routes for auth, budgets, transactions, insights, savings, sync, and timeline
+- API routes for auth, budgets, transactions, transfers, insights, savings, sync, and timeline
 - UI components for expense management, dashboard, charts, and insights
 - Supabase integration completed for auth + backend persistence
 - RLS-aligned route handling with authenticated session checks
 - IndexedDB integration for offline queue and sync
 - Service worker and manifest for PWA support
 - Basic settings and theme provider
+- Account detail withdraw flow now opens the transfer modal, can hand off to expense logging after cash withdrawal, and can create pending external payout requests
 
 ## Next Steps
 
@@ -72,5 +78,4 @@ The Expense Tracker is a web application designed to help users manage their per
 - Refine error handling and validation
 
 
-_Last updated: March 12, 2026_
-_Last updated: March 15, 2026_
+_Last updated: March 28, 2026_

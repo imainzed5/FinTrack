@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -21,6 +21,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { CATEGORIES, type PaymentMethod, type Transaction } from '@/lib/types';
+import { getOperationalTransactionLabel } from '@/lib/transaction-classification';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 
@@ -144,6 +145,11 @@ function getDateGroupLabel(date: Date): string {
 }
 
 function getTransactionCategoryLabel(tx: Transaction): string {
+  const operationalLabel = getOperationalTransactionLabel(tx);
+  if (operationalLabel) {
+    return operationalLabel;
+  }
+
   if (tx.type === 'income') {
     return tx.incomeCategory || 'Other Income';
   }
@@ -373,7 +379,7 @@ function SwipeableTransactionRow({
   const merchantAnchor = tx.merchant || tx.description || tx.notes || tx.category;
   const categoryLabel = getTransactionCategoryLabel(tx);
   const categoryTone = getCategoryTone(tx);
-  const CategoryIcon = getCategoryIcon(tx);
+  const categoryIcon = getCategoryIcon(tx);
   const PaymentMethodIcon = PAYMENT_METHOD_ICON_MAP[tx.paymentMethod] || Wallet;
   const iconTint = getIconBackgroundTint(tx.category);
   const amountColorClassName =
@@ -438,7 +444,7 @@ function SwipeableTransactionRow({
             className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${categoryTone.icon}`}
             style={{ backgroundColor: iconTint }}
           >
-            <CategoryIcon size={17} />
+            {createElement(categoryIcon, { size: 17 })}
           </div>
 
           <div className="min-w-0 flex-1">

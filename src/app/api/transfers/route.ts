@@ -17,7 +17,10 @@ export function validateTransferBody(body: unknown):
         amount: number;
         date?: string;
         notes?: string;
-        metadata?: Record<string, unknown>;
+        metadata?: {
+          flow?: 'transfer' | 'withdraw';
+          destinationType?: 'cash' | 'internal';
+        };
       };
     }
   | { ok: false; error: string } {
@@ -41,6 +44,20 @@ export function validateTransferBody(body: unknown):
     return { ok: false, error: 'Cannot transfer to the same account.' };
   }
 
+  const metadata = typeof payload.metadata === 'object' && payload.metadata
+    ? (payload.metadata as Record<string, unknown>)
+    : undefined;
+  const flow = metadata?.flow;
+  const destinationType = metadata?.destinationType;
+
+  if (flow !== undefined && flow !== 'transfer' && flow !== 'withdraw') {
+    return { ok: false, error: 'Invalid transfer flow.' };
+  }
+
+  if (destinationType !== undefined && destinationType !== 'cash' && destinationType !== 'internal') {
+    return { ok: false, error: 'Invalid transfer destination.' };
+  }
+
   return {
     ok: true,
     data: {
@@ -49,8 +66,11 @@ export function validateTransferBody(body: unknown):
       amount,
       date: normalizeText(payload.date),
       notes: normalizeText(payload.notes),
-      metadata: typeof payload.metadata === 'object' && payload.metadata
-        ? (payload.metadata as Record<string, unknown>)
+      metadata: metadata
+        ? {
+            flow: flow as 'transfer' | 'withdraw' | undefined,
+            destinationType: destinationType as 'cash' | 'internal' | undefined,
+          }
         : undefined,
     },
   };

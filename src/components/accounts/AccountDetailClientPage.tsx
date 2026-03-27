@@ -30,6 +30,12 @@ interface AccountDetailClientPageProps {
 
 type ActiveAction = 'deposit' | 'withdraw' | 'transfer' | 'adjust' | null;
 
+type ExpenseModalState = {
+  defaultAccountId?: string;
+  defaultLinkedTransferGroupId?: string;
+  defaultEntryType: 'expense' | 'income';
+} | null;
+
 const pesoFormatter = new Intl.NumberFormat('en-PH', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -101,12 +107,6 @@ function getDateGroupLabel(dateValue: string): string {
   return format(date, 'MMM d').toUpperCase();
 }
 
-function setSelectValue(selectElement: HTMLSelectElement, value: string) {
-  if (selectElement.value === value) return;
-  selectElement.value = value;
-  selectElement.dispatchEvent(new Event('change', { bubbles: true }));
-}
-
 export default function AccountDetailClientPage({ accountId }: AccountDetailClientPageProps) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<AccountWithBalance[]>([]);
@@ -116,6 +116,7 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
+  const [expenseModalState, setExpenseModalState] = useState<ExpenseModalState>(null);
   const [archiveSaving, setArchiveSaving] = useState(false);
   const { visible, toggle } = useNetWorthVisibility();
 
@@ -181,75 +182,6 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
       items,
     }));
   }, [accountTransactions]);
-
-  useEffect(() => {
-    if (activeAction !== 'deposit' && activeAction !== 'withdraw') return;
-
-    let attempts = 0;
-    const intervalId = window.setInterval(() => {
-      attempts += 1;
-
-      if (activeAction === 'deposit') {
-        const incomeButton = Array.from(document.querySelectorAll('button')).find((button) => {
-          return button.textContent?.trim() === 'Income';
-        });
-
-        if (incomeButton instanceof HTMLButtonElement) {
-          incomeButton.click();
-        }
-      }
-
-      const accountSelect = Array.from(document.querySelectorAll('select')).find((select) => {
-        return Array.from(select.options).some((option) => option.value === accountId);
-      });
-
-      if (accountSelect instanceof HTMLSelectElement) {
-        setSelectValue(accountSelect, accountId);
-        window.clearInterval(intervalId);
-        return;
-      }
-
-      if (attempts >= 25) {
-        window.clearInterval(intervalId);
-      }
-    }, 80);
-
-    return () => window.clearInterval(intervalId);
-  }, [accountId, activeAction]);
-
-  useEffect(() => {
-    if (activeAction !== 'transfer') return;
-
-    let attempts = 0;
-    const intervalId = window.setInterval(() => {
-      attempts += 1;
-
-      const accountSelects = Array.from(document.querySelectorAll('select')).filter((select) => {
-        return Array.from(select.options).some((option) => option.value === accountId);
-      });
-
-      if (accountSelects.length >= 2) {
-        const [fromSelect, toSelect] = accountSelects as HTMLSelectElement[];
-        setSelectValue(fromSelect, accountId);
-
-        if (toSelect.value === accountId) {
-          const otherOption = Array.from(toSelect.options).find((option) => option.value !== accountId);
-          if (otherOption) {
-            setSelectValue(toSelect, otherOption.value);
-          }
-        }
-
-        window.clearInterval(intervalId);
-        return;
-      }
-
-      if (attempts >= 25) {
-        window.clearInterval(intervalId);
-      }
-    }, 80);
-
-    return () => window.clearInterval(intervalId);
-  }, [accountId, activeAction]);
 
   const handleArchive = async () => {
     if (!account) return;
@@ -404,7 +336,12 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
           <div className="grid grid-cols-4 gap-2 border-t border-zinc-200 bg-white px-4 py-4 text-center text-sm sm:gap-3 sm:px-6 sm:py-5 dark:border-zinc-800 dark:bg-zinc-950">
             <button
               type="button"
-              onClick={() => setActiveAction('deposit')}
+              onClick={() => {
+                setExpenseModalState({
+                  defaultAccountId: accountId,
+                  defaultEntryType: 'income',
+                });
+              }}
               className="flex flex-col items-center gap-2 sm:gap-3"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 sm:h-16 sm:w-16 sm:rounded-3xl">
@@ -515,17 +452,35 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
       />
 
       <AddExpenseModal
-        open={activeAction === 'deposit' || activeAction === 'withdraw'}
-        onClose={() => setActiveAction(null)}
-        onAdded={fetchPageData}
+        open={expenseModalState !== null}
+        onClose={() => setExpenseModalState(null)}
+        onAdded={() => {
+          void fetchPageData();
+          setExpenseModalState(null);
+        }}
+        defaultAccountId={expenseModalState?.defaultAccountId}
+        defaultLinkedTransferGroupId={expenseModalState?.defaultLinkedTransferGroupId}
+        defaultEntryType={expenseModalState?.defaultEntryType}
       />
 
       <TransferModal
-        open={activeAction === 'transfer'}
+        open={activeAction === 'transfer' || activeAction === 'withdraw'}
+        mode={activeAction === 'withdraw' ? 'withdraw' : 'transfer'}
+        initialFromAccountId={accountId}
         onClose={() => setActiveAction(null)}
-        onCreated={() => {
+        onCreated={(result) => {
           void fetchPageData();
+          if (result?.message) {
+            setStatus(result.message);
+          }
           setActiveAction(null);
+        }}
+        onRequestRecordExpense={(payload) => {
+          setExpenseModalState({
+            defaultAccountId: payload.accountId,
+            defaultLinkedTransferGroupId: payload.transferGroupId,
+            defaultEntryType: 'expense',
+          });
         }}
       />
 

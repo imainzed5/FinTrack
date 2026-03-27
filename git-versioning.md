@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.18.1
+### Current version: v0.19.0
 
 ---
 ### Patch 
@@ -88,6 +88,10 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.19.0 — 2026-03-28
+  - feat: Settings workspace redesign, Accounts active-first, and appearance theme system: redesigned Settings into a workspace (desktop: category sidebar + focused detail pane; mobile: summary-first with warm bottom sheet; budgets, payday, sync/data, and appearance regrouped under clearer hierarchy — mobile sheet flow at page.tsx lines 891 and 1319); AccountsSection now shows active accounts by default with archived hidden behind a disclosure, uses existing add/edit/adjust dialogs, and labels archive actions as "Archive"/"Restore" (AccountsSection.tsx lines 189, 469); Appearance supports System/Light/Dark via `ThemeProvider` (ThemeProvider.tsx line 6).
+  - Files updated: src/app/settings/page.tsx (lines 891, 1319), src/components/AccountsSection.tsx (lines 189, 469), src/components/ThemeProvider.tsx (line 6)
+
 v0.18.1 — 2026-03-28
   - patch: Restore warm Savings canvas and apply warm app shell background: restored the Savings warm canvas in SavingsClientPage (line 404) and pushed the same `#f8f7f2` warm background into the authenticated `AppShell` (lines 103 and 313), so in-app pages now inherit the warm Savings-style canvas instead of the cooler white/zinc page background.
   - Files updated: src/components/pages/SavingsClientPage.tsx (line 404), src/components/AppShell.tsx (lines 103, 313)

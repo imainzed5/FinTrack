@@ -8,6 +8,7 @@ interface FABProps {
   visible?: boolean;
   topCategories?: string[];
   onCategorySelect?: (category: string) => void;
+  compactOnMobile?: boolean;
 }
 
 const FAB_TOOLTIP_KEY = 'moneda:add-transaction-fab-tooltip-seen';
@@ -34,6 +35,7 @@ export default function FloatingAddButton({
   visible = true,
   topCategories,
   onCategorySelect,
+  compactOnMobile = false,
 }: FABProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,12 +79,22 @@ export default function FloatingAddButton({
 
   useEffect(() => {
     if (visible) return;
-    setMenuOpen(false);
+
+    const closeMenuId = window.setTimeout(() => {
+      setMenuOpen(false);
+    }, 0);
+
+    return () => window.clearTimeout(closeMenuId);
   }, [visible]);
 
   useEffect(() => {
     if (!menuOpen) return;
-    setShowTooltip(false);
+
+    const closeTooltipId = window.setTimeout(() => {
+      setShowTooltip(false);
+    }, 0);
+
+    return () => window.clearTimeout(closeTooltipId);
   }, [menuOpen]);
 
   const dismissTooltip = () => {
@@ -114,6 +126,10 @@ export default function FloatingAddButton({
 
     onClick();
   };
+
+  const buttonClassName = compactOnMobile
+    ? 'relative z-50 inline-flex h-12 min-h-12 items-center gap-2 rounded-full bg-emerald-500 px-4 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95 sm:h-14 sm:min-h-14 sm:px-5'
+    : 'relative z-50 inline-flex h-14 min-h-14 items-center gap-2 rounded-full bg-emerald-500 px-5 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95';
 
   return (
     <>
@@ -175,7 +191,7 @@ export default function FloatingAddButton({
 
         <button
           onClick={handleFabClick}
-          className="relative z-50 inline-flex h-14 min-h-14 items-center gap-2 rounded-full bg-emerald-500 px-5 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95"
+          className={buttonClassName}
           aria-label="Add transaction"
         >
           <Plus

@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import React, { useMemo } from 'react';
-import type { Transaction, Category, PaymentMethod } from '@/lib/types';
+import type { Transaction, Category } from '@/lib/types';
+import { isOperationalTransaction } from '@/lib/transaction-classification';
 import { formatCurrency } from '@/lib/utils';
 import {
   CreditCard,
   Landmark,
   ReceiptText,
   Repeat,
-  Smartphone,
   SplitSquareHorizontal,
   Tag,
   Wallet,
@@ -25,16 +25,6 @@ const CATEGORY_ICON_MAP: Record<Category, typeof Wallet> = {
   Health: Wallet,
   Education: SplitSquareHorizontal,
   Miscellaneous: Wallet,
-};
-
-const PAYMENT_METHOD_ICON_MAP: Record<PaymentMethod, typeof Wallet> = {
-  Cash: Wallet,
-  'Credit Card': CreditCard,
-  'Debit Card': CreditCard,
-  GCash: Smartphone,
-  Maya: Smartphone,
-  'Bank Transfer': Landmark,
-  Other: Wallet,
 };
 
 interface RecentTransactionsProps {
@@ -154,6 +144,7 @@ export default function RecentTransactions({
   const rows = useMemo(
     () =>
       [...transactions]
+        .filter((transaction) => !isOperationalTransaction(transaction))
         .sort((a, b) => safeParseDate(b.date).getTime() - safeParseDate(a.date).getTime())
         .slice(0, activeLimit),
     [transactions, activeLimit]

@@ -4,12 +4,12 @@
     {
       "type": "frame",
       "id": "bi8Au",
-      "x": -83,
-      "y": -48,
+      "x": -329,
+      "y": -188,
       "name": "Frame",
       "clip": true,
-      "width": 800,
-      "height": 600,
+      "width": 1703,
+      "height": 1658,
       "fill": "#FFFFFF",
       "layout": "none",
       "children": [
@@ -67,7 +67,8 @@
                   "fill": "#888888",
                   "content": "Transactions",
                   "fontFamily": "Inter",
-                  "fontSize": 16
+                  "fontSize": 16,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -75,7 +76,8 @@
                   "fill": "#888888",
                   "content": "Budgets",
                   "fontFamily": "Inter",
-                  "fontSize": 16
+                  "fontSize": 16,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -83,7 +85,8 @@
                   "fill": "#888888",
                   "content": "Savings",
                   "fontFamily": "Inter",
-                  "fontSize": 16
+                  "fontSize": 16,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -91,7 +94,8 @@
                   "fill": "#888888",
                   "content": "Settings",
                   "fontFamily": "Inter",
-                  "fontSize": 16
+                  "fontSize": 16,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -109,33 +113,6 @@
                 56
               ],
               "children": [
-                {
-                  "type": "frame",
-                  "id": "JhBSG",
-                  "name": "Header",
-                  "layout": "vertical",
-                  "gap": 32,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "430oP",
-                      "fill": "#000000",
-                      "content": "Expense Tracker Dashboard",
-                      "fontFamily": "Playfair Display",
-                      "fontSize": 36,
-                      "letterSpacing": -2,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "KohsC",
-                      "fill": "#666666",
-                      "content": "Overview of your spending, budgets, and savings.",
-                      "fontFamily": "Inter",
-                      "fontSize": 16
-                    }
-                  ]
-                },
                 {
                   "type": "frame",
                   "id": "VlUMV",
@@ -170,6 +147,7 @@
                               "content": "₱12,500",
                               "fontFamily": "Playfair Display",
                               "fontSize": 28,
+                              "fontWeight": "normal",
                               "fontStyle": "italic"
                             },
                             {
@@ -204,6 +182,7 @@
                               "content": "₱3,200",
                               "fontFamily": "Playfair Display",
                               "fontSize": 28,
+                              "fontWeight": "normal",
                               "fontStyle": "italic"
                             },
                             {
@@ -238,6 +217,7 @@
                               "content": "₱1,800",
                               "fontFamily": "Playfair Display",
                               "fontSize": 28,
+                              "fontWeight": "normal",
                               "fontStyle": "italic"
                             },
                             {
@@ -257,31 +237,8 @@
                 },
                 {
                   "type": "frame",
-                  "id": "xNfsr",
-                  "name": "Chart Section",
-                  "width": "fit_content(0)",
-                  "height": "fit_content(0)",
-                  "stroke": {
-                    "thickness": 1,
-                    "fill": "#E0E0E0"
-                  },
-                  "layout": "vertical",
-                  "gap": 32,
-                  "padding": 28
-                },
-                {
-                  "type": "frame",
                   "id": "FNV5U",
                   "name": "List Section",
-                  "width": "fit_content(0)",
-                  "height": "fit_content(0)",
-                  "layout": "vertical",
-                  "gap": 24
-                },
-                {
-                  "type": "frame",
-                  "id": "OpZxm",
-                  "name": "Table Section",
                   "width": "fit_content(0)",
                   "height": "fit_content(0)",
                   "layout": "vertical",
@@ -295,6 +252,904 @@
                   "height": "fit_content(0)",
                   "layout": "vertical",
                   "gap": 24
+                },
+                {
+                  "type": "frame",
+                  "id": "FmwS6",
+                  "name": "Net Worth Card",
+                  "width": 408,
+                  "height": 96,
+                  "fill": "#F6FFF7",
+                  "cornerRadius": 24,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#B6EFC6"
+                  },
+                  "gap": 24,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "D5PgN",
+                      "fill": "#4AC47E",
+                      "width": 48,
+                      "height": 48
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RlLph",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "rafQw",
+                          "fill": "#4AC47E",
+                          "content": "NET WORTH",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "sYTEh",
+                          "fill": "#222",
+                          "content": "₱12,479.00",
+                          "fontFamily": "Inter",
+                          "fontSize": 24,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "MymJZ",
+                          "fill": "#888",
+                          "content": "across 4 wallets",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "Dvg7n",
+                      "fill": "#E0F7EC",
+                      "width": 24,
+                      "height": 24
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "dzBgY",
+                  "name": "Wallets Section",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "LkCD6",
+                      "fill": "#222",
+                      "content": "WALLETS",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iVNe3",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "F5IS8",
+                          "width": 160,
+                          "height": 96,
+                          "fill": "#FFF",
+                          "cornerRadius": 16,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Gw8jR",
+                              "fill": "#222",
+                              "content": "Cash",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "u3mye",
+                              "fill": "#888",
+                              "content": "Cash wallet",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "gy7n4",
+                              "fill": "#4AC47E",
+                              "content": "₱1,979",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "0tpye",
+                          "width": 160,
+                          "height": 96,
+                          "fill": "#FFF",
+                          "cornerRadius": 16,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "LlCRH",
+                              "fill": "#222",
+                              "content": "GCash",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "SadtW",
+                              "fill": "#888",
+                              "content": "Digital wallet",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ss8Ul",
+                              "fill": "#4AC47E",
+                              "content": "₱4,500",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kO5cK",
+                  "name": "Bank Accounts Section",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "F61ae",
+                      "fill": "#222",
+                      "content": "BANK ACCOUNTS",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SKA9i",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Lkupa",
+                          "width": 160,
+                          "height": 96,
+                          "fill": "#FFF",
+                          "cornerRadius": 16,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "DGby1",
+                              "fill": "#222",
+                              "content": "Maya",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "qGOfu",
+                              "fill": "#888",
+                              "content": "Savings - 4.8%",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "JUVJN",
+                              "fill": "#4AC47E",
+                              "content": "₱3,000",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "3N2hQ",
+                          "width": 160,
+                          "height": 96,
+                          "fill": "#FFF",
+                          "cornerRadius": 16,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "EetCH",
+                              "fill": "#222",
+                              "content": "BPI",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "H0NwZ",
+                              "fill": "#888",
+                              "content": "Debit account",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "vKSGZ",
+                              "fill": "#4AC47E",
+                              "content": "₱3,000",
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sSbYK",
+                  "name": "Transaction List Section",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "wZWOV",
+                      "fill": "#222",
+                      "content": "RECENT TRANSACTIONS",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kDACA",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "BOH85",
+                          "width": 408,
+                          "height": 48,
+                          "fill": "#FFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "gap": 12,
+                          "padding": [
+                            8,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "5asV7",
+                              "fill": "#F6FFF7",
+                              "width": 32,
+                              "height": 32
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Rw2m5",
+                              "layout": "vertical",
+                              "gap": 2,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "HcnqP",
+                                  "fill": "#222",
+                                  "content": "Food",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 14,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "vwclT",
+                                  "fill": "#888",
+                                  "content": "skyflakes",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 13,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "3EBxX",
+                              "fill": "#E24D4D",
+                              "content": "₱10.00",
+                              "fontFamily": "Inter",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Zf8ro",
+                          "width": 408,
+                          "height": 48,
+                          "fill": "#FFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E0E0E0"
+                          },
+                          "gap": 12,
+                          "padding": [
+                            8,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "Je6Ow",
+                              "fill": "#F6FFF7",
+                              "width": 32,
+                              "height": 32
+                            },
+                            {
+                              "type": "frame",
+                              "id": "OBlXm",
+                              "layout": "vertical",
+                              "gap": 2,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ZoJ3e",
+                                  "fill": "#222",
+                                  "content": "Other",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 14,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "QaNQu",
+                                  "fill": "#888",
+                                  "content": "lunch",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 13,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "putA8",
+                              "fill": "#E24D4D",
+                              "content": "₱20.00",
+                              "fontFamily": "Inter",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "TFBWv",
+          "x": 892,
+          "y": 63,
+          "name": "Moneda Accounts Desktop",
+          "width": 800,
+          "height": 600,
+          "fill": "#FFFFFF",
+          "cornerRadius": 32,
+          "layout": "vertical",
+          "gap": 32,
+          "padding": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "WGK3Y",
+              "name": "Net Worth Card",
+              "width": 408,
+              "height": 96,
+              "fill": "#F6FFF7",
+              "cornerRadius": 24,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#B6EFC6"
+              },
+              "gap": 24,
+              "padding": 24,
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "kR9Yj",
+                  "fill": "#4AC47E",
+                  "width": 48,
+                  "height": 48
+                },
+                {
+                  "type": "frame",
+                  "id": "mhh1H",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "borV5",
+                      "fill": "#4AC47E",
+                      "content": "NET WORTH",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "paXYj",
+                      "fill": "#222",
+                      "content": "₱12,479.00",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "mH4ul",
+                      "fill": "#888",
+                      "content": "across 4 wallets",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "rectangle",
+                  "id": "RmHsd",
+                  "fill": "#E0F7EC",
+                  "width": 24,
+                  "height": 24
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "7tfN7",
+              "name": "Wallets Section",
+              "layout": "vertical",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "XV7az",
+                  "fill": "#222",
+                  "content": "WALLETS",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "nqRDM",
+                  "gap": 16,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "KuUor",
+                      "width": 160,
+                      "height": 96,
+                      "fill": "#FFF",
+                      "cornerRadius": 16,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E0E0E0"
+                      },
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "0MGsf",
+                          "fill": "#222",
+                          "content": "Cash",
+                          "fontFamily": "Inter",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "VWs9q",
+                          "fill": "#888",
+                          "content": "Cash wallet",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "oTSBh",
+                          "fill": "#4AC47E",
+                          "content": "₱1,979",
+                          "fontFamily": "Inter",
+                          "fontSize": 16,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "30Nxq",
+                      "width": 160,
+                      "height": 96,
+                      "fill": "#FFF",
+                      "cornerRadius": 16,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E0E0E0"
+                      },
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Vhlzo",
+                          "fill": "#222",
+                          "content": "GCash",
+                          "fontFamily": "Inter",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "X1uAj",
+                          "fill": "#888",
+                          "content": "Digital wallet",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "iLU62",
+                          "fill": "#4AC47E",
+                          "content": "₱4,500",
+                          "fontFamily": "Inter",
+                          "fontSize": 16,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "sGWwy",
+              "name": "Transaction List Section",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "UQV8j",
+                  "fill": "#222",
+                  "content": "RECENT TRANSACTIONS",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "wy8Vp",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "HXz2r",
+                      "width": 408,
+                      "height": 48,
+                      "fill": "#FFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E0E0E0"
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "9SLa2",
+                          "fill": "#F6FFF7",
+                          "width": 32,
+                          "height": 32
+                        },
+                        {
+                          "type": "frame",
+                          "id": "J2l8s",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oZIS4",
+                              "fill": "#222",
+                              "content": "Food",
+                              "fontFamily": "Inter",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "0SgTa",
+                              "fill": "#888",
+                              "content": "skyflakes",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "8EvFQ",
+                          "fill": "#E24D4D",
+                          "content": "₱10.00",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r3LFr",
+                      "width": 408,
+                      "height": 48,
+                      "fill": "#FFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E0E0E0"
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "Q7YmS",
+                          "fill": "#F6FFF7",
+                          "width": 32,
+                          "height": 32
+                        },
+                        {
+                          "type": "frame",
+                          "id": "DFvJt",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "zKJRq",
+                              "fill": "#222",
+                              "content": "Other",
+                              "fontFamily": "Inter",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ai9pd",
+                              "fill": "#888",
+                              "content": "lunch",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "OlBWn",
+                          "fill": "#E24D4D",
+                          "content": "₱20.00",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "yKQ58",
+          "x": 922,
+          "y": 535,
+          "name": "Bank Accounts Section",
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "text",
+              "id": "geGl9",
+              "fill": "#222",
+              "content": "BANK ACCOUNTS",
+              "fontFamily": "Inter",
+              "fontSize": 14,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "iZtiH",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "uyLTd",
+                  "width": 160,
+                  "height": 96,
+                  "fill": "#FFF",
+                  "cornerRadius": 16,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E0E0E0"
+                  },
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ysDmo",
+                      "fill": "#222",
+                      "content": "Maya",
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "1YmKF",
+                      "fill": "#888",
+                      "content": "Savings - 4.8%",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "M6omb",
+                      "fill": "#4AC47E",
+                      "content": "₱3,000",
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "RymIb",
+                  "width": 160,
+                  "height": 96,
+                  "fill": "#FFF",
+                  "cornerRadius": 16,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E0E0E0"
+                  },
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "TYO6L",
+                      "fill": "#222",
+                      "content": "BPI",
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "MGooR",
+                      "fill": "#888",
+                      "content": "Debit account",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "0Egtx",
+                      "fill": "#4AC47E",
+                      "content": "₱3,000",
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
                 }
               ]
             }

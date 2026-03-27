@@ -26,6 +26,7 @@ import type {
   Category,
   DashboardData,
 } from './types';
+import { isOperationalTransaction } from './transaction-classification';
 
 const BUDGET_ALERT_THRESHOLDS = [50, 80, 100] as const;
 
@@ -49,10 +50,6 @@ type ResolvedBudgetLimit = {
 
 function isIncomeTransaction(tx: Transaction): boolean {
   return tx.type === 'income' && !tx.transferGroupId;
-}
-
-function isSavingsTransaction(tx: Transaction): boolean {
-  return tx.type === 'savings' && !tx.transferGroupId;
 }
 
 function isExpenseTransaction(tx: Transaction): boolean {
@@ -1103,8 +1100,7 @@ export function generateSubscriptionCreep(
 
 export function generateSavingsRateTrend(
   transactions: Transaction[],
-  budgets: Budget[],
-  now: Date
+  budgets: Budget[]
 ): Insight[] {
   const history = computeMonthlySavingsHistory(transactions, budgets);
   if (history.length < 3) {
@@ -1314,7 +1310,7 @@ export function generateInsights(
     ...generateCategoryDrift(transactions, now),
     ...generateMonthEndProjection(transactions, budgets, now),
     ...generateSubscriptionCreep(transactions, now),
-    ...generateSavingsRateTrend(transactions, budgets, now),
+    ...generateSavingsRateTrend(transactions, budgets),
     ...generatePostIncomeBehavior(transactions, now),
     ...generateBestMonthReplay(transactions, now),
   ];
@@ -1449,6 +1445,7 @@ export function buildDashboardData(
   });
 
   const recentTransactions = [...currentMonthTxs]
+    .filter((transaction) => !isOperationalTransaction(transaction))
     .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
     .slice(0, 5);
 

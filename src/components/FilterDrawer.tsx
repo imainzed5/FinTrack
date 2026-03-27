@@ -17,6 +17,11 @@ interface FilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onApply: () => void;
+  includeOperationalInAnalytics: boolean;
+  onToggleIncludeOperationalInAnalytics: () => void;
+  selectedMonth: string;
+  monthOptions: Array<{ value: string; label: string }>;
+  onMonthChange: (month: string) => void;
   categories: CategoryBreakdownItem[];
   highestCategoryTotal: number;
   selectedCategories: string[];
@@ -32,6 +37,11 @@ export default function FilterDrawer({
   isOpen,
   onClose,
   onApply,
+  includeOperationalInAnalytics,
+  onToggleIncludeOperationalInAnalytics,
+  selectedMonth,
+  monthOptions,
+  onMonthChange,
   categories,
   highestCategoryTotal,
   selectedCategories,
@@ -42,18 +52,10 @@ export default function FilterDrawer({
   onExportCSV,
   onExportPDF,
 }: FilterDrawerProps) {
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(() => typeof window !== 'undefined');
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const touchStartY = useRef<number | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-
-    return () => {
-      setMounted(false);
-    };
-  }, []);
 
   useEffect(() => {
     let immediateTimer: number | null = null;
@@ -177,6 +179,58 @@ export default function FilterDrawer({
         </div>
 
         <div className="space-y-5 overflow-y-auto px-4 py-4" style={{ maxHeight: 'calc(86vh - 64px)' }}>
+          <section>
+            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">Spend view</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Choose whether transfers and adjustments affect spend stats and charts.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (includeOperationalInAnalytics) {
+                    onToggleIncludeOperationalInAnalytics();
+                  }
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                  !includeOperationalInAnalytics
+                    ? 'border-[#1D9E75] bg-[#1D9E75]/10 text-[#1D9E75]'
+                    : 'border-[var(--color-border-secondary)] text-[var(--color-text-secondary)] hover:border-[#1D9E75]'
+                }`}
+              >
+                Real spending only
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!includeOperationalInAnalytics) {
+                    onToggleIncludeOperationalInAnalytics();
+                  }
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                  includeOperationalInAnalytics
+                    ? 'border-[#1D9E75] bg-[#1D9E75]/10 text-[#1D9E75]'
+                    : 'border-[var(--color-border-secondary)] text-[var(--color-text-secondary)] hover:border-[#1D9E75]'
+                }`}
+              >
+                Include transfers
+              </button>
+            </div>
+          </section>
+
+          <section>
+            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">Month</p>
+            <select
+              value={selectedMonth}
+              onChange={(event) => onMonthChange(event.target.value)}
+              className="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+            >
+              {monthOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </section>
+
           <section>
             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em]">By category</p>
             <div className="mt-3 space-y-2.5">

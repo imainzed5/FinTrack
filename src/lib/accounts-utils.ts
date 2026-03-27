@@ -31,6 +31,7 @@ export function resolvePreferredDefaultAccount(accounts: Account[]): Account | n
   }
 
   return (
+    activeAccounts.find((account) => account.isSystemCashWallet) ||
     activeAccounts.find((account) => account.name === 'Cash' && account.type === 'Cash') ||
     activeAccounts[0]
   );

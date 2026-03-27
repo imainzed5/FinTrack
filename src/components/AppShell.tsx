@@ -111,7 +111,7 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
   const isDashboardPath = pathname === '/dashboard';
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-[#f8f7f2] dark:bg-zinc-950">
       <aside className="hidden sm:fixed sm:inset-y-0 sm:left-0 sm:flex h-screen w-56 animate-pulse flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-6 my-5 h-10 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
         <div className="flex-1 space-y-2 px-3 py-4">
@@ -123,8 +123,8 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
       <main
         className={
           isDashboardPath
-            ? 'sm:ml-56 pb-20 mobile-nav-offset sm:pb-0 min-h-screen'
-            : 'space-y-4 p-5 sm:ml-56 sm:p-8'
+            ? 'min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-56 sm:pb-0 dark:bg-zinc-950'
+            : 'space-y-4 bg-[#f8f7f2] p-5 sm:ml-56 sm:p-8 dark:bg-zinc-950'
         }
       >
         {isDashboardPath ? (
@@ -439,7 +439,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar user={session.user} onLoggedOut={handleLoggedOut} />
-      <main className="sm:ml-56 pb-20 mobile-nav-offset sm:pb-0 min-h-screen">{children}</main>
+      <main className="min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-56 sm:pb-0 dark:bg-zinc-950">{children}</main>
       <BottomNav />
       <ConsentModal
         open={shouldShowConsentModal}
