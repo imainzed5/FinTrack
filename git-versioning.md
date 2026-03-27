@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.18.0
+### Current version: v0.18.1
 
 ---
 ### Patch 
@@ -88,6 +88,10 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.18.1 — 2026-03-28
+  - patch: Restore warm Savings canvas and apply warm app shell background: restored the Savings warm canvas in SavingsClientPage (line 404) and pushed the same `#f8f7f2` warm background into the authenticated `AppShell` (lines 103 and 313), so in-app pages now inherit the warm Savings-style canvas instead of the cooler white/zinc page background.
+  - Files updated: src/components/pages/SavingsClientPage.tsx (line 404), src/components/AppShell.tsx (lines 103, 313)
+
 v0.18.0 — 2026-03-28
   - feat: Rework withdraws to a transfer-ledger model and add stable cash-wallet support: introduce `is_system_cash_wallet` flag and helper; add a `withdraw` mode to the transfer modal (cash / internal / external), withdraw balance preview, `Withdraw all`, and Record-as-expense handoff into the expense modal; include transfer validation and balance checks for withdraw paths.
   - feat: Transaction & server updates: add transaction `metadata` and linked `transfer-group` support; add external withdrawal requests with pending/completed/failed lifecycle and API routes; updated migrations and server RPCs for transfers/withdrawals.
