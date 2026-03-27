@@ -5,6 +5,7 @@ import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
 } from 'react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import {
@@ -14,13 +15,13 @@ import {
   Pencil,
   Repeat,
   ReceiptText,
-  Smartphone,
   SplitSquareHorizontal,
   Tag,
   Trash2,
   Wallet,
+  X,
 } from 'lucide-react';
-import { CATEGORIES, type PaymentMethod, type Transaction } from '@/lib/types';
+import { CATEGORIES, type Transaction } from '@/lib/types';
 import { getOperationalTransactionLabel } from '@/lib/transaction-classification';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
@@ -91,23 +92,13 @@ const CATEGORY_ICON_MAP: Record<(typeof CATEGORIES)[number], typeof Wallet> = {
   Miscellaneous: Wallet,
 };
 
-const PAYMENT_METHOD_ICON_MAP: Record<PaymentMethod, typeof Wallet> = {
-  Cash: Wallet,
-  'Credit Card': CreditCard,
-  'Debit Card': CreditCard,
-  GCash: Smartphone,
-  Maya: Smartphone,
-  'Bank Transfer': Landmark,
-  Other: Wallet,
-};
-
 function getIconBackgroundTint(category: string): string {
-  if (category === 'Food') return '#FAECE7';
-  if (category === 'Transportation') return '#E6F1FB';
-  if (category === 'Health') return '#EAF3DE';
-  if (category === 'Subscriptions') return '#EEEDFE';
-  if (category === 'Shopping') return '#FBEAF0';
-  return '#F1EFE8';
+  if (category === 'Food') return '#F8EFE4';
+  if (category === 'Transportation') return '#ECF3FD';
+  if (category === 'Health') return '#EEF5E8';
+  if (category === 'Subscriptions') return '#F1EEFD';
+  if (category === 'Shopping') return '#FCEEF4';
+  return '#F3F0E8';
 }
 
 interface TransactionListProps {
@@ -118,7 +109,6 @@ interface TransactionListProps {
   showEdit?: boolean;
   mobileFirst?: boolean;
   groupByDate?: boolean;
-  stickyHeaderOffsetClassName?: string;
 }
 
 const SWIPE_ACTION_WIDTH = 96;
@@ -141,7 +131,11 @@ function safeParseDate(rawDate: string): Date {
 function getDateGroupLabel(date: Date): string {
   if (isToday(date)) return 'Today';
   if (isYesterday(date)) return 'Yesterday';
-  return format(date, 'MMM d');
+  return format(date, 'EEEE');
+}
+
+function getDateGroupSubLabel(date: Date): string {
+  return format(date, 'MMMM d, yyyy');
 }
 
 function getTransactionCategoryLabel(tx: Transaction): string {
@@ -158,7 +152,7 @@ function getTransactionCategoryLabel(tx: Transaction): string {
     return tx.savingsMeta?.goalName ?? 'Savings';
   }
 
-  return tx.subCategory ? `${tx.category} · ${tx.subCategory}` : tx.category;
+  return tx.category;
 }
 
 function formatSignedAmount(value: number): string {
@@ -232,6 +226,7 @@ interface SwipeableTransactionRowProps {
   showDelete: boolean;
   showEdit: boolean;
   swipeEnabled: boolean;
+  onPreview?: (tx: Transaction) => void;
 }
 
 function SwipeableTransactionRow({
@@ -241,6 +236,7 @@ function SwipeableTransactionRow({
   showDelete,
   showEdit,
   swipeEnabled,
+  onPreview,
 }: SwipeableTransactionRowProps) {
   const [offsetX, setOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -370,6 +366,12 @@ function SwipeableTransactionRow({
     closeSwipe();
   };
 
+  const handleCardClick = () => {
+    if (!swipeEnabled || !onPreview) return;
+    if (offsetRef.current !== 0) return;
+    onPreview(tx);
+  };
+
   const cardStyle: CSSProperties = {
     transform: `translateX(${swipeEnabled ? offsetX : 0}px)`,
     transition: isDragging ? 'none' : 'transform 180ms ease-out',
@@ -380,8 +382,8 @@ function SwipeableTransactionRow({
   const categoryLabel = getTransactionCategoryLabel(tx);
   const categoryTone = getCategoryTone(tx);
   const categoryIcon = getCategoryIcon(tx);
-  const PaymentMethodIcon = PAYMENT_METHOD_ICON_MAP[tx.paymentMethod] || Wallet;
   const iconTint = getIconBackgroundTint(tx.category);
+  const secondaryLine = [categoryLabel, tx.paymentMethod].filter(Boolean).join(' · ');
   const amountColorClassName =
     tx.type === 'income'
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -392,7 +394,7 @@ function SwipeableTransactionRow({
           : 'text-red-600 dark:text-red-400';
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800">
+    <div className="group relative overflow-hidden rounded-[26px] border border-[#e4e8ee] bg-transparent dark:border-zinc-800">
       {swipeEnabled && (
         <div className="absolute inset-0 flex items-stretch">
           {canSwipeRight && (
@@ -431,48 +433,42 @@ function SwipeableTransactionRow({
       )}
 
       <div
-        className="relative rounded-2xl bg-white dark:bg-zinc-900"
+        className="relative rounded-[25px] border border-[#e7ebf1] bg-[#fcfdff] dark:border-zinc-800 dark:bg-zinc-900"
         style={cardStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
         onClickCapture={handleForegroundClick}
+        onClick={handleCardClick}
       >
-        <div className="flex items-start gap-3 py-4 pl-4 pr-3 sm:pr-4">
+        <div className="flex items-center gap-3.5 py-4 pl-4 pr-3 sm:pr-4">
           <div
-            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${categoryTone.icon}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ${categoryTone.icon}`}
             style={{ backgroundColor: iconTint }}
           >
-            {createElement(categoryIcon, { size: 17 })}
+            {createElement(categoryIcon, { size: 18, strokeWidth: 2 })}
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+            <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
               {merchantAnchor}
             </p>
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${categoryTone.pill}`}>
-                {categoryLabel}
-              </span>
-
-              <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                <PaymentMethodIcon size={12} />
-                <span>{tx.paymentMethod}</span>
-              </span>
-
+            <div className="mt-1 flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+              <span className={`inline-flex h-1.5 w-1.5 rounded-full ${categoryTone.accent}`} />
+              <span className="truncate">{secondaryLine}</span>
               {!tx.synced && (
-                <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                  Pending sync
+                <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                  Pending
                 </span>
               )}
             </div>
           </div>
 
-          <div className="ml-1 flex shrink-0 items-center gap-1">
-            <div className="text-right">
-              <p className={`text-[14px] font-medium leading-tight ${amountColorClassName}`}>
+          <div className="ml-1 flex shrink-0 items-center gap-1.5">
+            <div className="min-w-[5.75rem] text-right">
+              <p className={`text-[15px] font-semibold leading-tight ${amountColorClassName}`}>
                 {formatTransactionAmount(tx)}
               </p>
             </div>
@@ -561,6 +557,200 @@ function SwipeableTransactionRow({
   );
 }
 
+function TransactionPreviewSheet({
+  transaction,
+  open,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  transaction: Transaction | null;
+  open: boolean;
+  onClose: () => void;
+  onEdit?: (tx: Transaction) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const [visible, setVisible] = useState(open);
+  const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    let showTimer: number | null = null;
+    let hideTimer: number | null = null;
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    if (open) {
+      showTimer = window.setTimeout(() => {
+        setVisible(true);
+        firstFrame = window.requestAnimationFrame(() => {
+          secondFrame = window.requestAnimationFrame(() => setAnimating(true));
+        });
+      }, 0);
+    } else {
+      showTimer = window.setTimeout(() => setAnimating(false), 0);
+      hideTimer = window.setTimeout(() => setVisible(false), 220);
+    }
+
+    return () => {
+      if (showTimer !== null) window.clearTimeout(showTimer);
+      if (hideTimer !== null) window.clearTimeout(hideTimer);
+      if (firstFrame) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [visible, onClose]);
+
+  if (!visible || !transaction) return null;
+
+  const txDate = safeParseDate(transaction.date);
+  const title = transaction.merchant || transaction.description || transaction.category;
+  const details: Array<{ label: string; value: ReactNode }> = [
+    { label: 'When', value: format(txDate, 'EEEE, MMMM d, yyyy') },
+    { label: 'Category', value: getTransactionCategoryLabel(transaction) },
+    { label: 'Payment', value: transaction.paymentMethod },
+    { label: 'Amount', value: formatTransactionAmount(transaction) },
+  ];
+
+  if (transaction.subCategory) details.push({ label: 'Subcategory', value: transaction.subCategory });
+  if (transaction.description && transaction.description !== title) {
+    details.push({ label: 'Details', value: transaction.description });
+  }
+  if (transaction.notes) details.push({ label: 'Notes', value: transaction.notes });
+  if (transaction.tags?.length) details.push({ label: 'Tags', value: transaction.tags.join(', ') });
+  if (transaction.recurring) {
+    details.push({
+      label: 'Recurring',
+      value: `${transaction.recurring.frequency.charAt(0).toUpperCase()}${transaction.recurring.frequency.slice(1)}`,
+    });
+  }
+  if (transaction.synced === false) details.push({ label: 'Sync', value: 'Waiting to sync' });
+
+  return (
+    <div
+      className="fixed inset-0 z-[51] flex items-end sm:hidden"
+      style={{
+        backgroundColor: animating ? 'rgba(24, 24, 22, 0.4)' : 'rgba(24, 24, 22, 0)',
+        backdropFilter: animating ? 'blur(2px)' : 'blur(0px)',
+        transition: 'background-color 220ms ease, backdrop-filter 220ms ease',
+      }}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="transaction-preview-title"
+    >
+      <div
+        className="modal-shell modal-content-scroll w-full max-h-[88dvh] overflow-y-auto rounded-t-[30px] border-x border-t border-[#dfe4ec] bg-[#f8fafc] px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3 shadow-[0_-16px_40px_rgba(20,24,32,0.16)] dark:border-zinc-800 dark:bg-zinc-950"
+        style={{
+          transform: animating ? 'translateY(0)' : 'translateY(18px)',
+          opacity: animating ? 1 : 0,
+          transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease',
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+        <div className="mt-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+              Transaction details
+            </p>
+            <h2
+              id="transaction-preview-title"
+              className="mt-2 truncate font-display text-2xl font-semibold text-zinc-900 dark:text-zinc-50"
+            >
+              {title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dde3eb] bg-white/80 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+            aria-label="Close transaction details"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-[28px] border border-[#e5e9f0] bg-white p-4 shadow-[0_10px_24px_rgba(20,24,32,0.05)] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                Summary
+              </p>
+              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                {getTransactionCategoryLabel(transaction)}
+              </p>
+            </div>
+            <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              {formatTransactionAmount(transaction)}
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {details.map((row) => (
+              <div
+                key={row.label}
+                className="flex items-start justify-between gap-4 rounded-2xl bg-[#f8fafc] px-3 py-3 dark:bg-zinc-950"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                  {row.label}
+                </p>
+                <div className="max-w-[65%] text-right text-sm text-zinc-700 dark:text-zinc-200">
+                  {row.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {(onEdit || onDelete) && (
+          <div className="mt-4 flex gap-2">
+            {onEdit && transaction.type !== 'savings' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(transaction);
+                }}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-[#d7dee7] bg-white text-sm font-medium text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+              >
+                Edit
+              </button>
+            ) : null}
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onDelete(transaction.id);
+                }}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-red-500 text-sm font-medium text-white"
+              >
+                Delete
+              </button>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TransactionList({
   transactions,
   onDelete,
@@ -569,9 +759,9 @@ export default function TransactionList({
   showEdit = false,
   mobileFirst = false,
   groupByDate = false,
-  stickyHeaderOffsetClassName = 'top-24 sm:top-20',
 }: TransactionListProps) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [previewTransaction, setPreviewTransaction] = useState<Transaction | null>(null);
   const swipeEnabled = mobileFirst && isMobileViewport;
 
   useEffect(() => {
@@ -617,13 +807,14 @@ export default function TransactionList({
           {
             key: 'all',
             label: 'Transactions',
+            subLabel: '',
             items: sortedTransactions,
           },
         ];
       }
 
-      const groups: Array<{ key: string; label: string; items: Transaction[] }> = [];
-      const map = new Map<string, { key: string; label: string; items: Transaction[] }>();
+      const groups: Array<{ key: string; label: string; subLabel: string; items: Transaction[] }> = [];
+      const map = new Map<string, { key: string; label: string; subLabel: string; items: Transaction[] }>();
 
       sortedTransactions.forEach((tx) => {
         const txDate = safeParseDate(tx.date);
@@ -633,6 +824,7 @@ export default function TransactionList({
           const bucket = {
             key,
             label: getDateGroupLabel(txDate),
+            subLabel: getDateGroupSubLabel(txDate),
             items: [] as Transaction[],
           };
           map.set(key, bucket);
@@ -654,12 +846,17 @@ export default function TransactionList({
             <section key={group.key} className="space-y-2">
               {groupByDate && (
                 <div
-                  className={`sticky ${stickyHeaderOffsetClassName} z-10 -mx-1 px-1 py-1.5 bg-zinc-50/95 dark:bg-zinc-950/90 backdrop-blur`}
+                  className="-mx-1 px-1 py-1.5"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400">
-                      {group.label}
-                    </p>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-zinc-500 dark:text-zinc-400">
+                        {group.label}
+                      </p>
+                      <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                        {group.subLabel}
+                      </p>
+                    </div>
                     <span className="text-xs text-[var(--color-text-tertiary)]">
                       {groupTotal}
                     </span>
@@ -667,22 +864,35 @@ export default function TransactionList({
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                {group.items.map((tx) => (
-                  <SwipeableTransactionRow
-                    key={tx.id}
-                    tx={tx}
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                    showDelete={showDelete}
-                    showEdit={showEdit}
-                    swipeEnabled={swipeEnabled}
-                  />
+              <div className="space-y-2">
+                {group.items.map((tx, index) => (
+                  <div key={tx.id} className="relative pl-7">
+                    {group.items.length > 1 && index < group.items.length - 1 ? (
+                      <span className="pointer-events-none absolute left-[10px] top-9 bottom-[-12px] w-px bg-[#dfe4ec] dark:bg-zinc-800" />
+                    ) : null}
+                    <span className="pointer-events-none absolute left-[3px] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-[3px] border-[#f8f7f2] bg-[#ff7d7d] shadow-[0_0_0_1px_rgba(248,113,113,0.16)] dark:border-zinc-950" />
+                    <SwipeableTransactionRow
+                      tx={tx}
+                      onDelete={onDelete}
+                      onEdit={onEdit}
+                      showDelete={showDelete}
+                      showEdit={showEdit}
+                      swipeEnabled={swipeEnabled}
+                      onPreview={swipeEnabled ? setPreviewTransaction : undefined}
+                    />
+                  </div>
                 ))}
               </div>
             </section>
           );
         })}
+        <TransactionPreviewSheet
+          transaction={previewTransaction}
+          open={Boolean(previewTransaction)}
+          onClose={() => setPreviewTransaction(null)}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </div>
     );
   }

@@ -1,16 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp,
+  Shield,
   LayoutDashboard,
   Receipt,
   Lightbulb,
   LogOut,
   PiggyBank,
   Settings,
+  History,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -31,13 +33,21 @@ const navSections = [
     items: [
       { href: '/savings', label: 'Savings', icon: PiggyBank },
       { href: '/accounts', label: 'Accounts', icon: Wallet },
+      { href: '/timeline', label: 'Timeline', icon: History },
     ],
   },
   {
     label: 'Account',
-    items: [{ href: '/settings', label: 'Settings', icon: Settings }],
+    items: [
+      { href: '/settings?section=accounts', label: 'Settings', icon: Settings },
+      { href: '/settings?section=budgets', label: 'Budgets', icon: PiggyBank },
+      { href: '/settings?section=security', label: 'Security', icon: Shield },
+      { href: '/settings?section=payday', label: 'Payday', icon: Wallet },
+    ],
   },
 ];
+
+type SidebarSectionLabel = (typeof navSections)[number]['label'];
 
 interface SidebarProps {
   user: SessionUser;
@@ -65,7 +75,15 @@ function getInitials(name: string): string {
 
 export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<SidebarSectionLabel, boolean>
+  >({
+    Overview: false,
+    Plan: false,
+    Account: false,
+  });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -73,6 +91,18 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
 
   const displayName = useMemo(() => getDisplayName(user), [user]);
   const initials = useMemo(() => getInitials(displayName), [displayName]);
+
+  const activeHref = useMemo(() => {
+    const section = searchParams.get('section');
+    return pathname === '/settings' && section ? `/settings?section=${section}` : pathname;
+  }, [pathname, searchParams]);
+
+  const toggleSection = (label: SidebarSectionLabel) => {
+    setCollapsedSections((current) => ({
+      ...current,
+      [label]: !current[label],
+    }));
+  };
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -148,27 +178,36 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
       <nav className="flex-1 px-3 py-2 overflow-y-auto">
         {navSections.map((section) => (
           <div key={section.label} className="mb-4">
-            <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-widest px-3 mb-1">
-              {section.label}
-            </p>
-            {section.items.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all mb-0.5 ${
-                    isActive
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Icon size={15} strokeWidth={isActive ? 2.5 : 1.5} />
-                  {item.label}
-                </Link>
-              );
-            })}
+            <button
+              type="button"
+              onClick={() => toggleSection(section.label)}
+              className="mb-1 flex w-full cursor-pointer items-center px-3 text-[10px] font-medium uppercase tracking-widest text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400"
+              aria-expanded={!collapsedSections[section.label]}
+            >
+              <span>{section.label}</span>
+            </button>
+
+            <div className={collapsedSections[section.label] ? 'hidden' : 'block'}>
+              {section.items.map((item) => {
+                const isActive = item.href === activeHref;
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                        : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <Icon size={15} strokeWidth={isActive ? 2.5 : 1.5} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         ))}
       </nav>
