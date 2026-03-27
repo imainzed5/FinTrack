@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.20.0
+### Current version: v0.21.0
 
 ---
 ### Patch 
@@ -88,6 +88,15 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.21.0 — 2026-03-28
+  - feat(refactor): Modularized the `src/lib/db` implementation into a focused package of modules; `src/lib/db.ts` is now a 49-line compatibility barrel exporting the implementation.
+  - refactor(db): Broke the previous 1913-line `db.ts` into modules: `shared.ts`, `rows.ts`, `selects.ts`, `normalizers.ts`, `mappers.ts`, `transactions.ts`, `recurring.ts`, `accounts.ts`, `budgets.ts`, `savings.ts`, `withdrawals.ts`, and `timeline.ts`.
+  - chore(internal): Added small internal support modules to avoid circular deps: `client.ts`, `accounts-core.ts`, and `transaction-helpers.ts`.
+  - feat(details): Transaction CRUD and payload helpers moved to `transactions.ts`; recurring processing and `processRecurringTransactions` moved to `recurring.ts`; accounts, balances, archive/default account resolution, cash-wallet flag, and transfers moved to `accounts.ts`; budget CRUD and alert persistence to `budgets.ts`; savings goals and deposit logic to `savings.ts`; external withdrawal request logic to `withdrawals.ts`.
+  - verification: `npx tsc --noEmit` passed; `npx eslint src/lib/db.ts src/lib/db/*.ts` passed. Repo-wide `npm run lint` still blocked by unrelated pre-existing issues.
+  - follow-up: Consider renaming `accounts-core.ts` / `transaction-helpers.ts` for clarity and adding focused tests around recurring processing and savings side effects.
+  - Files updated/added: `src/lib/db.ts`, `src/lib/db/*` (new modular files)
+
 v0.20.0 — 2026-03-28
   - feat(transactions): Transaction cards & mobile sheet improvements — redesigned transaction cards into a cleaner, reference-inspired mobile layout; switched cards to a softer white surface (replacing the warmer paper tint); added a mobile timeline gutter with dots and connecting rail beside grouped transaction rows; grouped date headers now show a relative/weekday label with the full date underneath; the category line now shows only the main category (no subcategory); mobile long-press opens a details sheet with a minimal slide/fade open-close animation; the sheet stack level is set above the FAB and it only renders optional rows (subcategory, details, notes, tags, recurring, sync status) when present; removed the helper sentence from the sheet header; raised transaction delete confirmation modals above the FAB. `eslint` and `tsc --noEmit` pass.
   - Files updated: src/components/TransactionList.tsx, src/app/transactions/page.tsx, src/components/pages/TransactionsClientPage.tsx
