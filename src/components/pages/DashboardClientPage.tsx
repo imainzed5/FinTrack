@@ -102,7 +102,6 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
   const spentThisMonth = overallBudget?.spent ?? 0;
   const remaining = overallBudget?.remaining ?? 0;
   const strictCap = overallBudget?.baseLimit ?? overallBudget?.limit ?? 0;
-  const incomeBoost = overallBudget?.incomeBoost ?? 0;
 
   const spentToday = data.recentTransactions
     .filter(
@@ -360,10 +359,10 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
 
             <div className="mt-4 animate-fade-up" style={{ animationDelay: '0.05s' }}>
               <QuickStatTiles
+                totalBalance={data.totalBalance}
                 spentThisMonth={spentThisMonth}
                 remaining={remaining}
                 monthlyLimit={strictCap}
-                incomeBoost={incomeBoost}
                 spentToday={spentToday}
                 savingsTotalSaved={savingsSummary?.totalSaved ?? 0}
                 savingsActiveGoalCount={savingsSummary?.activeGoalCount ?? 0}
@@ -421,7 +420,7 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
       />
 
       <div
-        className={`${isAnyPanelOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-20 md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
+        className={`${isAnyPanelOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-[20] md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
         style={{ right: fabRight }}
       >
         <FloatingAddButton

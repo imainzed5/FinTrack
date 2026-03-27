@@ -170,7 +170,7 @@ export default function InsightsPage() {
     const monthEnd = endOfMonth(now);
 
     const monthTransactions = transactions
-      .filter((tx) => tx.date.startsWith(currentMonth))
+      .filter((tx) => tx.date.startsWith(currentMonth) && tx.type === 'expense' && !tx.transferGroupId)
       .sort((a, b) => safeParseDate(a.date).getTime() - safeParseDate(b.date).getTime());
 
     const totalSpentThisMonth = monthTransactions.reduce((sum, tx) => sum + tx.amount, 0);

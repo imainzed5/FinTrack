@@ -207,7 +207,7 @@ export default function BerdeDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center md:items-center"
       style={{
         background: 'rgba(0, 0, 0, 0.35)',
         opacity: isAnimating ? 1 : 0,

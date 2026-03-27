@@ -19,14 +19,19 @@ import type {
   SavingsGoalsSummary,
   MonthlySavings,
 } from '@/lib/types';
+import type { BerdeState } from '@/lib/berde/berde.types';
+import { getDailyPageBerdeMessage } from '@/lib/berde/page-messages';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils';
 import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
 import { MonthlySavingsChart } from '@/components/Charts';
 import ConfirmModal from '../ConfirmModal';
+import BerdeSprite from '@/components/BerdeSprite';
 
 interface SavingsClientPageProps {
   data: SavingsGoalsSummary;
   savingsRate: number;
+  userId?: string;
 }
 
 const EMOJI_PRESETS = ['🎯', '🏠', '✈️', '💻', '🚗', '📚', '💍', '🛍️'];
@@ -61,7 +66,63 @@ function formatDate(value?: string): string {
   }
 }
 
-export default function SavingsClientPage({ data, savingsRate }: SavingsClientPageProps) {
+function resolveSavingsBerdeContext(params: {
+  activeGoals: SavingsGoalWithDeposits[];
+  allGoals: SavingsGoalWithDeposits[];
+  savingsRate: number;
+}): { state: BerdeState; message: string } {
+  const { activeGoals, allGoals, savingsRate } = params;
+  const now = Date.now();
+
+  const hasCompletedGoal = allGoals.some((goal) => goal.status === 'completed' || goal.progressPercent >= 100);
+  const hitRecentMilestone = activeGoals.some((goal) =>
+    goal.milestones.some((milestone) => {
+      if (!milestone.hitAt || milestone.percent === 100) {
+        return false;
+      }
+      const hitAt = new Date(milestone.hitAt).getTime();
+      return Number.isFinite(hitAt) && now - hitAt <= 7 * 86400000;
+    })
+  );
+
+  const lowProgressCount = activeGoals.filter((goal) => goal.progressPercent < 20).length;
+  const mostlyLowProgress = activeGoals.length > 0 && lowProgressCount >= Math.ceil(activeGoals.length * 0.6);
+
+  if (hasCompletedGoal) {
+    return {
+      state: 'proud',
+      message: 'Goal reached. Strong work. Lock this in by setting your next target while momentum is high.',
+    };
+  }
+
+  if (hitRecentMilestone) {
+    return {
+      state: 'excited',
+      message: 'Fresh milestone hit. Keep this streak alive with a small recurring deposit this week.',
+    };
+  }
+
+  if (activeGoals.length === 0 || savingsRate < 20 || mostlyLowProgress) {
+    return {
+      state: 'motivational',
+      message: 'Slow progress is still progress. Start with one realistic amount and repeat it consistently.',
+    };
+  }
+
+  if (savingsRate >= 50) {
+    return {
+      state: 'proud',
+      message: 'Your savings discipline is paying off. Berde approves this consistency.',
+    };
+  }
+
+  return {
+    state: 'neutral',
+    message: 'Savings are moving steadily. Review one goal today and fine-tune the monthly contribution.',
+  };
+}
+
+export default function SavingsClientPage({ data, savingsRate, userId = '' }: SavingsClientPageProps) {
   const [summary, setSummary] = useState<SavingsGoalsSummary>(data);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoalWithDeposits | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
@@ -76,6 +137,7 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
   const [savingsHistory, setSavingsHistory] = useState<MonthlySavings[]>([]);
   const [savingsHistoryLoading, setSavingsHistoryLoading] = useState(true);
+  const [viewerUserId, setViewerUserId] = useState<string>(userId);
 
   const [goalInput, setGoalInput] = useState<SavingsGoalInput>({
     name: '',
@@ -130,6 +192,26 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
     void fetchSavingsHistory();
   }, []);
 
+  useEffect(() => {
+    if (userId) {
+      return;
+    }
+
+    async function loadViewerUserId() {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setViewerUserId(user?.id ?? '');
+      } catch {
+        setViewerUserId('');
+      }
+    }
+
+    void loadViewerUserId();
+  }, [userId]);
+
   const totalSaved = savingsHistory.length > 0
     ? savingsHistory[savingsHistory.length - 1].cumulative
     : 0;
@@ -161,6 +243,26 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
     () => summary.goals.filter((goal) => goal.status === 'completed' || goal.status === 'archived'),
     [summary.goals]
   );
+
+  const berdeSavingsContext = useMemo(() => {
+    const context = resolveSavingsBerdeContext({
+      activeGoals,
+      allGoals: summary.goals,
+      savingsRate,
+    });
+
+    const message = getDailyPageBerdeMessage({
+      page: 'savings',
+      state: context.state,
+      userId: viewerUserId,
+      fallbackMessage: context.message,
+    });
+
+    return {
+      state: context.state,
+      message,
+    };
+  }, [activeGoals, summary.goals, savingsRate, viewerUserId]);
 
   async function submitNewGoal(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -317,6 +419,18 @@ export default function SavingsClientPage({ data, savingsRate }: SavingsClientPa
               <Plus size={16} /> Add goal
             </button>
           </header>
+
+          <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
+                <BerdeSprite state={berdeSavingsContext.state} size={54} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde on savings</p>
+                <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeSavingsContext.message}</p>
+              </div>
+            </div>
+          </section>
 
           <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
             <button

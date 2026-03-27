@@ -48,15 +48,15 @@ type ResolvedBudgetLimit = {
 };
 
 function isIncomeTransaction(tx: Transaction): boolean {
-  return tx.type === 'income';
+  return tx.type === 'income' && !tx.transferGroupId;
 }
 
 function isSavingsTransaction(tx: Transaction): boolean {
-  return tx.type === 'savings';
+  return tx.type === 'savings' && !tx.transferGroupId;
 }
 
 function isExpenseTransaction(tx: Transaction): boolean {
-  return !isIncomeTransaction(tx) && !isSavingsTransaction(tx);
+  return tx.type === 'expense' && !tx.transferGroupId;
 }
 
 function getTransactionAllocations(tx: Transaction): Allocation[] {
@@ -114,18 +114,12 @@ function getEffectiveBudgetLimit(
   const cached = memo.get(key);
   if (cached) return cached;
 
-  const incomeBoost = budget.category === 'Overall'
-    ? roundMoney(
-        transactions
-          .filter((tx) => tx.date.startsWith(budget.month) && isIncomeTransaction(tx))
-          .reduce((sum, tx) => sum + tx.amount, 0)
-      )
-    : 0;
+  const incomeBoost = 0;
 
   const buildResolved = (baseLimit: number, rolloverCarry: number): ResolvedBudgetLimit => ({
     baseLimit: roundMoney(baseLimit),
     incomeBoost,
-    effectiveLimit: roundMoney(baseLimit + incomeBoost),
+    effectiveLimit: roundMoney(baseLimit),
     rolloverCarry: roundMoney(rolloverCarry),
   });
 
@@ -1466,6 +1460,7 @@ export function buildDashboardData(
   return {
     totalSpentThisMonth,
     totalSpentLastMonth,
+    totalBalance: 0,
     remainingBudget,
     monthlyBudget,
     savingsRate,

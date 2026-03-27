@@ -27,7 +27,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Moneda — Personal Financial Intelligence",
+  title: "Moneda",
   description: "Track expenses, detect patterns, and gain financial intelligence.",
   manifest: "/manifest.json",
   icons: {

@@ -28,6 +28,13 @@ interface SplitDraft {
   amount: string;
 }
 
+interface AccountOption {
+  id: string;
+  name: string;
+  type: string;
+  isArchived?: boolean;
+}
+
 function parseTags(input: string): string[] {
   return Array.from(
     new Set(
@@ -95,6 +102,8 @@ export default function EditTransactionModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [autoFocusAmount, setAutoFocusAmount] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
@@ -107,6 +116,7 @@ export default function EditTransactionModal({
   );
   const splitTotalMatches = Math.abs(splitTotal - (Number.isFinite(amountValue) ? amountValue : 0)) <= 0.01;
   const showMoreOptions = showOptional;
+  const requiresAccountSelection = accounts.length > 0;
 
   const EXPENSE_CATEGORY_ICONS: Record<string, string> = {
     Food: '🍜',
@@ -183,6 +193,7 @@ export default function EditTransactionModal({
     setAttachmentBase64(transaction.attachmentBase64);
     setAttachmentName(transaction.attachmentBase64 ? 'Attached receipt' : '');
     setDate(transaction.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+    setSelectedAccountId(transaction.accountId || '');
 
     if (transaction.split && transaction.split.length > 0) {
       setSplitEnabled(true);
@@ -215,6 +226,32 @@ export default function EditTransactionModal({
     setShowDeleteConfirm(false);
     setFormError(null);
   }, [transaction]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    async function fetchAccounts() {
+      try {
+        const res = await fetch('/api/accounts?includeArchived=true', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = (await res.json()) as AccountOption[];
+        if (cancelled) return;
+        const nextAccounts = Array.isArray(json) ? json : [];
+        setAccounts(nextAccounts);
+        if (nextAccounts.length > 0) {
+          setSelectedAccountId((prev) => prev || nextAccounts[0].id);
+        }
+      } catch {
+        // Server can preserve linkage if account list cannot load.
+      }
+    }
+
+    void fetchAccounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   if (!transaction) return null;
 
@@ -301,6 +338,11 @@ export default function EditTransactionModal({
       return;
     }
 
+    if (requiresAccountSelection && !selectedAccountId) {
+      setFormError('Select which account this expense should be deducted from.');
+      return;
+    }
+
     let normalizedSplit: TransactionSplitInput[] | undefined;
     if (splitEnabled) {
       const parsed = splitRows
@@ -350,6 +392,7 @@ export default function EditTransactionModal({
           notes,
           tags: parseTags(tagsInput),
           attachmentBase64: attachmentBase64 || null,
+          accountId: selectedAccountId || null,
           split: splitEnabled ? normalizedSplit : null,
           recurring: recurringEnabled
             ? {
@@ -477,6 +520,26 @@ export default function EditTransactionModal({
                 />
               </div>
             </div>
+
+            {(accounts.length > 0 || Boolean(selectedAccountId)) && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-zinc-400">Deduct from account</label>
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                >
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name} ({account.type}){account.isArchived ? ' - Archived' : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-zinc-400">
+                  Editing this changes which account balance is affected.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3">

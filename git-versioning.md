@@ -79,14 +79,55 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.12.1
+### Current version: v0.16.1
+
+---
+### Patch 
+
 
 ---
 
 ## Version Roadmap
-
-v0.12.0 ✓ InsightCard hero redesign and visual enhancement
-```
+v0.16.1 — 2026-03-27
+  - fix: Exclude income and manual balance adjustments from insights "spend-by-day" and "This month at a glance" calculations.
+  - Files updated: `src/app/insights/page.tsx`, `src/components/pages/InsightsClientPage.tsx`
+v0.16.0 ✓ Accounts/Wallets feature, budget/account decoupling, dedicated Accounts page, UI/UX polish
+  - Implemented full Accounts/Wallets system: accounts table, account-linked transactions, transfer support, and manual adjustment.
+  - Decoupled budgets from account balances: budgets now operate independently of account balances, no more "income boost" logic.
+  - Clarified expense deduction flow: all expenses require explicit account selection, and deduction is always from the chosen account.
+  - Added dedicated /accounts page (sidebar Plan section) for account management, history, and analytics.
+  - Improved account management: signed currency display, starting balance, manual adjustment, delete-as-archive, and transfer modal.
+  - UI/UX polish: dashboard stat tiles, modals, and widgets now reflect budget/account separation; clearer labels and validation in Add/Edit/Transfer modals.
+  - Compatibility fallback: legacy schema support for missing account_id column.
+  - All tests and build passing after changes.
+  - Files updated: migrations, db.ts, types.ts, insights-engine.ts, indexeddb.ts, API routes, dashboard/settings/accounts/transactions UI, modal components, tests, and more.
+v0.15.1 ✓ TransactionList icon color fix
+  - Transaction category icons in the transactions page now use category-based color (not all green)
+  - Matches dashboard/category color logic for visual consistency
+  - Files updated: TransactionList.tsx
+v0.15.0 ✓ Berde message pool & rotation expansion
+  - Expanded Berde message pools for Debts, Savings, and Settings pages
+  - Centralized all page/state message pools in src/lib/berde/page-messages.ts
+  - Improved daily-seeded message rotation logic for more variety and accuracy
+  - No message flash on initial load (skeleton loader until data ready)
+  - Server userId now used for first-render message seeding
+  - Files updated: page-messages.ts, DebtsPanel, SavingsClientPage, SettingsPage, berde.logic, berde.types
+v0.14.0 ✓ Berde contextual mascot integration
+  - Berde mascot now appears on Debts, Savings, and Settings pages with context-aware moods and tips
+  - New Berde sprite states: motivational, celebratory, helper, excited
+  - Each page uses a state resolver to select Berde's mood and message based on live data
+  - EmptyState for debts now uses Berde mascot
+  - No breaking changes; all new features are additive
+  - Files updated: DebtsPanel, SavingsClientPage, SettingsPage, BerdeSprite, berde.types, berde.logic, berde-messages
+  - Added Supabase debts table migration with RLS policies and optimized indexes
+  - Added new debts API endpoints for create, update, settle, and delete actions
+  - Added Debts & Splits dedicated page and Sidebar navigation entry (BottomNav unchanged)
+  - Added Debts tab inside Transactions page
+  - Implemented Add/Edit debt sheet using shared modal layout for consistent UX
+  - Added delete confirmation modal for both active and settled debt entries
+  - Active debts now support edit, settle, and delete actions for misinputs
+  - Files updated: migrations, debts API/data layer, DebtsPanel, AddDebtModal, Sidebar, transactions page, types
+v0.13.0 ✓ Debts & Splits ledger with edit/delete and confirmation flows
 v0.12.1 ✓ Transactions page skeleton loader fix
   - Refined TransactionsSkeleton to only render transaction-list placeholders, removing duplicate stats/sidebar/search blocks
   - Loader now matches the actual loading region, preventing double UI and layout jump
@@ -210,19 +251,19 @@ v1.0.0  — Public launch
 
 ## Tagging a Release
 
-```bash
-git tag -a v0.x.x -m "Moneda v0.x.x — description"
-git push origin v0.x.x
 ```
-
-### View all tags
-```bash
-git tag
+v0.13.0 ✓ Debts & Splits ledger with edit/delete and confirmation flows
+  - Added Supabase debts table migration with RLS policies and optimized indexes
+  - Added new debts API endpoints for create, update, settle, and delete actions
+  - Added Debts & Splits dedicated page and Sidebar navigation entry (BottomNav unchanged)
+  - Added Debts tab inside Transactions page
+  - Implemented Add/Edit debt sheet using shared modal layout for consistent UX
+  - Added delete confirmation modal for both active and settled debt entries
+  - Active debts now support edit, settle, and delete actions for misinputs
+  - Files updated: migrations, debts API/data layer, DebtsPanel, AddDebtModal, Sidebar, transactions page, types
+v0.12.1 ✓ Transactions page skeleton loader fix
+  - Refined TransactionsSkeleton to only render transaction-list placeholders, removing duplicate stats/sidebar/search blocks
 ```
-
-### View tag details
-```bash
-git show v0.7.0
 ```
 
 ---

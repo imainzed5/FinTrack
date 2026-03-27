@@ -1,13 +1,13 @@
 'use client';
 
-import { PiggyBank, Sun, Target, Wallet } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { Landmark, PiggyBank, Sun, Target, Wallet } from 'lucide-react';
+import { formatCurrency, formatCurrencySigned } from '@/lib/utils';
 
 interface QuickStatTilesProps {
+  totalBalance: number;
   spentThisMonth: number;
   remaining: number;
   monthlyLimit: number;
-  incomeBoost?: number;
   spentToday: number;
   savingsTotalSaved: number;
   savingsActiveGoalCount: number;
@@ -51,10 +51,10 @@ function Tile({ label, value, subLabel, icon, onClick, delay }: TileProps) {
 }
 
 export default function QuickStatTiles({
+  totalBalance,
   spentThisMonth,
   remaining,
   monthlyLimit,
-  incomeBoost = 0,
   spentToday,
   savingsTotalSaved,
   savingsActiveGoalCount,
@@ -86,21 +86,16 @@ export default function QuickStatTiles({
       />
 
       <Tile
-        label="Safe to spend"
-        value={formatCurrency(remaining)}
+        label="Budget remaining"
+        value={formatCurrencySigned(remaining)}
         subLabel={
           <span className="flex items-center gap-1.5 flex-wrap">
             Cap: {formatCurrency(monthlyLimit)}
-            {incomeBoost > 0 && (
-              <span className="inline-flex items-center text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-sm">
-                +{formatCurrency(incomeBoost)} income
-              </span>
-            )}
           </span>
         }
         icon={<Target size={16} color="#185FA5" />}
         onClick={onRemainingBudgetTap}
-        delay={50}
+        delay={30}
       />
 
       <Tile
@@ -109,7 +104,7 @@ export default function QuickStatTiles({
         subLabel={latestTransactionName || 'No transaction yet today'}
         icon={<Sun size={16} color="#B66A12" />}
         onClick={onSpentTodayTap}
-        delay={100}
+        delay={60}
       />
 
       <Tile
@@ -124,7 +119,7 @@ export default function QuickStatTiles({
         }
         icon={<PiggyBank size={16} color="#7F77DD" />}
         onClick={onSavingsGoalsTap}
-        delay={150}
+        delay={90}
       />
     </section>
   );

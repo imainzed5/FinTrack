@@ -112,7 +112,7 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <aside className="hidden h-screen w-64 animate-pulse flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 sm:flex">
+      <aside className="hidden sm:fixed sm:inset-y-0 sm:left-0 sm:flex h-screen w-56 animate-pulse flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-6 my-5 h-10 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
         <div className="flex-1 space-y-2 px-3 py-4">
           {Array.from({ length: 5 }).map((_, index) => (

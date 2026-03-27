@@ -845,14 +845,20 @@ function getSupportingInsights(input: {
 
 export function mapStateToMood(state: BerdeState): BerdeMood {
   switch (state) {
+    case 'celebratory':
+    case 'excited':
     case 'hype':
       return 'hype';
+    case 'motivational':
+      return 'good';
     case 'worried':
       return 'warning';
     case 'proud':
       return 'good';
     case 'sarcastic':
       return 'sarcastic';
+    case 'helper':
+      return 'dry';
     case 'neutral':
     default:
       return 'dry';

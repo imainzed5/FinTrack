@@ -2,16 +2,55 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CalendarDays } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import AccountSecuritySection from '@/components/settings/AccountSecuritySection';
+import AccountsSection from '@/components/settings/AccountsSection';
 import type { Budget, Category, Transaction } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
+import type { BerdeState } from '@/lib/berde/berde.types';
 import { formatCurrency } from '@/lib/utils';
 import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
 import { SettingsSkeleton } from '@/components/SkeletonLoaders';
+import BerdeSprite from '@/components/BerdeSprite';
+
+function resolveSettingsBerdeContext(params: {
+  loading: boolean;
+  showAddBudget: boolean;
+  monthBudgets: Budget[];
+}): { state: BerdeState; message: string } {
+  const { loading, showAddBudget, monthBudgets } = params;
+
+  if (loading || showAddBudget) {
+    return {
+      state: 'helper',
+      message: 'Need a setup hand? Berde can help you shape a realistic budget for this month.',
+    };
+  }
+
+  if (monthBudgets.length === 0) {
+    return {
+      state: 'worried',
+      message: 'No budget set yet. Add an Overall budget first so your spending has a clear limit.',
+    };
+  }
+
+  const hasOverallBudget = monthBudgets.some((budget) => budget.category === 'Overall' && !budget.subCategory);
+  if (hasOverallBudget) {
+    return {
+      state: 'proud',
+      message: 'Great setup. You have an Overall budget in place. Keep refining categories as needed.',
+    };
+  }
+
+  return {
+    state: 'neutral',
+    message: 'Your budget categories are in place. Consider adding an Overall cap for stronger guardrails.',
+  };
+}
 
 export default function SettingsPage() {
   const { theme, toggle } = useTheme();
@@ -239,6 +278,12 @@ export default function SettingsPage() {
       return aLabel.localeCompare(bLabel);
     });
 
+  const berdeSettingsContext = resolveSettingsBerdeContext({
+    loading,
+    showAddBudget,
+    monthBudgets,
+  });
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center gap-3 mb-6">
@@ -251,6 +296,47 @@ export default function SettingsPage() {
             Manage account, budgets, and preferences
           </p>
         </div>
+      </div>
+
+      {loading ? (
+        <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10 animate-pulse">
+          <div className="flex items-start gap-3">
+            <div className="h-[70px] w-[70px] rounded-xl bg-white/70 dark:bg-zinc-900/70" />
+            <div className="flex-1 pt-1">
+              <div className="h-3 w-24 rounded bg-emerald-200/80 dark:bg-emerald-800/50" />
+              <div className="mt-2 h-3 w-full max-w-[420px] rounded bg-emerald-200/70 dark:bg-emerald-800/40" />
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
+              <BerdeSprite state={berdeSettingsContext.state} size={54} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde guide</p>
+              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeSettingsContext.message}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="mb-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+        <Link
+          href="/accounts"
+          className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+        >
+          Open dedicated Accounts page
+        </Link>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Quick access for mobile since Accounts is not in bottom navigation.
+        </p>
+      </div>
+
+      {/* Budget Management */}
+      <div className="mb-4">
+        <AccountsSection />
       </div>
 
       {/* Budget Management */}
