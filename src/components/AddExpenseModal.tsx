@@ -8,7 +8,6 @@ import {
   CATEGORIES,
   INCOME_CATEGORIES,
   PAYMENT_METHODS,
-  RECURRING_FREQUENCIES,
   type TransactionInput,
   type TransactionType,
   type IncomeCategory,
@@ -25,6 +24,9 @@ interface AddExpenseModalProps {
   onClose: () => void;
   onAdded: () => void;
   defaultCategory?: string;
+  defaultAccountId?: string;
+  defaultLinkedTransferGroupId?: string;
+  defaultEntryType?: Extract<TransactionType, 'expense' | 'income'>;
 }
 
 interface SplitDraft {
@@ -130,8 +132,11 @@ export default function AddExpenseModal({
   onClose,
   onAdded,
   defaultCategory,
+  defaultAccountId,
+  defaultLinkedTransferGroupId,
+  defaultEntryType = 'expense',
 }: AddExpenseModalProps) {
-  const [entryType, setEntryType] = useState<TransactionType>('expense');
+  const [entryType, setEntryType] = useState<TransactionType>(defaultEntryType);
   const [incomeCategory, setIncomeCategory] = useState<IncomeCategory>('Freelance');
   const [incomeRecurringMonthly, setIncomeRecurringMonthly] = useState(false);
   const [amount, setAmount] = useState('');
@@ -240,6 +245,14 @@ export default function AddExpenseModal({
   }, [defaultCategory]);
 
   useEffect(() => {
+    if (!open) return;
+
+    setEntryType(defaultEntryType);
+    setCategory(resolveDefaultCategory(defaultCategory));
+    setSelectedAccountId(defaultAccountId ?? '');
+  }, [defaultAccountId, defaultCategory, defaultEntryType, open]);
+
+  useEffect(() => {
     if (entryType !== 'income') {
       return;
     }
@@ -268,11 +281,15 @@ export default function AddExpenseModal({
         if (cancelled) return;
 
         setAccounts(nextAccounts);
-        if (nextAccounts.length === 1) {
-          setSelectedAccountId(nextAccounts[0].id);
-        } else if (nextAccounts.length > 1) {
-          setSelectedAccountId((prev) => prev || nextAccounts[0].id);
-        }
+        setSelectedAccountId((prev) => {
+          if (defaultAccountId && nextAccounts.some((account) => account.id === defaultAccountId)) {
+            return defaultAccountId;
+          }
+          if (prev && nextAccounts.some((account) => account.id === prev)) {
+            return prev;
+          }
+          return nextAccounts[0]?.id ?? '';
+        });
       } catch {
         // Fallback to server-side default account resolution.
       }
@@ -282,7 +299,7 @@ export default function AddExpenseModal({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [defaultAccountId, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -307,11 +324,11 @@ export default function AddExpenseModal({
   if (!open) return null;
 
   const resetForm = () => {
-    setEntryType('expense');
+    setEntryType(defaultEntryType);
     setIncomeCategory('Freelance');
     setIncomeRecurringMonthly(false);
     setAmount('');
-    setCategory('Food');
+    setCategory(resolveDefaultCategory(defaultCategory));
     setSubCategory('');
     setDescription('');
     setMerchant('');
@@ -328,7 +345,7 @@ export default function AddExpenseModal({
     setRecurringEndDate('');
     setShowOptional(false);
     setFormError(null);
-    setSelectedAccountId('');
+    setSelectedAccountId(defaultAccountId ?? '');
   };
 
   const handleAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -430,6 +447,7 @@ export default function AddExpenseModal({
       amount: Number(amountValue.toFixed(2)),
       type: resolvedType,
       accountId: selectedAccountId || undefined,
+      linkedTransferGroupId: isIncomeEntry ? undefined : defaultLinkedTransferGroupId,
       incomeCategory: isIncomeEntry ? incomeCategory : undefined,
       category: resolvedCategory,
       subCategory: isIncomeEntry
@@ -471,6 +489,7 @@ export default function AddExpenseModal({
         amount: input.amount,
         type: resolvedType,
         accountId: selectedAccountId || undefined,
+        linkedTransferGroupId: input.linkedTransferGroupId,
         incomeCategory: isIncomeEntry ? incomeCategory : undefined,
         category: input.category,
         subCategory: input.subCategory,
@@ -481,6 +500,7 @@ export default function AddExpenseModal({
         notes: input.notes || '',
         tags: isIncomeEntry ? [] : (input.tags || []),
         attachmentBase64: isIncomeEntry ? undefined : input.attachmentBase64,
+        metadata: input.metadata,
         split: isIncomeEntry ? undefined : (input.split as Transaction['split']),
         recurring: offlineRecurring,
         createdAt: nowIso,

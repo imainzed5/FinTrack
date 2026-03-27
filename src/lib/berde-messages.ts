@@ -872,6 +872,18 @@ export function getBerdeSubtitle(mood: BerdeMood): string {
   return options[index];
 }
 
+export function getShortBerdeMessageForState(
+  state: 'neutral' | 'proud',
+  seed: string,
+): string {
+  const pool =
+    state === 'proud'
+      ? pools.savings_good.messages
+      : pools.neutral_general.messages;
+  const index = getStableIndex(`${state}:${seed}`, pool.length);
+  return pool[index]?.message ?? 'Berde is keeping an eye on things.';
+}
+
 export function getBerdeInsightsForMood(
   mood: BerdeMood,
   data: {

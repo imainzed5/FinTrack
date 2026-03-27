@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { differenceInCalendarDays, format, parseISO, subMonths } from 'date-fns';
-import { Search, Filter, Download, X, Wallet, SearchX, RefreshCw, StopCircle, ArrowLeftRight } from 'lucide-react';
+import { Search, Filter, X, Wallet, SearchX, RefreshCw, StopCircle, ArrowLeftRight } from 'lucide-react';
 import type { Transaction, Category, PaymentMethod } from '@/lib/types';
+import { isOperationalTransaction, isSpendAnalyticsTransaction } from '@/lib/transaction-classification';
 import { formatCurrency } from '@/lib/utils';
 import { CATEGORIES } from '@/lib/types';
 import TransactionList from '@/components/TransactionList';
@@ -22,9 +23,9 @@ import type { TimelineEvent } from '@/lib/types';
 
 const CATEGORY_FILTERS_STORAGE_KEY = 'transactions:selected-categories';
 const PAYMENT_METHOD_FILTER_STORAGE_KEY = 'transactions:selected-payment-method';
+const INCLUDE_OPERATIONAL_ANALYTICS_STORAGE_KEY = 'transactions:include-operational-analytics';
 type CategoryFilter = Category | 'Income' | 'Savings';
 type PaymentMethodFilter = 'All methods' | 'Cash' | 'GCash' | 'Card' | 'Bank Transfer';
-const CATEGORY_FILTER_OPTIONS: CategoryFilter[] = [...CATEGORIES, 'Income', 'Savings'];
 const PAYMENT_FILTER_OPTIONS: PaymentMethodFilter[] = [
   'All methods',
   'Cash',
@@ -141,6 +142,13 @@ export default function TransactionsPage() {
 
     return 'All methods';
   });
+  const [includeOperationalInAnalytics, setIncludeOperationalInAnalytics] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.sessionStorage.getItem(INCLUDE_OPERATIONAL_ANALYTICS_STORAGE_KEY) === 'true';
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isFabVisible, setIsFabVisible] = useState(true);
@@ -219,6 +227,17 @@ export default function TransactionsPage() {
 
     window.sessionStorage.setItem(PAYMENT_METHOD_FILTER_STORAGE_KEY, selectedPaymentMethod);
   }, [selectedPaymentMethod]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!includeOperationalInAnalytics) {
+      window.sessionStorage.removeItem(INCLUDE_OPERATIONAL_ANALYTICS_STORAGE_KEY);
+      return;
+    }
+
+    window.sessionStorage.setItem(INCLUDE_OPERATIONAL_ANALYTICS_STORAGE_KEY, 'true');
+  }, [includeOperationalInAnalytics]);
 
   useEffect(() => {
     if (monthParam && isValidMonth(monthParam)) {
@@ -402,14 +421,20 @@ export default function TransactionsPage() {
       return 'pay-default';
     };
 
-    const total = filtered.reduce((sum, tx) => sum + tx.amount, 0);
-    const uniqueCategoryCount = new Set(filtered.map((tx) => categoryKey(tx))).size;
-    const largestSpend = filtered.reduce<Transaction | null>(
+    const exportTransactions = includeOperationalInAnalytics
+      ? filtered
+      : filtered.filter((tx) => !isOperationalTransaction(tx));
+    const spendTransactions = exportTransactions.filter((tx) =>
+      includeOperationalInAnalytics ? tx.type === 'expense' : isSpendAnalyticsTransaction(tx)
+    );
+    const total = spendTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const uniqueCategoryCount = new Set(spendTransactions.map((tx) => categoryKey(tx))).size;
+    const largestSpend = spendTransactions.reduce<Transaction | null>(
       (max, tx) => (!max || tx.amount > max.amount ? tx : max),
       null
     );
 
-    const categoryStats = filtered.reduce<Record<string, { total: number; count: number }>>((acc, tx) => {
+    const categoryStats = spendTransactions.reduce<Record<string, { total: number; count: number }>>((acc, tx) => {
       const key = categoryKey(tx);
       if (!acc[key]) {
         acc[key] = { total: 0, count: 0 };
@@ -424,7 +449,7 @@ export default function TransactionsPage() {
     const periodLabel = format(periodDate, 'MMMM yyyy');
     const exportDate = format(new Date(), 'MMMM d, yyyy');
 
-    const groupedByDay = filtered.reduce<Record<string, Transaction[]>>((acc, tx) => {
+    const groupedByDay = exportTransactions.reduce<Record<string, Transaction[]>>((acc, tx) => {
       const dayKey = tx.date.split('T')[0];
       if (!acc[dayKey]) {
         acc[dayKey] = [];
@@ -678,7 +703,7 @@ export default function TransactionsPage() {
       <main class="report">
         <div class="brand"><span aria-hidden="true">●</span><span class="brand-name">Moneda</span></div>
         <h1>Transaction Export</h1>
-        <p class="subtitle">${periodLabel} · ${filtered.length} transactions · Exported ${exportDate}</p>
+        <p class="subtitle">${periodLabel} · ${exportTransactions.length} transactions · Exported ${exportDate}</p>
         <hr class="separator" />
 
         <section class="summary-grid" aria-label="Export summary">
@@ -689,7 +714,7 @@ export default function TransactionsPage() {
           </article>
           <article class="summary-card">
             <p class="summary-label">Transactions</p>
-            <p class="summary-value">${filtered.length}</p>
+            <p class="summary-value">${exportTransactions.length}</p>
             <p class="summary-note">across ${uniqueCategoryCount} categories</p>
           </article>
           <article class="summary-card">
@@ -862,7 +887,13 @@ export default function TransactionsPage() {
     return true;
   });
 
-  const filteredExpenseTransactions = filtered.filter((tx) => tx.type === 'expense');
+  const visibleTransactions = includeOperationalInAnalytics
+    ? filtered
+    : filtered.filter((tx) => !isOperationalTransaction(tx));
+
+  const filteredExpenseTransactions = visibleTransactions.filter((tx) =>
+    includeOperationalInAnalytics ? tx.type === 'expense' : isSpendAnalyticsTransaction(tx)
+  );
   const totalSpent = filteredExpenseTransactions.reduce((sum, tx) => sum + tx.amount, 0);
   const trackedDays = new Set(filteredExpenseTransactions.map((tx) => tx.date.split('T')[0]));
   const daysTracked = trackedDays.size;
@@ -877,10 +908,12 @@ export default function TransactionsPage() {
   const categoryBreakdown = useMemo(() => {
     const totals = new Map<string, number>();
 
-    searchableTransactions.forEach((tx) => {
+    searchableTransactions
+      .filter((tx) => includeOperationalInAnalytics ? tx.type === 'expense' : isSpendAnalyticsTransaction(tx))
+      .forEach((tx) => {
       const next = (totals.get(tx.category) ?? 0) + tx.amount;
       totals.set(tx.category, next);
-    });
+      });
 
     return Array.from(totals.entries())
       .map(([category, amount]) => ({
@@ -889,34 +922,22 @@ export default function TransactionsPage() {
         color: CATEGORY_DOT_COLORS[category] ?? '#888780',
       }))
       .sort((a, b) => b.amount - a.amount);
-  }, [searchableTransactions]);
+  }, [includeOperationalInAnalytics, searchableTransactions]);
 
   const highestCategoryTotal = categoryBreakdown[0]?.amount ?? 0;
 
-  const topCategories = useMemo(() => {
-    const counts = new Map<string, number>();
-
-    filteredExpenseTransactions.forEach((tx) => {
-      counts.set(tx.category, (counts.get(tx.category) ?? 0) + 1);
-    });
-
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([category]) => category);
-  }, [filteredExpenseTransactions]);
-
-  const totalAmount = filtered.reduce((sum, tx) => sum + tx.amount, 0);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalAmount = visibleTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const totalPages = Math.max(1, Math.ceil(visibleTransactions.length / pageSize));
   const activeFilterCount =
     selectedCategories.length +
     (selectedDayFilter ? 1 : 0) +
     (selectedPaymentMethod !== 'All methods' ? 1 : 0);
+  const activeDrawerSettingCount = activeFilterCount + (includeOperationalInAnalytics ? 1 : 0);
   const hasCategoryOrPaymentFilter =
     selectedCategories.length > 0 || selectedPaymentMethod !== 'All methods';
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const paginated = visibleTransactions.slice((page - 1) * pageSize, page * pageSize);
   const hasNoTransactions = !loading && totalTransactionCount === 0;
-  const hasNoMatches = !loading && totalTransactionCount > 0 && filtered.length === 0;
+  const hasNoMatches = !loading && totalTransactionCount > 0 && visibleTransactions.length === 0;
 
   useEffect(() => {
     setPage((currentPage) => Math.min(currentPage, totalPages));
@@ -977,14 +998,14 @@ export default function TransactionsPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl px-4 pb-6 pt-4 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 pb-32 pt-4 sm:px-6 sm:pb-6">
         <div className="sticky top-2 z-30 -mx-4 bg-white/95 px-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/90 sm:mx-0 sm:px-0">
           <div className="rounded-2xl border border-zinc-200 bg-white/95 p-4 dark:border-zinc-800 dark:bg-zinc-900/95">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Transactions</h1>
                 <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-                  {filtered.length} transactions
+                  {visibleTransactions.length} transactions
                 </p>
               </div>
 
@@ -993,7 +1014,7 @@ export default function TransactionsPage() {
               </p>
             </div>
 
-            <div className="mt-2 flex items-center justify-between md:hidden">
+            <div className="hidden">
               <p className="text-xs text-zinc-400 dark:text-zinc-500">
                 Page {page} of {totalPages} · Swipe right to edit, swipe left to delete
               </p>
@@ -1020,6 +1041,10 @@ export default function TransactionsPage() {
               </div>
             </div>
 
+            <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500 md:hidden">
+              Page {page} of {totalPages}
+            </p>
+
             <p className="mt-2 hidden text-[11px] font-medium text-zinc-500 dark:text-zinc-400 md:block">
               {totalPages > 1 ? `Page ${page} of ${totalPages}` : 'All results in one page'}
               {' · '}
@@ -1027,11 +1052,11 @@ export default function TransactionsPage() {
             </p>
 
             <div className="mt-3 border-b border-zinc-200 dark:border-zinc-800">
-              <div className="flex items-center gap-6">
+              <div className="-mx-1 flex items-center gap-5 overflow-x-auto px-1 [scrollbar-width:none]">
                 <button
                   type="button"
                   onClick={() => setActiveView('list')}
-                  className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                  className={`shrink-0 border-b-2 pb-2 text-sm font-semibold transition-colors ${
                     activeView === 'list'
                       ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
                       : 'border-transparent text-zinc-500 dark:text-zinc-400'
@@ -1042,7 +1067,7 @@ export default function TransactionsPage() {
                 <button
                   type="button"
                   onClick={() => setActiveView('timeline')}
-                  className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                  className={`shrink-0 border-b-2 pb-2 text-sm font-semibold transition-colors ${
                     activeView === 'timeline'
                       ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
                       : 'border-transparent text-zinc-500 dark:text-zinc-400'
@@ -1053,7 +1078,7 @@ export default function TransactionsPage() {
                 <button
                   type="button"
                   onClick={() => setActiveView('recurring')}
-                  className={`flex items-center gap-1.5 border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 border-b-2 pb-2 text-sm font-semibold transition-colors ${
                     activeView === 'recurring'
                       ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
                       : 'border-transparent text-zinc-500 dark:text-zinc-400'
@@ -1070,7 +1095,7 @@ export default function TransactionsPage() {
                 <button
                   type="button"
                   onClick={() => setActiveView('debts')}
-                  className={`border-b-2 pb-2 text-sm font-semibold transition-colors ${
+                  className={`shrink-0 border-b-2 pb-2 text-sm font-semibold transition-colors ${
                     activeView === 'debts'
                       ? 'border-[#1D9E75] text-zinc-900 dark:text-white'
                       : 'border-transparent text-zinc-500 dark:text-zinc-400'
@@ -1085,7 +1110,59 @@ export default function TransactionsPage() {
 
         {activeView === 'list' ? (
           <>
-            <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="mt-4 hidden rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 md:block">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                    Analytics
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                    {includeOperationalInAnalytics
+                      ? 'Transfers and adjustments are included in spend stats and category charts.'
+                      : 'Showing real spending only. Transfers and adjustments stay visible in the ledger.'}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIncludeOperationalInAnalytics((current) => !current)}
+                  aria-pressed={includeOperationalInAnalytics}
+                  className={`inline-flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition-colors ${
+                    includeOperationalInAnalytics
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/15 dark:text-emerald-300'
+                      : 'border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                  }`}
+                >
+                  {includeOperationalInAnalytics ? 'Including transfers & adjustments' : 'Real spending only'}
+                </button>
+              </div>
+            </div>
+
+            <div className="-mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:hidden">
+              <div className="min-w-[152px] rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <p className="mb-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Total spent</p>
+                <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(totalSpent)}</p>
+                <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{filteredExpenseTransactions.length} transactions</p>
+              </div>
+              <div className="min-w-[152px] rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <p className="mb-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Avg / day</p>
+                <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(avgPerDay)}</p>
+                <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{daysTracked} days tracked</p>
+              </div>
+              <div className="min-w-[152px] rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <p className="mb-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Biggest spend</p>
+                <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">
+                  {formatPesoDecimal(biggestSpendTx?.amount ?? 0)}
+                </p>
+                <p className="mt-0.5 text-[10px] text-[#1D9E75]">
+                  {biggestSpendTx
+                    ? `${biggestSpendTx.merchant || biggestSpendTx.description || biggestSpendTx.paymentMethod} · ${format(parseISO(biggestSpendTx.date), 'MMM d')}`
+                    : 'No spend yet'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 hidden grid-cols-3 gap-3 md:grid">
               <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
                 <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Total spent</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(totalSpent)}</p>
@@ -1219,7 +1296,7 @@ export default function TransactionsPage() {
                     <button
                       type="button"
                       onClick={() => setShowTransferModal(true)}
-                      className="h-12 shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-[#1D9E75] hover:text-[#1D9E75] inline-flex items-center gap-1.5"
+                      className="hidden h-12 shrink-0 rounded-xl border border-zinc-200 bg-white px-4 text-xs font-semibold text-zinc-600 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 md:inline-flex md:items-center md:gap-1.5"
                     >
                       <ArrowLeftRight size={14} />
                       Transfer
@@ -1228,37 +1305,48 @@ export default function TransactionsPage() {
                   </div>
 
                   <div className="md:hidden">
-                    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={clearSelectedCategories}
-                        className={`min-h-10 shrink-0 rounded-full px-3.5 text-xs font-semibold transition-colors ${
-                          selectedCategories.length === 0
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                        }`}
+                        onClick={() => setShowFilterDrawer(true)}
+                        className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
                       >
-                        All categories
+                        <Filter size={14} />
+                        Filters
+                        {activeDrawerSettingCount > 0 && (
+                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] text-white">
+                            {activeDrawerSettingCount}
+                          </span>
+                        )}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowTransferModal(true)}
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                      >
+                        <ArrowLeftRight size={14} />
+                        Transfer
+                      </button>
+                    </div>
 
-                      {CATEGORY_FILTER_OPTIONS.map((category) => {
-                        const checked = selectedCategories.includes(category);
-                        return (
-                          <button
-                            key={category}
-                            type="button"
-                            aria-pressed={checked}
-                            onClick={() => toggleCategory(category)}
-                            className={`min-h-10 shrink-0 rounded-full px-3.5 text-xs font-semibold transition-colors ${
-                              checked
-                                ? 'bg-emerald-500 text-white'
-                                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                            }`}
-                          >
-                            {category}
-                          </button>
-                        );
-                      })}
+                    <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                            Spend view
+                          </p>
+                          <p className="mt-1 truncate text-sm text-zinc-700 dark:text-zinc-300">
+                            {includeOperationalInAnalytics ? 'Including transfers & adjustments' : 'Real spending only'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowFilterDrawer(true)}
+                          className="text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                        >
+                          Adjust
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1485,6 +1573,11 @@ export default function TransactionsPage() {
         isOpen={showFilterDrawer}
         onClose={() => setShowFilterDrawer(false)}
         onApply={() => setShowFilterDrawer(false)}
+        includeOperationalInAnalytics={includeOperationalInAnalytics}
+        onToggleIncludeOperationalInAnalytics={() => setIncludeOperationalInAnalytics((current) => !current)}
+        selectedMonth={selectedMonth}
+        monthOptions={monthOptions}
+        onMonthChange={handleMonthChange}
         categories={categoryBreakdown}
         highestCategoryTotal={highestCategoryTotal}
         selectedCategories={selectedCategories}
@@ -1548,6 +1641,7 @@ export default function TransactionsPage() {
 
       <FloatingAddButton
         visible={activeView === 'timeline' ? true : isFabVisible}
+        compactOnMobile
         onClick={openAddTransactionModal}
       />
       <AddExpenseModal

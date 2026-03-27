@@ -1,62 +1,489 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { CalendarDays } from 'lucide-react';
-import Link from 'next/link';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Database,
+  Download,
+  Monitor,
+  Moon,
+  Palette,
+  PiggyBank,
+  Plus,
+  Settings as SettingsIcon,
+  Shield,
+  Sun,
+  Trash2,
+  Upload,
+  Wallet,
+  Wifi,
+  WifiOff,
+  X,
+} from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { Settings as SettingsIcon, Plus, Trash2, Wifi, WifiOff, Download, Upload, Sun, Moon } from 'lucide-react';
-import { useTheme } from '@/components/ThemeProvider';
 import AccountSecuritySection from '@/components/settings/AccountSecuritySection';
-import AccountsSection from '@/components/settings/AccountsSection';
-import type { Budget, Category, Transaction } from '@/lib/types';
-import { CATEGORIES } from '@/lib/types';
-import type { BerdeState } from '@/lib/berde/berde.types';
-import { formatCurrency } from '@/lib/utils';
-import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
-import { SettingsSkeleton } from '@/components/SkeletonLoaders';
+import AccountsSection, {
+  type AccountsSectionSummary,
+} from '@/components/settings/AccountsSection';
 import BerdeSprite from '@/components/BerdeSprite';
+import { useTheme } from '@/components/ThemeProvider';
+import type { BerdeState } from '@/lib/berde/berde.types';
+import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
+import type { AccountWithBalance, Budget, Category, Transaction } from '@/lib/types';
+import { CATEGORIES } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
+
+type SettingsSectionKey =
+  | 'accounts'
+  | 'budgets'
+  | 'payday'
+  | 'security'
+  | 'sync-data'
+  | 'appearance';
+
+type SettingsGroup = 'Accounts & Money' | 'Security & Sync' | 'Data & Appearance';
+
+interface SettingsNavItem {
+  id: SettingsSectionKey;
+  title: string;
+  summary: string;
+  status?: string;
+  description: string;
+  eyebrow: string;
+  group: SettingsGroup;
+  icon: ComponentType<{ size?: number; className?: string }>;
+}
+
+function parseDateValue(value: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 function resolveSettingsBerdeContext(params: {
   loading: boolean;
-  showAddBudget: boolean;
+  showBudgetComposer: boolean;
   monthBudgets: Budget[];
 }): { state: BerdeState; message: string } {
-  const { loading, showAddBudget, monthBudgets } = params;
+  const { loading, showBudgetComposer, monthBudgets } = params;
 
-  if (loading || showAddBudget) {
+  if (loading || showBudgetComposer) {
     return {
       state: 'helper',
-      message: 'Need a setup hand? Berde can help you shape a realistic budget for this month.',
+      message:
+        'Need a setup hand? Berde can help you shape a realistic budget for this month.',
     };
   }
 
   if (monthBudgets.length === 0) {
     return {
       state: 'worried',
-      message: 'No budget set yet. Add an Overall budget first so your spending has a clear limit.',
+      message:
+        'No budget set yet. Add an Overall budget first so your spending has a clear limit.',
     };
   }
 
-  const hasOverallBudget = monthBudgets.some((budget) => budget.category === 'Overall' && !budget.subCategory);
-  if (hasOverallBudget) {
+  if (monthBudgets.some((budget) => budget.category === 'Overall' && !budget.subCategory)) {
     return {
       state: 'proud',
-      message: 'Great setup. You have an Overall budget in place. Keep refining categories as needed.',
+      message: 'Great setup. You already have an Overall budget in place.',
     };
   }
 
   return {
     state: 'neutral',
-    message: 'Your budget categories are in place. Consider adding an Overall cap for stronger guardrails.',
+    message:
+      'Your categories are in place. Consider adding an Overall cap for stronger guardrails.',
   };
 }
 
+function SummaryTile({
+  label,
+  value,
+  helper,
+  loading = false,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  loading?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-[24px] border px-4 py-4 shadow-[0_10px_28px_rgba(42,42,28,0.04)] ${
+        accent
+          ? 'border-emerald-200/80 bg-emerald-50/90'
+          : 'border-[#e5ddcf] bg-white/88'
+      }`}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        {label}
+      </p>
+      {loading ? (
+        <div className="mt-2 space-y-2">
+          <div className="h-5 w-20 animate-pulse rounded bg-zinc-200/80" />
+          <div className="h-3 w-24 animate-pulse rounded bg-zinc-200/60" />
+        </div>
+      ) : (
+        <>
+          <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">{value}</p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{helper}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DesktopNavButton({
+  item,
+  active,
+  onClick,
+}: {
+  item: SettingsNavItem;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-[22px] border px-3 py-3 text-left transition-all ${
+        active
+          ? 'border-emerald-300 bg-[#edf7f1] shadow-[0_10px_26px_rgba(29,158,117,0.08)]'
+          : 'border-transparent bg-transparent hover:border-[#ebe3d5] hover:bg-[#f8f3ea]'
+      }`}
+      aria-current={active ? 'page' : undefined}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+            active ? 'bg-white text-[#1D9E75]' : 'bg-[#f6f1e7] text-zinc-600'
+          }`}
+        >
+          <Icon size={18} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            {item.title}
+          </span>
+          <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {item.summary}
+          </span>
+          {item.status ? (
+            <span className="mt-2 inline-flex rounded-full bg-white/80 px-2 py-1 text-[11px] font-medium text-[#1D9E75]">
+              {item.status}
+            </span>
+          ) : null}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function MobileIndexRow({
+  item,
+  onClick,
+}: {
+  item: SettingsNavItem;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-[28px] border border-[#e3dbc9] bg-white/92 px-4 py-4 text-left shadow-[0_12px_30px_rgba(42,42,28,0.05)] transition-transform hover:-translate-y-0.5"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f5efe4] text-zinc-700">
+            <Icon size={18} />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                {item.title}
+              </p>
+              {item.status ? (
+                <span className="inline-flex rounded-full bg-[#eef7f0] px-2 py-0.5 text-[11px] font-medium text-[#1D9E75]">
+                  {item.status}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              {item.summary}
+            </p>
+          </div>
+        </div>
+        <ChevronRight size={16} className="mt-1 shrink-0 text-zinc-400" />
+      </div>
+    </button>
+  );
+}
+
+function SettingsSurface({
+  eyebrow,
+  title,
+  description,
+  action,
+  children,
+  className = '',
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`rounded-[30px] border border-[#e1d8ca] bg-white/92 p-4 shadow-[0_12px_34px_rgba(42,42,28,0.05)] sm:p-5 ${className}`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75]">
+            {eyebrow}
+          </p>
+          <h3 className="mt-2 font-display text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            {title}
+          </h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {description}
+          </p>
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function SettingsSheet({
+  open,
+  eyebrow,
+  title,
+  description,
+  icon: Icon,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  eyebrow: string;
+  title: string;
+  description: string;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const [mounted] = useState(() => typeof window !== 'undefined');
+  const [visible, setVisible] = useState(false);
+  const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    let showTimer: number | null = null;
+    let hideTimer: number | null = null;
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    if (open) {
+      showTimer = window.setTimeout(() => {
+        setVisible(true);
+        firstFrame = window.requestAnimationFrame(() => {
+          secondFrame = window.requestAnimationFrame(() => setAnimating(true));
+        });
+      }, 0);
+    } else {
+      showTimer = window.setTimeout(() => setAnimating(false), 0);
+      hideTimer = window.setTimeout(() => setVisible(false), 320);
+    }
+
+    return () => {
+      if (showTimer !== null) window.clearTimeout(showTimer);
+      if (hideTimer !== null) window.clearTimeout(hideTimer);
+      if (firstFrame) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [visible, onClose]);
+
+  if (!mounted || !visible) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-40 flex items-end lg:hidden"
+      style={{
+        backgroundColor: animating ? 'rgba(24, 24, 22, 0.38)' : 'rgba(24, 24, 22, 0)',
+        transition: 'background-color 280ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full rounded-t-[32px] border-x border-t border-[#ddd6c8] bg-[#f7f2e8]"
+        style={{
+          maxHeight: '88vh',
+          transform: animating ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 320ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-zinc-300" />
+        <div className="flex items-start justify-between gap-3 border-b border-[#e8dfd0] px-4 pb-4 pt-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-[#1D9E75] shadow-[0_10px_24px_rgba(29,158,117,0.08)]">
+              <Icon size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75]">
+                {eyebrow}
+              </p>
+              <h2 className="mt-1 font-display text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                {title}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                {description}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={`Close ${title}`}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ddd6c8] bg-white/80 text-zinc-500 transition-colors hover:bg-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-4 py-4" style={{ maxHeight: 'calc(88vh - 118px)' }}>
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function SettingsDialog({
+  open,
+  eyebrow,
+  title,
+  description,
+  icon: Icon,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  eyebrow: string;
+  title: string;
+  description: string;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/45 px-4 py-6 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-dialog-title"
+    >
+      <div
+        className="w-full max-w-lg rounded-[30px] border border-[#ddd6c8] bg-[#f7f2e8] p-5 shadow-[0_20px_60px_rgba(26,26,20,0.2)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/90 text-[#1D9E75]">
+              <Icon size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75]">
+                {eyebrow}
+              </p>
+              <h2
+                id="settings-dialog-title"
+                className="mt-1 font-display text-xl font-semibold text-zinc-900 dark:text-zinc-50"
+              >
+                {title}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                {description}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={`Close ${title}`}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ddd6c8] bg-white/85 text-zinc-500 transition-colors hover:bg-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="mt-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const { theme, toggle } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddBudget, setShowAddBudget] = useState(false);
+  const [showBudgetComposer, setShowBudgetComposer] = useState(false);
   const [newCategory, setNewCategory] = useState<Category | 'Overall'>('Overall');
   const [newSubCategory, setNewSubCategory] = useState('');
   const [newLimit, setNewLimit] = useState('');
@@ -68,15 +495,26 @@ export default function SettingsPage() {
   const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<SettingsSectionKey>('accounts');
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [accountsSummary, setAccountsSummary] = useState<AccountsSectionSummary>({
+    activeCount: 0,
+    archivedCount: 0,
+    cashWalletName: null,
+  });
+  const [accountsSummaryLoading, setAccountsSummaryLoading] = useState(true);
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  const [lastExportAt, setLastExportAt] = useState<Date | null>(null);
+  const [lastImportAt, setLastImportAt] = useState<Date | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBudgets = useCallback(async () => {
     try {
-      const res = await fetch('/api/budgets');
-      const json = await res.json();
-      setBudgets(json);
+      const response = await fetch('/api/budgets');
+      const json = await response.json();
+      setBudgets(Array.isArray(json) ? json : []);
     } catch {
-      // offline
+      setBudgets([]);
     } finally {
       setLoading(false);
     }
@@ -84,41 +522,45 @@ export default function SettingsPage() {
 
   const fetchUserSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/user-settings');
-      if (res.ok) {
-        const json = await res.json();
-        setNextPayday(json.next_payday ?? '');
-      }
+      const response = await fetch('/api/user-settings');
+      if (!response.ok) return;
+      const json = await response.json();
+      setNextPayday(typeof json.next_payday === 'string' ? json.next_payday : '');
     } catch {
       // offline
     }
   }, []);
 
-  const handleSavePayday = async () => {
-    setPaydaySaving(true);
-    setPaydayStatus(null);
+  const fetchAccountsSummary = useCallback(async () => {
+    setAccountsSummaryLoading(true);
+
     try {
-      const res = await fetch('/api/user-settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ next_payday: nextPayday || null }),
+      const response = await fetch('/api/accounts?includeArchived=true', {
+        cache: 'no-store',
       });
-      if (res.ok) {
-        setPaydayStatus('Saved!');
-      } else {
-        setPaydayStatus('Failed to save.');
-      }
+      const json = await response.json();
+      const accounts = Array.isArray(json) ? (json as AccountWithBalance[]) : [];
+      const activeAccounts = accounts.filter((account) => !account.isArchived);
+      const archivedAccounts = accounts.filter((account) => account.isArchived);
+      const cashWalletAccount =
+        activeAccounts.find((account) => account.isSystemCashWallet) ?? null;
+
+      setAccountsSummary({
+        activeCount: activeAccounts.length,
+        archivedCount: archivedAccounts.length,
+        cashWalletName: cashWalletAccount?.name ?? null,
+      });
     } catch {
-      setPaydayStatus('Failed to save.');
+      setAccountsSummary({ activeCount: 0, archivedCount: 0, cashWalletName: null });
     } finally {
-      setPaydaySaving(false);
-      setTimeout(() => setPaydayStatus(null), 3000);
+      setAccountsSummaryLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchBudgets();
-    fetchUserSettings();
+    void fetchBudgets();
+    void fetchUserSettings();
+    void fetchAccountsSummary();
     setOnline(navigator.onLine);
 
     const unsubscribeRealtime = subscribeBudgetUpdates(() => {
@@ -136,27 +578,67 @@ export default function SettingsPage() {
         const pending = await getPendingTransactions();
         setPendingCount(pending.length);
       } catch {
-        // no indexeddb
+        setPendingCount(0);
       }
     }
-    checkPending();
+
+    void checkPending();
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       unsubscribeRealtime();
     };
-  }, [fetchBudgets, fetchUserSettings]);
+  }, [fetchAccountsSummary, fetchBudgets, fetchUserSettings]);
 
-  const handleAddBudget = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newLimit || parseFloat(newLimit) <= 0) return;
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileSheetOpen(false);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  const handleSavePayday = async () => {
+    setPaydaySaving(true);
+    setPaydayStatus(null);
+
+    try {
+      const response = await fetch('/api/user-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ next_payday: nextPayday || null }),
+      });
+
+      setPaydayStatus(response.ok ? 'Payday saved.' : 'Failed to save payday.');
+    } catch {
+      setPaydayStatus('Failed to save payday.');
+    } finally {
+      setPaydaySaving(false);
+      window.setTimeout(() => setPaydayStatus(null), 3000);
+    }
+  };
+
+  const closeBudgetComposer = () => {
+    setShowBudgetComposer(false);
+    setNewCategory('Overall');
+    setNewSubCategory('');
+    setNewLimit('');
+    setNewRollover(false);
+  };
+
+  const handleAddBudget = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newLimit || Number.parseFloat(newLimit) <= 0) return;
 
     const budget: Budget = {
       id: uuidv4(),
       category: newCategory,
-      subCategory: newCategory === 'Overall' ? undefined : (newSubCategory.trim() || undefined),
-      monthlyLimit: parseFloat(newLimit),
+      subCategory:
+        newCategory === 'Overall' ? undefined : newSubCategory.trim() || undefined,
+      monthlyLimit: Number.parseFloat(newLimit),
       month,
       rollover: newRollover,
       alertThresholdsTriggered: [],
@@ -168,11 +650,8 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(budget),
       });
-      setNewLimit('');
-      setNewSubCategory('');
-      setNewRollover(false);
-      setShowAddBudget(false);
-      fetchBudgets();
+      closeBudgetComposer();
+      await fetchBudgets();
     } catch {
       // offline
     }
@@ -181,7 +660,7 @@ export default function SettingsPage() {
   const handleDeleteBudget = async (id: string) => {
     try {
       await fetch(`/api/budgets?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-      fetchBudgets();
+      await fetchBudgets();
     } catch {
       // offline
     }
@@ -191,9 +670,8 @@ export default function SettingsPage() {
     try {
       const { syncPendingTransactions } = await import('@/lib/indexeddb');
       const result = await syncPendingTransactions();
-      if (result.synced > 0) {
-        setPendingCount((prev) => prev - result.synced);
-      }
+      setPendingCount((previous) => Math.max(previous - result.synced, 0));
+      setLastSyncAt(new Date());
     } catch {
       // failed
     }
@@ -201,400 +679,905 @@ export default function SettingsPage() {
 
   const handleExportJSON = async () => {
     try {
-      const res = await fetch('/api/transactions');
-      const transactions: Transaction[] = await res.json();
-      const blob = new Blob([JSON.stringify(transactions, null, 2)], { type: 'application/json' });
+      const response = await fetch('/api/transactions');
+      const transactions: Transaction[] = await response.json();
+      const blob = new Blob([JSON.stringify(transactions, null, 2)], {
+        type: 'application/json',
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `expense-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
-      a.click();
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `expense-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+      anchor.click();
       URL.revokeObjectURL(url);
+      setLastExportAt(new Date());
     } catch {
       // offline
     }
   };
 
-  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
-
     setImportStatus('Importing...');
+
     try {
       const text = await file.text();
       const transactions: Transaction[] = JSON.parse(text);
-
       if (!Array.isArray(transactions)) {
         setImportStatus('Invalid file format.');
         return;
       }
 
       let imported = 0;
-      for (const tx of transactions) {
-        if (!tx.amount || !tx.category || !tx.date) continue;
-        const res = await fetch('/api/transactions', {
+      for (const transaction of transactions) {
+        if (!transaction.amount || !transaction.category || !transaction.date) continue;
+
+        const response = await fetch('/api/transactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            amount: tx.amount,
-            category: tx.category,
-            subCategory: tx.subCategory,
-            merchant: tx.merchant,
-            description: tx.description,
-            date: tx.date,
-            paymentMethod: tx.paymentMethod ?? 'Cash',
-            notes: tx.notes ?? '',
-            tags: tx.tags ?? [],
-            attachmentBase64: tx.attachmentBase64,
-            split: tx.split,
-            recurring: tx.recurring
+            amount: transaction.amount,
+            category: transaction.category,
+            subCategory: transaction.subCategory,
+            merchant: transaction.merchant,
+            description: transaction.description,
+            date: transaction.date,
+            paymentMethod: transaction.paymentMethod ?? 'Cash',
+            notes: transaction.notes ?? '',
+            tags: transaction.tags ?? [],
+            attachmentBase64: transaction.attachmentBase64,
+            split: transaction.split,
+            recurring: transaction.recurring
               ? {
-                  frequency: tx.recurring.frequency,
-                  interval: tx.recurring.interval,
-                  endDate: tx.recurring.endDate,
+                  frequency: transaction.recurring.frequency,
+                  interval: transaction.recurring.interval,
+                  endDate: transaction.recurring.endDate,
                 }
               : undefined,
           }),
         });
-        if (res.ok) imported++;
+
+        if (response.ok) imported += 1;
       }
 
-      setImportStatus(`Imported ${imported} transaction${imported !== 1 ? 's' : ''} successfully.`);
+      setImportStatus(
+        `Imported ${imported} transaction${imported === 1 ? '' : 's'} successfully.`
+      );
+      setLastImportAt(new Date());
     } catch {
       setImportStatus('Failed to import. Make sure the file is a valid JSON export.');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setTimeout(() => setImportStatus(null), 5000);
+      window.setTimeout(() => setImportStatus(null), 5000);
     }
   };
 
-  const monthBudgets = budgets
-    .filter((b) => b.month === month)
-    .sort((a, b) => {
-      if (a.category === 'Overall' && b.category !== 'Overall') return -1;
-      if (a.category !== 'Overall' && b.category === 'Overall') return 1;
-      const aLabel = `${a.category}:${a.subCategory || ''}`.toLowerCase();
-      const bLabel = `${b.category}:${b.subCategory || ''}`.toLowerCase();
-      return aLabel.localeCompare(bLabel);
-    });
+  const monthBudgets = useMemo(() => {
+    return budgets
+      .filter((budget) => budget.month === month)
+      .sort((first, second) => {
+        if (first.category === 'Overall' && second.category !== 'Overall') return -1;
+        if (first.category !== 'Overall' && second.category === 'Overall') return 1;
+        return `${first.category}:${first.subCategory || ''}`.localeCompare(
+          `${second.category}:${second.subCategory || ''}`
+        );
+      });
+  }, [budgets, month]);
 
+  const nextPaydayDate = parseDateValue(nextPayday);
+  const formattedBudgetMonth = format(new Date(`${month}-01`), 'MMMM yyyy');
   const berdeSettingsContext = resolveSettingsBerdeContext({
     loading,
-    showAddBudget,
+    showBudgetComposer,
     monthBudgets,
   });
+  const overallBudget = monthBudgets.find(
+    (budget) => budget.category === 'Overall' && !budget.subCategory
+  );
+  const rolloverBudgetCount = monthBudgets.filter((budget) => budget.rollover).length;
+  const syncStatusText = online
+    ? pendingCount > 0
+      ? `${pendingCount} pending`
+      : 'All synced'
+    : 'Offline mode';
+  const appearanceSummaryText =
+    theme === 'system'
+      ? 'System theme'
+      : theme === 'dark'
+        ? 'Dark theme'
+        : 'Light theme';
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-          <SettingsIcon size={20} className="text-zinc-600 dark:text-zinc-400" />
-        </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Settings</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Manage account, budgets, and preferences
-          </p>
-        </div>
-      </div>
+  const navItems: SettingsNavItem[] = [
+    {
+      id: 'accounts',
+      title: 'Accounts',
+      summary:
+        accountsSummary.activeCount === 1
+          ? '1 active account'
+          : `${accountsSummary.activeCount} active accounts`,
+      status:
+        accountsSummary.archivedCount > 0
+          ? `${accountsSummary.archivedCount} archived hidden`
+          : 'Active first',
+      description:
+        'Keep everyday wallets front and center here. Archived accounts stay tucked away until you need them.',
+      eyebrow: 'Accounts & Money',
+      group: 'Accounts & Money',
+      icon: Wallet,
+    },
+    {
+      id: 'budgets',
+      title: 'Budgets',
+      summary:
+        monthBudgets.length === 0
+          ? 'No monthly budgets configured'
+          : monthBudgets.length === 1
+            ? '1 monthly budget configured'
+            : `${monthBudgets.length} monthly budgets configured`,
+      status: overallBudget ? 'Overall cap ready' : 'Needs overall cap',
+      description:
+        'Monthly guardrails belong here, but heavier setup stays inside a dedicated composer instead of an always-open form.',
+      eyebrow: 'Accounts & Money',
+      group: 'Accounts & Money',
+      icon: PiggyBank,
+    },
+    {
+      id: 'payday',
+      title: 'Payday',
+      summary: nextPaydayDate ? `Next payday: ${format(nextPaydayDate, 'MMM d')}` : 'No payday scheduled yet',
+      status: nextPaydayDate ? 'Scheduled' : 'Needs setup',
+      description:
+        'Keep payday light and useful so you can quickly confirm what date anchors the next planning cycle.',
+      eyebrow: 'Accounts & Money',
+      group: 'Accounts & Money',
+      icon: CalendarDays,
+    },
+    {
+      id: 'security',
+      title: 'Security',
+      summary: 'Password and account protection',
+      description:
+        'Profile, password, and session controls stay clear and trustworthy, with room to grow into stronger device security later.',
+      eyebrow: 'Security & Sync',
+      group: 'Security & Sync',
+      icon: Shield,
+    },
+    {
+      id: 'sync-data',
+      title: 'Sync & Data',
+      summary: 'Backup, export, and import',
+      status: syncStatusText,
+      description:
+        'Sync health, backups, exports, and imports are grouped together, with risky data moves kept visually separate.',
+      eyebrow: 'Security & Sync',
+      group: 'Security & Sync',
+      icon: Database,
+    },
+    {
+      id: 'appearance',
+      title: 'Appearance',
+      summary: appearanceSummaryText,
+      status: `Currently ${resolvedTheme}`,
+      description:
+        'Appearance stays lightweight so it feels polished without competing with your financial controls.',
+      eyebrow: 'Data & Appearance',
+      group: 'Data & Appearance',
+      icon: Palette,
+    },
+  ];
 
-      {loading ? (
-        <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10 animate-pulse">
-          <div className="flex items-start gap-3">
-            <div className="h-[70px] w-[70px] rounded-xl bg-white/70 dark:bg-zinc-900/70" />
-            <div className="flex-1 pt-1">
-              <div className="h-3 w-24 rounded bg-emerald-200/80 dark:bg-emerald-800/50" />
-              <div className="mt-2 h-3 w-full max-w-[420px] rounded bg-emerald-200/70 dark:bg-emerald-800/40" />
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
-              <BerdeSprite state={berdeSettingsContext.state} size={54} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">Berde guide</p>
-              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{berdeSettingsContext.message}</p>
-            </div>
-          </div>
-        </section>
-      )}
+  const groupedNavItems: Array<{ group: SettingsGroup; items: SettingsNavItem[] }> = [
+    { group: 'Accounts & Money', items: navItems.filter((item) => item.group === 'Accounts & Money') },
+    { group: 'Security & Sync', items: navItems.filter((item) => item.group === 'Security & Sync') },
+    { group: 'Data & Appearance', items: navItems.filter((item) => item.group === 'Data & Appearance') },
+  ];
 
-      <div className="mb-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
-        <Link
-          href="/accounts"
-          className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
-        >
-          Open dedicated Accounts page
-        </Link>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Quick access for mobile since Accounts is not in bottom navigation.
-        </p>
-      </div>
+  const activeItem = navItems.find((item) => item.id === activeSection) ?? navItems[0];
+  const openSection = (section: SettingsSectionKey) => {
+    setActiveSection(section);
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      setMobileSheetOpen(false);
+      return;
+    }
+    setMobileSheetOpen(true);
+  };
 
-      {/* Budget Management */}
-      <div className="mb-4">
-        <AccountsSection />
-      </div>
+  const handleAccountsSummaryChange = useCallback((summary: AccountsSectionSummary) => {
+    setAccountsSummary((current) => {
+      if (
+        current.activeCount === summary.activeCount &&
+        current.archivedCount === summary.archivedCount &&
+        current.cashWalletName === summary.cashWalletName
+      ) {
+        return current;
+      }
 
-      {/* Budget Management */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white">Budget Management</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none"
+      return summary;
+    });
+    setAccountsSummaryLoading(false);
+  }, []);
+
+  const renderSectionContent = (section: SettingsSectionKey) => {
+    if (section === 'accounts') {
+      return <AccountsSection onSummaryChange={handleAccountsSummaryChange} />;
+    }
+
+    if (section === 'budgets') {
+      return (
+        <div className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            <SummaryTile
+              label="Configured"
+              value={loading ? '...' : String(monthBudgets.length)}
+              helper={formattedBudgetMonth}
+              loading={loading}
             />
-            <button
-              onClick={() => setShowAddBudget(true)}
-              className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
-            >
-              <Plus size={14} />
-            </button>
+            <SummaryTile
+              label="Overall budget"
+              value={loading ? '...' : overallBudget ? formatCurrency(overallBudget.monthlyLimit) : 'Missing'}
+              helper={overallBudget ? 'Main monthly cap is active' : 'Add an Overall budget first'}
+              loading={loading}
+              accent={Boolean(overallBudget)}
+            />
+            <SummaryTile
+              label="Rollover"
+              value={loading ? '...' : String(rolloverBudgetCount)}
+              helper="Budgets carrying unused room forward"
+              loading={loading}
+            />
           </div>
-        </div>
 
-        {showAddBudget && (
-          <form onSubmit={handleAddBudget} className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl space-y-3 animate-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Category</label>
+          <SettingsSurface
+            eyebrow="Budgets"
+            title={`Budget rules for ${formattedBudgetMonth}`}
+            description="Budget setup stays clean here: browse the month, scan what is already configured, and add new rules inside a dedicated composer."
+            action={
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <select
-                  value={newCategory}
-                  onChange={(e) => {
-                    const nextCategory = e.target.value as Category | 'Overall';
-                    setNewCategory(nextCategory);
-                    if (nextCategory === 'Overall') setNewSubCategory('');
-                  }}
-                  className="w-full mt-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
+                  value={month}
+                  onChange={(event) => setMonth(event.target.value)}
+                  className="min-h-11 rounded-full border border-[#ddd6c8] bg-[#fbf8f1] px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
                 >
-                  <option value="Overall">Overall</option>
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Sub-category (optional)</label>
-                <input
-                  type="text"
-                  value={newSubCategory}
-                  onChange={(e) => setNewSubCategory(e.target.value)}
-                  disabled={newCategory === 'Overall'}
-                  placeholder={newCategory === 'Overall' ? 'Not applicable for overall' : 'e.g., Groceries'}
-                  className="w-full mt-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none disabled:opacity-60"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Monthly Limit (₱)</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={newLimit}
-                  onChange={(e) => setNewLimit(e.target.value)}
-                  placeholder="12000"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white outline-none"
-                  required
-                />
-              </div>
-              <label className="flex items-center justify-between px-3 py-2 mt-5 sm:mt-0 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
-                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Enable rollover</span>
-                <input
-                  type="checkbox"
-                  checked={newRollover}
-                  onChange={(e) => setNewRollover(e.target.checked)}
-                  className="h-4 w-4 accent-emerald-500"
-                />
-              </label>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddBudget(false);
-                  setNewSubCategory('');
-                  setNewRollover(false);
-                }}
-                className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg transition-colors"
-              >
-                Save Budget
-              </button>
-            </div>
-          </form>
-        )}
+                  {Array.from({ length: 6 }).map((_, index) => {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() - index);
+                    const value = format(date, 'yyyy-MM');
 
-        {loading ? (
-          <SettingsSkeleton />
-        ) : monthBudgets.length === 0 ? (
-          <div className="text-center py-8 text-zinc-400 dark:text-zinc-600 text-sm">
-            No budgets set for {format(new Date(month + '-01'), 'MMMM yyyy')}.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {monthBudgets.map((budget) => (
-              <div
-                key={budget.id}
-                className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-white">
-                    {budget.subCategory ? `${budget.category} · ${budget.subCategory}` : budget.category}
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatCurrency(budget.monthlyLimit)} / month
-                    {budget.rollover ? ' · rollover on' : ''}
-                  </p>
-                </div>
+                    return (
+                      <option key={value} value={value}>
+                        {format(date, 'MMMM yyyy')}
+                      </option>
+                    );
+                  })}
+                </select>
                 <button
-                  onClick={() => handleDeleteBudget(budget.id)}
-                  className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                  type="button"
+                  onClick={() => setShowBudgetComposer(true)}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-4 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
                 >
-                  <Trash2 size={14} />
+                  <Plus size={14} />
+                  Add budget
                 </button>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Payday Settings */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
-        <div className="flex items-center gap-2 mb-1">
-          <CalendarDays size={16} className="text-emerald-500" />
-          <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white">Payday Settings</h3>
-        </div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-          Set your next expected payday so the dashboard can show accurate cash-flow countdown instead of a generic month-end estimate. Leave blank to hide the payday stat.
-        </p>
-        <div className="flex items-center gap-3">
-          <input
-            type="date"
-            value={nextPayday}
-            onChange={(e) => setNextPayday(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-emerald-500"
-          />
-          <button
-            onClick={handleSavePayday}
-            disabled={paydaySaving}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white text-sm font-medium rounded-lg transition-colors"
+            }
           >
-            {paydaySaving ? 'Saving...' : 'Save'}
-          </button>
-          {nextPayday && (
-            <button
-              onClick={() => setNextPayday('')}
-              className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg"
-              title="Clear payday"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        {paydayStatus && (
-          <p className={`mt-2 text-xs ${paydayStatus === 'Saved!' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{paydayStatus}</p>
-        )}
-      </div>
-
-      <div className="mt-4">
-        <AccountSecuritySection />
-      </div>
-
-      {/* Connection Status */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
-        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-3">Sync Status</h3>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {online ? (
-              <Wifi size={16} className="text-emerald-500" />
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-24 animate-pulse rounded-[24px] border border-[#ebe3d5] bg-[#fbf8f1]"
+                  />
+                ))}
+              </div>
+            ) : monthBudgets.length === 0 ? (
+              <div className="rounded-[24px] border border-dashed border-[#d9d1c2] bg-[#fbf8f1] px-4 py-6 text-sm text-zinc-500">
+                No budgets configured for {formattedBudgetMonth} yet. Start with an Overall limit so the month has a clear ceiling.
+              </div>
             ) : (
-              <WifiOff size={16} className="text-red-500" />
+              <div className="space-y-3">
+                {monthBudgets.map((budget) => (
+                  <div
+                    key={budget.id}
+                    className="rounded-[26px] border border-[#e8dfd0] bg-[#fbf8f1] p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                            {budget.category}
+                          </p>
+                          {budget.subCategory ? (
+                            <span className="inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                              {budget.subCategory}
+                            </span>
+                          ) : null}
+                          {budget.rollover ? (
+                            <span className="inline-flex rounded-full bg-[#eef7f0] px-2 py-0.5 text-[11px] font-medium text-[#1D9E75]">
+                              Rollover
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-2 text-xs uppercase tracking-[0.12em] text-zinc-500">
+                          Monthly limit
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                          {formatCurrency(budget.monthlyLimit)}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteBudget(budget.id)}
+                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-rose-200 px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50"
+                      >
+                        <Trash2 size={14} />
+                        Delete budget
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              {online ? 'Online' : 'Offline'}
-            </span>
-          </div>
-          {pendingCount > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-amber-600 dark:text-amber-400">
-                {pendingCount} pending
-              </span>
+          </SettingsSurface>
+        </div>
+      );
+    }
+
+    if (section === 'payday') {
+      return (
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <SettingsSurface
+            eyebrow="Payday"
+            title={nextPaydayDate ? format(nextPaydayDate, 'EEEE, MMMM d') : 'No payday scheduled'}
+            description="Keep this lightweight. A clear date is enough to anchor planning without turning payday into a heavy settings flow."
+          >
+            <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                Preview
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                {nextPaydayDate ? format(nextPaydayDate, 'MMM d') : '--'}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                {nextPaydayDate
+                  ? 'Your next planning checkpoint is ready.'
+                  : 'Choose a payday date so budgets and planning feel anchored to something real.'}
+              </p>
+            </div>
+          </SettingsSurface>
+
+          <SettingsSurface
+            eyebrow="Payday editor"
+            title="Update the next payday"
+            description="A simple date field keeps this section quick to scan on mobile and easy to confirm on desktop."
+          >
+            <div className="space-y-4 rounded-[26px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+              <div>
+                <label
+                  htmlFor="next-payday"
+                  className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+                >
+                  Next payday
+                </label>
+                <input
+                  id="next-payday"
+                  type="date"
+                  value={nextPayday}
+                  onChange={(event) => setNextPayday(event.target.value)}
+                  className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-white/90 bg-white/75 px-4 py-3 text-sm text-zinc-600">
+                {nextPaydayDate ? (
+                  <p>
+                    Preview: <span className="font-medium text-zinc-900">{format(nextPaydayDate, 'PPP')}</span>
+                  </p>
+                ) : (
+                  <p>Pick a date to preview the next payday.</p>
+                )}
+              </div>
+
+              {paydayStatus ? (
+                <p className="inline-flex items-center gap-2 rounded-full bg-[#eef7f0] px-3 py-2 text-sm text-[#1D9E75]">
+                  <CheckCircle2 size={14} />
+                  {paydayStatus}
+                </p>
+              ) : null}
+
               <button
-                onClick={handleSync}
-                disabled={!online}
-                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 text-white text-xs font-medium rounded-lg transition-colors"
+                type="button"
+                onClick={() => void handleSavePayday()}
+                disabled={paydaySaving}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#1D9E75] px-5 text-sm font-medium text-white transition-colors hover:bg-[#187f5d] disabled:opacity-60"
               >
-                Sync Now
+                {paydaySaving ? 'Saving...' : 'Save payday'}
               </button>
             </div>
-          )}
-          {pendingCount === 0 && (
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">All synced</span>
-          )}
+          </SettingsSurface>
+        </div>
+      );
+    }
+
+    if (section === 'security') {
+      return <AccountSecuritySection />;
+    }
+
+    if (section === 'sync-data') {
+      return (
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <SettingsSurface
+            eyebrow="Sync"
+            title="Connection and backup status"
+            description="Keep sync readable at a glance, then separate calmer export tasks from the riskier import path."
+          >
+            <div className="space-y-4">
+              <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      Current state
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      {online ? (
+                        <Wifi size={16} className="text-[#1D9E75]" />
+                      ) : (
+                        <WifiOff size={16} className="text-amber-600" />
+                      )}
+                      <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                        {online ? 'Connected' : 'Offline mode active'}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                      {pendingCount > 0
+                        ? `${pendingCount} transaction${pendingCount === 1 ? '' : 's'} waiting to sync.`
+                        : 'Everything local is caught up right now.'}
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      {lastSyncAt
+                        ? `Last manual sync: ${format(lastSyncAt, 'PP p')}`
+                        : 'No recent manual sync yet'}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleSync()}
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d1c2] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8]"
+                  >
+                    Sync now
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SummaryTile
+                  label="Pending"
+                  value={String(pendingCount)}
+                  helper="Queued locally"
+                  accent={pendingCount === 0}
+                />
+                <SummaryTile
+                  label="Mode"
+                  value={online ? 'Online' : 'Offline'}
+                  helper={online ? 'Ready to sync' : 'Changes stay local until reconnected'}
+                />
+              </div>
+            </div>
+          </SettingsSurface>
+
+          <div className="space-y-5">
+            <SettingsSurface
+              eyebrow="Export"
+              title="Create a backup"
+              description="Keep exports calm and repeatable so backing up your data never feels hidden."
+              action={
+                <button
+                  type="button"
+                  onClick={() => void handleExportJSON()}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-4 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
+                >
+                  <Download size={14} />
+                  Export JSON
+                </button>
+              }
+            >
+              <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] px-4 py-4 text-sm text-zinc-600">
+                <p className="font-medium text-zinc-900 dark:text-zinc-50">Portable transaction backup</p>
+                <p className="mt-2">
+                  {lastExportAt
+                    ? `Last export: ${format(lastExportAt, 'PP p')}`
+                    : 'No export yet in this session'}
+                </p>
+              </div>
+            </SettingsSurface>
+
+            <SettingsSurface
+              eyebrow="Import"
+              title="Bring in a previous backup"
+              description="Imports are intentionally separated so it is obvious that this action changes your data."
+              className="border-amber-200/80 bg-[#fffaf1]"
+            >
+              <div className="rounded-[24px] border border-amber-200/80 bg-white/85 p-4">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  JSON import
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                  Use a Moneda JSON export. Imported transactions are added one by one and invalid rows are skipped.
+                </p>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  {lastImportAt
+                    ? `Last import: ${format(lastImportAt, 'PP p')}`
+                    : 'No import yet in this session'}
+                </p>
+
+                {importStatus ? (
+                  <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    {importStatus}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-amber-200 px-4 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-50"
+                  >
+                    <Upload size={14} />
+                    Choose JSON file
+                  </button>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Import stays separate from export for a calmer, safer data workflow.
+                  </span>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={handleImportJSON}
+                />
+              </div>
+            </SettingsSurface>
+          </div>
+        </div>
+      );
+    }
+
+    if (section === 'appearance') {
+      return (
+        <div className="space-y-5">
+          <SettingsSurface
+            eyebrow="Appearance"
+            title="Theme preference"
+            description="Appearance should feel polished but secondary, with a clear choice between following your device or setting a specific theme."
+          >
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([
+                { value: 'system', label: 'System', helper: 'Follow your device', icon: Monitor },
+                { value: 'light', label: 'Light', helper: 'Warm daylight surfaces', icon: Sun },
+                { value: 'dark', label: 'Dark', helper: 'Low-light focus', icon: Moon },
+              ] as const).map((option) => {
+                const Icon = option.icon;
+                const selected = theme === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTheme(option.value)}
+                    className={`rounded-[24px] border px-4 py-4 text-left transition-colors ${
+                      selected
+                        ? 'border-[#1D9E75] bg-[#edf7f1]'
+                        : 'border-[#e8dfd0] bg-[#fbf8f1] hover:border-[#1D9E75]/40'
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${
+                        selected ? 'bg-white text-[#1D9E75]' : 'bg-white/85 text-zinc-600'
+                      }`}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                      {option.label}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {option.helper}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSurface>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <SummaryTile label="Selected" value={appearanceSummaryText} helper="Your saved preference" />
+            <SummaryTile
+              label="Applied right now"
+              value={resolvedTheme === 'dark' ? 'Dark mode' : 'Light mode'}
+              helper={
+                theme === 'system'
+                  ? 'Resolved from your device preference'
+                  : 'Using your saved theme selection'
+              }
+              accent
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <>
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+        <header className="relative overflow-hidden rounded-[36px] border border-[#e2d9c9] bg-[linear-gradient(180deg,rgba(255,250,242,0.98)_0%,rgba(246,238,226,0.96)_100%)] p-5 shadow-[0_20px_60px_rgba(48,41,27,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-10 top-0 h-48 w-48 rounded-full bg-amber-200/25 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 left-0 h-32 w-32 rounded-full bg-emerald-200/20 blur-3xl" />
+
+          <div className="relative z-10">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75] shadow-[0_8px_20px_rgba(29,158,117,0.08)]">
+                  <SettingsIcon size={12} />
+                  Moneda settings workspace
+                </div>
+                <h1 className="mt-4 font-display text-[2rem] font-semibold text-zinc-900 dark:text-zinc-50 sm:text-[2.4rem]">
+                  Settings
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                  A warmer, calmer place for active accounts, budgets, payday rules, security, sync, and appearance. Financial controls stay first. Maintenance stays tidy.
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-700">
+                    Accounts & Money first
+                  </span>
+                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-700">
+                    Mobile summary-first
+                  </span>
+                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-700">
+                    Active accounts only by default
+                  </span>
+                </div>
+              </div>
+
+              <div className="w-full max-w-xl rounded-[28px] border border-white/80 bg-white/65 p-4 backdrop-blur-sm">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-white/90 p-2 shadow-[0_10px_24px_rgba(29,158,117,0.08)]">
+                    <BerdeSprite state={berdeSettingsContext.state} size={38} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75]">
+                      Berde
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                      {berdeSettingsContext.message}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <SummaryTile
+                    label="Accounts"
+                    value={accountsSummaryLoading ? '...' : String(accountsSummary.activeCount)}
+                    helper="Active right now"
+                    loading={accountsSummaryLoading}
+                  />
+                  <SummaryTile
+                    label="Budgets"
+                    value={loading ? '...' : String(monthBudgets.length)}
+                    helper={formattedBudgetMonth}
+                    loading={loading}
+                  />
+                  <SummaryTile
+                    label="Payday"
+                    value={nextPaydayDate ? format(nextPaydayDate, 'MMM d') : '--'}
+                    helper={nextPaydayDate ? 'Next payday' : 'Not scheduled'}
+                    accent={Boolean(nextPaydayDate)}
+                  />
+                  <SummaryTile
+                    label="Sync"
+                    value={syncStatusText}
+                    helper={online ? 'Connection looks good' : 'Working locally for now'}
+                    accent={online && pendingCount === 0}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mt-6 hidden gap-5 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside>
+            <div className="sticky top-24 rounded-[32px] border border-[#e2d9c9] bg-white/88 p-4 shadow-[0_14px_40px_rgba(42,42,28,0.05)]">
+              {groupedNavItems.map((group, groupIndex) => (
+                <div
+                  key={group.group}
+                  className={groupIndex > 0 ? 'mt-5 border-t border-[#efe7d8] pt-5' : ''}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    {group.group}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {group.items.map((item) => (
+                      <DesktopNavButton
+                        key={item.id}
+                        item={item}
+                        active={item.id === activeSection}
+                        onClick={() => openSection(item.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+
+          <section className="rounded-[32px] border border-[#e2d9c9] bg-[#fbf8f1] shadow-[0_14px_40px_rgba(42,42,28,0.05)]">
+            <div className="border-b border-[#ece3d4] px-5 py-5 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75]">
+                    {activeItem.eyebrow}
+                  </p>
+                  <h2 className="mt-2 font-display text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                    {activeItem.title}
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-500 dark:text-zinc-400">
+                    {activeItem.description}
+                  </p>
+                </div>
+                {activeItem.status ? (
+                  <span className="inline-flex rounded-full bg-white px-3 py-2 text-sm font-medium text-[#1D9E75]">
+                    {activeItem.status}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6">{renderSectionContent(activeSection)}</div>
+          </section>
+        </div>
+
+        <div className="mt-6 space-y-6 lg:hidden">
+          {groupedNavItems.map((group) => (
+            <section key={group.group}>
+              <div className="mb-3 px-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  {group.group}
+                </p>
+              </div>
+              <div className="space-y-3">
+                {group.items.map((item) => (
+                  <MobileIndexRow
+                    key={item.id}
+                    item={item}
+                    onClick={() => openSection(item.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
 
-      {/* Data Management */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
-        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-1">Data Management</h3>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-          Export a JSON backup of all your transactions, or import a previously exported backup.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={handleExportJSON}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl transition-colors"
-          >
-            <Download size={15} />
-            Export JSON Backup
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium rounded-xl transition-colors"
-          >
-            <Upload size={15} />
-            Import JSON Backup
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,application/json"
-            onChange={handleImportJSON}
-            className="hidden"
-          />
-        </div>
-        {importStatus && (
-          <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">{importStatus}</p>
-        )}
-      </div>
+      <SettingsSheet
+        open={mobileSheetOpen}
+        eyebrow={activeItem.eyebrow}
+        title={activeItem.title}
+        description={activeItem.description}
+        icon={activeItem.icon}
+        onClose={() => setMobileSheetOpen(false)}
+      >
+        {renderSectionContent(activeSection)}
+      </SettingsSheet>
 
-      {/* Theme Preferences */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 mt-4">
-        <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white mb-4">Theme</h3>
-        <button
-          onClick={toggle}
-          className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl border border-zinc-200 dark:border-zinc-700 transition-colors"
-        >
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-            {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-          </span>
-          {theme === 'dark' ? (
-            <Moon size={18} className="text-zinc-500 dark:text-zinc-400" />
-          ) : (
-            <Sun size={18} className="text-zinc-500" />
-          )}
-        </button>
-      </div>
-    </div>
+      <SettingsDialog
+        open={showBudgetComposer}
+        eyebrow="Budgets"
+        title="Add budget"
+        description={`Create a focused budget for ${formattedBudgetMonth} without cluttering the main settings view.`}
+        icon={PiggyBank}
+        onClose={closeBudgetComposer}
+      >
+        <form onSubmit={handleAddBudget} className="space-y-4">
+          <div className="rounded-[24px] border border-[#e8dfd0] bg-white/80 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Budget month
+            </p>
+            <p className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+              {formattedBudgetMonth}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Category
+            </label>
+            <select
+              value={newCategory}
+              onChange={(event) => setNewCategory(event.target.value as Category | 'Overall')}
+              className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
+            >
+              <option value="Overall">Overall</option>
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {newCategory !== 'Overall' ? (
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                Subcategory
+              </label>
+              <input
+                value={newSubCategory}
+                onChange={(event) => setNewSubCategory(event.target.value)}
+                placeholder="Optional detail, like groceries"
+                className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
+              />
+            </div>
+          ) : null}
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Monthly limit
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={newLimit}
+              onChange={(event) => setNewLimit(event.target.value)}
+              placeholder="0.00"
+              className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
+            />
+          </div>
+
+          <label className="flex items-start gap-3 rounded-[24px] border border-[#e8dfd0] bg-white/80 px-4 py-4">
+            <input
+              type="checkbox"
+              checked={newRollover}
+              onChange={(event) => setNewRollover(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-[#cfc6b8] text-[#1D9E75] focus:ring-[#1D9E75]"
+            />
+            <span>
+              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                Carry unused budget forward
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Helpful when a category should flex month to month instead of resetting hard.
+              </span>
+            </span>
+          </label>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={closeBudgetComposer}
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#ddd6c8] px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-5 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
+            >
+              <Plus size={14} />
+              Save budget
+            </button>
+          </div>
+        </form>
+      </SettingsDialog>
+    </>
   );
 }

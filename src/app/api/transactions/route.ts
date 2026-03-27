@@ -59,6 +59,14 @@ function normalizeTags(value: unknown): string[] {
   );
 }
 
+function normalizeMetadata(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown>;
+}
+
 function parseSplit(splitInput: unknown):
   | { split: TransactionSplit[]; total: number }
   | { error: string } {
@@ -254,6 +262,7 @@ export async function POST(request: NextRequest) {
       type,
       incomeCategory,
       accountId: normalizeUuid(body.accountId),
+      linkedTransferGroupId: normalizeUuid(body.linkedTransferGroupId),
       category: resolvedCategory,
       subCategory: type === 'income'
         ? undefined
@@ -265,6 +274,7 @@ export async function POST(request: NextRequest) {
       notes,
       tags,
       attachmentBase64,
+      metadata: normalizeMetadata(body.metadata),
       split: normalizedSplit,
       recurring,
       createdAt: now,
@@ -427,6 +437,14 @@ export async function PUT(request: NextRequest) {
 
     if (Object.prototype.hasOwnProperty.call(updates, 'accountId')) {
       normalizedUpdates.accountId = normalizeUuid(updates.accountId);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'linkedTransferGroupId')) {
+      normalizedUpdates.linkedTransferGroupId = normalizeUuid(updates.linkedTransferGroupId);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'metadata')) {
+      normalizedUpdates.metadata = normalizeMetadata(updates.metadata);
     }
 
     const updated = await updateTransaction(id, normalizedUpdates);

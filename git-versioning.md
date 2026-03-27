@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.16.1
+### Current version: v0.20.0
 
 ---
 ### Patch 
@@ -88,6 +88,38 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.20.0 — 2026-03-28
+  - feat(transactions): Transaction cards & mobile sheet improvements — redesigned transaction cards into a cleaner, reference-inspired mobile layout; switched cards to a softer white surface (replacing the warmer paper tint); added a mobile timeline gutter with dots and connecting rail beside grouped transaction rows; grouped date headers now show a relative/weekday label with the full date underneath; the category line now shows only the main category (no subcategory); mobile long-press opens a details sheet with a minimal slide/fade open-close animation; the sheet stack level is set above the FAB and it only renders optional rows (subcategory, details, notes, tags, recurring, sync status) when present; removed the helper sentence from the sheet header; raised transaction delete confirmation modals above the FAB. `eslint` and `tsc --noEmit` pass.
+  - Files updated: src/components/TransactionList.tsx, src/app/transactions/page.tsx, src/components/pages/TransactionsClientPage.tsx
+
+v0.19.0 — 2026-03-28
+  - feat: Settings workspace redesign, Accounts active-first, and appearance theme system: redesigned Settings into a workspace (desktop: category sidebar + focused detail pane; mobile: summary-first with warm bottom sheet; budgets, payday, sync/data, and appearance regrouped under clearer hierarchy — mobile sheet flow at page.tsx lines 891 and 1319); AccountsSection now shows active accounts by default with archived hidden behind a disclosure, uses existing add/edit/adjust dialogs, and labels archive actions as "Archive"/"Restore" (AccountsSection.tsx lines 189, 469); Appearance supports System/Light/Dark via `ThemeProvider` (ThemeProvider.tsx line 6).
+  - Files updated: src/app/settings/page.tsx (lines 891, 1319), src/components/AccountsSection.tsx (lines 189, 469), src/components/ThemeProvider.tsx (line 6)
+
+v0.18.1 — 2026-03-28
+  - patch: Restore warm Savings canvas and apply warm app shell background: restored the Savings warm canvas in SavingsClientPage (line 404) and pushed the same `#f8f7f2` warm background into the authenticated `AppShell` (lines 103 and 313), so in-app pages now inherit the warm Savings-style canvas instead of the cooler white/zinc page background.
+  - Files updated: src/components/pages/SavingsClientPage.tsx (line 404), src/components/AppShell.tsx (lines 103, 313)
+
+v0.18.0 — 2026-03-28
+  - feat: Rework withdraws to a transfer-ledger model and add stable cash-wallet support: introduce `is_system_cash_wallet` flag and helper; add a `withdraw` mode to the transfer modal (cash / internal / external), withdraw balance preview, `Withdraw all`, and Record-as-expense handoff into the expense modal; include transfer validation and balance checks for withdraw paths.
+  - feat: Transaction & server updates: add transaction `metadata` and linked `transfer-group` support; add external withdrawal requests with pending/completed/failed lifecycle and API routes; updated migrations and server RPCs for transfers/withdrawals.
+  - perf/analytics: Exclude transfer/adjustment rows from spend analytics by default and add a `Real spending only / Include transfers & adjustments` toggle that affects both the stat cards and the visible Transactions list; align export summaries with current filtered view; improve transaction row labels and defensive filtering (dashboard recent transactions and RecentTransactions component).
+  - ux/mobile: Mobile Transactions & Dashboard refinements — smaller FAB, list-first Transactions layout, slimmed mobile header, compact filter/transfer action row, horizontally scrollable tabs, hidden large analytics card on mobile, horizontal stat scroller, full-width search, expanded filter drawer (spend-view toggle, month picker, filters, export), and extra bottom spacing to avoid FAB/bottom-nav overlap.
+  - chore: Added shared operational-transaction classifier (`transaction-classification.ts` line 12) and documentation updates for withdraw semantics and external-withdraw flow.
+
+v0.17.2 — 2026-03-28
+  - feat: Accounts — Account detail client page for `/accounts/[id]` wired to real APIs; added Balance & This Month stats, Deposit/Withdraw/Transfer/Adjust actions, grouped transaction history, not-found + skeleton UI.
+  - Files updated: `src/components/accounts/AccountDetailClientPage.tsx`
+
+v0.17.1 — 2026-03-28
+  - fix: Accounts hero — added a dedicated skeleton state for the Accounts hero card to prevent a fallback Berde state while accounts load.
+  - Files updated: `src/components/accounts/AccountsClientPage.tsx`
+
+v0.17.0 — 2026-03-28
+  - feat: Accounts — redesigned Accounts list and Account detail screens (list + detail + forms + adjust dialog).
+  - List screen: net worth hero from account balances, visibility toggle persisted via `moneda_nw_visible`, local filter chips, two-column responsive grid, archived section, and navigation to account detail on card tap.
+  - Detail screen: account-backed stats from `/api/accounts`, This Month computed from `/api/transactions` scoped to the account, account-scoped transaction history, edit/archive actions, and account balance adjust dialog.
+  - Files added/updated: `src/app/accounts/page.tsx`, `src/app/accounts/[id]/page.tsx`, `src/components/accounts/AccountsClientPage.tsx`, `src/components/accounts/AccountDetailClientPage.tsx`, `src/components/accounts/AccountFormDialog.tsx`, `src/components/accounts/AccountAdjustDialog.tsx`, `src/hooks/useNetWorthVisibility.ts`
 v0.16.1 — 2026-03-27
   - fix: Exclude income and manual balance adjustments from insights "spend-by-day" and "This month at a glance" calculations.
   - Files updated: `src/app/insights/page.tsx`, `src/components/pages/InsightsClientPage.tsx`

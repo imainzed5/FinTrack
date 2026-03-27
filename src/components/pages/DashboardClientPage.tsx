@@ -428,6 +428,7 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
             setDefaultCategory(undefined);
             setShowAddModal(true);
           }}
+          compactOnMobile
           topCategories={topCategories}
           onCategorySelect={handleCategorySelect}
         />

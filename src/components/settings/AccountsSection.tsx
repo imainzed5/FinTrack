@@ -1,53 +1,79 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Archive, Pencil, Plus, RefreshCcw, Undo2, Wallet } from 'lucide-react';
-import { ACCOUNT_TYPES, type AccountType } from '@/lib/types';
+import {
+  Archive,
+  ChevronDown,
+  Landmark,
+  Pencil,
+  Plus,
+  Smartphone,
+  Undo2,
+  Wallet,
+} from 'lucide-react';
+import AccountAdjustDialog from '@/components/accounts/AccountAdjustDialog';
+import AccountFormDialog from '@/components/accounts/AccountFormDialog';
+import type { AccountType, AccountWithBalance } from '@/lib/types';
 import { formatCurrencySigned } from '@/lib/utils';
 
-interface AccountWithBalance {
-  id: string;
-  name: string;
-  type: AccountType;
-  initialBalance: number;
-  color?: string;
-  icon?: string;
-  isArchived: boolean;
-  computedBalance: number;
+export interface AccountsSectionSummary {
+  activeCount: number;
+  archivedCount: number;
+  cashWalletName: string | null;
 }
 
-interface AccountFormState {
-  id?: string;
-  name: string;
-  type: AccountType;
-  initialBalance: string;
-  color: string;
-  icon: string;
+interface AccountsSectionProps {
+  onSummaryChange?: (summary: AccountsSectionSummary) => void;
 }
 
-const INITIAL_FORM: AccountFormState = {
-  name: '',
-  type: 'Cash',
-  initialBalance: '0',
-  color: '',
-  icon: '',
-};
+function getAccountBadge(account: AccountWithBalance): string | null {
+  return account.isSystemCashWallet ? 'Cash wallet' : null;
+}
 
-export default function AccountsSection() {
+function getAccountTypeLabel(type: AccountType): string {
+  if (type === 'Cash') return 'Cash wallet';
+  if (type === 'E-Wallet') return 'Digital wallet';
+  if (type === 'Bank') return 'Bank account';
+  return 'Other account';
+}
+
+function getAccountIcon(type: AccountType) {
+  if (type === 'Cash') return Wallet;
+  if (type === 'E-Wallet') return Smartphone;
+  if (type === 'Bank') return Landmark;
+  return Wallet;
+}
+
+function getIconSurface(type: AccountType): string {
+  if (type === 'Cash') return 'bg-emerald-50 text-emerald-700';
+  if (type === 'E-Wallet') return 'bg-sky-50 text-sky-700';
+  if (type === 'Bank') return 'bg-amber-50 text-amber-700';
+  return 'bg-zinc-100 text-zinc-700';
+}
+
+export default function AccountsSection({
+  onSummaryChange,
+}: AccountsSectionProps = {}) {
   const [accounts, setAccounts] = useState<AccountWithBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<AccountFormState>(INITIAL_FORM);
-  const [adjustments, setAdjustments] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<string | null>(null);
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
+  const [showFormDialog, setShowFormDialog] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AccountWithBalance | null>(null);
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [adjustingAccount, setAdjustingAccount] = useState<AccountWithBalance | null>(null);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
+
     try {
-      const res = await fetch('/api/accounts?includeArchived=true', { cache: 'no-store' });
-      const json = await res.json();
+      const response = await fetch('/api/accounts?includeArchived=true', {
+        cache: 'no-store',
+      });
+      const json = await response.json();
       setAccounts(Array.isArray(json) ? json : []);
     } catch {
       setAccounts([]);
@@ -70,352 +96,395 @@ export default function AccountsSection() {
     [accounts]
   );
 
-  const resetForm = () => {
-    setForm(INITIAL_FORM);
-    setShowForm(false);
+  const cashWalletAccount = useMemo(
+    () => activeAccounts.find((account) => account.isSystemCashWallet) ?? null,
+    [activeAccounts]
+  );
+
+  useEffect(() => {
+    onSummaryChange?.({
+      activeCount: activeAccounts.length,
+      archivedCount: archivedAccounts.length,
+      cashWalletName: cashWalletAccount?.name ?? null,
+    });
+  }, [
+    activeAccounts.length,
+    archivedAccounts.length,
+    cashWalletAccount?.name,
+    onSummaryChange,
+  ]);
+
+  const closeFormDialog = () => {
+    setShowFormDialog(false);
+    setEditingAccount(null);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!form.name.trim()) {
-      setStatus('Account name is required.');
-      return;
-    }
-
-    setSaving(true);
-    setStatus(null);
-    try {
-      if (form.id) {
-        const res = await fetch('/api/accounts', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: form.id,
-            name: form.name.trim(),
-            type: form.type,
-            initialBalance: Number.parseFloat(form.initialBalance || '0') || 0,
-            color: form.color.trim() || null,
-            icon: form.icon.trim() || null,
-          }),
-        });
-        if (!res.ok) {
-          const payload = await res.json().catch(() => ({}));
-          throw new Error(payload.error || 'Failed to update account.');
-        }
-      } else {
-        const res = await fetch('/api/accounts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: form.name.trim(),
-            type: form.type,
-            initialBalance: Number.parseFloat(form.initialBalance || '0') || 0,
-            color: form.color.trim() || null,
-            icon: form.icon.trim() || null,
-          }),
-        });
-        if (!res.ok) {
-          const payload = await res.json().catch(() => ({}));
-          throw new Error(payload.error || 'Failed to create account.');
-        }
-      }
-
-      await fetchAccounts();
-      resetForm();
-      setStatus('Account saved.');
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Failed to save account.');
-    } finally {
-      setSaving(false);
-    }
+  const closeAdjustDialog = () => {
+    setShowAdjustDialog(false);
+    setAdjustingAccount(null);
   };
 
   const handleArchiveToggle = async (id: string, action: 'archive' | 'restore') => {
     setSaving(true);
     setStatus(null);
+
     try {
-      const res = await fetch('/api/accounts', {
+      const response = await fetch('/api/accounts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action }),
       });
 
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || `Failed to ${action} account.`);
       }
 
       await fetchAccounts();
+      setExpandedAccountId(null);
       setStatus(action === 'archive' ? 'Account archived.' : 'Account restored.');
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : `Failed to ${action} account.`);
+    } catch (archiveError) {
+      setStatus(
+        archiveError instanceof Error
+          ? archiveError.message
+          : `Failed to ${action} account.`
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const openEdit = (account: AccountWithBalance) => {
-    setShowForm(true);
-    setForm({
-      id: account.id,
-      name: account.name,
-      type: account.type,
-      initialBalance: account.initialBalance.toString(),
-      color: account.color || '',
-      icon: account.icon || '',
-    });
+  const handleSavedAccount = async () => {
+    await fetchAccounts();
+    setStatus(editingAccount ? 'Account updated.' : 'Account created.');
   };
 
-  const handleAdjustBalance = async (accountId: string) => {
-    const raw = adjustments[accountId] ?? '';
-    const amount = Number.parseFloat(raw);
-    if (!Number.isFinite(amount) || amount === 0) {
-      setStatus('Enter a non-zero adjustment amount (positive or negative).');
-      return;
-    }
+  const handleAdjustedAccount = async () => {
+    await fetchAccounts();
+    setStatus('Balance adjusted successfully.');
+  };
 
-    setSaving(true);
-    setStatus(null);
-    try {
-      const res = await fetch('/api/accounts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: accountId,
-          action: 'adjust-balance',
-          amount,
-          note: 'Manual account balance adjustment',
-        }),
-      });
+  const openCreateDialog = () => {
+    setEditingAccount(null);
+    setShowFormDialog(true);
+  };
 
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to adjust balance.');
-      }
+  const openEditDialog = (account: AccountWithBalance) => {
+    setEditingAccount(account);
+    setShowFormDialog(true);
+    setExpandedAccountId(null);
+  };
 
-      setAdjustments((prev) => ({ ...prev, [accountId]: '' }));
-      await fetchAccounts();
-      setStatus('Balance adjusted successfully.');
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Failed to adjust balance.');
-    } finally {
-      setSaving(false);
-    }
+  const openAdjustDialog = (account: AccountWithBalance) => {
+    setAdjustingAccount(account);
+    setShowAdjustDialog(true);
+    setExpandedAccountId(null);
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-display text-sm font-semibold text-zinc-900 dark:text-white">Accounts</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Real balances per wallet/account. Budget limits remain separate.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowForm((prev) => {
-              const next = !prev;
-              if (!next) {
-                setForm(INITIAL_FORM);
-              }
-              return next;
-            });
-          }}
-          className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium inline-flex items-center gap-1.5"
-        >
-          <Plus size={13} />
-          {showForm ? 'Cancel' : 'Add account'}
-        </button>
-      </div>
-
-      {showForm && (
-        <form onSubmit={handleSubmit} className="mb-4 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div className="sm:col-span-2">
-            <label className="text-[11px] text-zinc-500 dark:text-zinc-400">Name</label>
-            <input
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., Main Wallet"
-              className="mt-1 w-full h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 text-xs"
-            />
+    <>
+      <div className="rounded-[30px] border border-[color:var(--color-border-tertiary,#ddd8ca)] bg-white/92 p-4 shadow-[0_12px_34px_rgba(42,42,28,0.05)] backdrop-blur sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#eef7f0] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1D9E75]">
+              <Wallet size={12} />
+              Accounts
+            </div>
+            <h3 className="mt-3 font-display text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              Active accounts first
+            </h3>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+              Settings stays focused on the balances you actively use. Archived accounts remain accessible, but quietly out of the way.
+            </p>
           </div>
 
-          <div>
-            <label className="text-[11px] text-zinc-500 dark:text-zinc-400">Type</label>
-            <select
-              value={form.type}
-              onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as AccountType }))}
-              className="mt-1 w-full h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 text-xs"
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/accounts"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--color-border-secondary,#d9d7cf)] px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8] dark:text-zinc-200"
             >
-              {ACCOUNT_TYPES.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[11px] text-zinc-500 dark:text-zinc-400">Starting balance</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.initialBalance}
-              onChange={(e) => setForm((prev) => ({ ...prev, initialBalance: e.target.value }))}
-              placeholder="0.00"
-              className="mt-1 w-full h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] text-zinc-500 dark:text-zinc-400">Color (optional)</label>
-            <input
-              value={form.color}
-              onChange={(e) => setForm((prev) => ({ ...prev, color: e.target.value }))}
-              placeholder="#1D9E75"
-              className="mt-1 w-full h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 text-xs"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="text-[11px] text-zinc-500 dark:text-zinc-400">Icon (optional)</label>
-            <input
-              value={form.icon}
-              onChange={(e) => setForm((prev) => ({ ...prev, icon: e.target.value }))}
-              placeholder="wallet"
-              className="mt-1 w-full h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 text-xs"
-            />
-          </div>
-
-          <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
+              Full accounts page
+            </Link>
             <button
               type="button"
-              onClick={resetForm}
-              className="h-8 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs"
+              onClick={openCreateDialog}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-4 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium disabled:opacity-60"
-            >
-              {saving ? 'Saving...' : form.id ? 'Save changes' : 'Create account'}
+              <Plus size={14} />
+              Add account
             </button>
           </div>
-        </form>
-      )}
-
-      {loading ? (
-        <div className="text-xs text-zinc-400 py-6">Loading accounts...</div>
-      ) : activeAccounts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-4 text-xs text-zinc-500 dark:text-zinc-400">
-          No active accounts yet. Create one to track real balances.
         </div>
-      ) : (
-        <div className="space-y-2">
-          {activeAccounts.map((account) => (
-            <div key={account.id} className="rounded-xl border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50 dark:bg-zinc-800">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm text-zinc-900 dark:text-zinc-100 font-medium truncate">
-                    {account.name}
-                  </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {account.type}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    {formatCurrencySigned(account.computedBalance)}
-                  </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">computed balance</p>
-                </div>
-              </div>
 
-              <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Adjust (+/-)"
-                  value={adjustments[account.id] ?? ''}
-                  onChange={(e) => setAdjustments((prev) => ({ ...prev, [account.id]: e.target.value }))}
-                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 text-xs"
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-[24px] border border-[#e8e1d4] bg-[#fbf7ee] px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Active accounts
+            </p>
+            <p className="mt-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              {activeAccounts.length}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Shown by default in Settings
+            </p>
+          </div>
+          <div className="rounded-[24px] border border-[#e8e1d4] bg-[#fbf7ee] px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Archived
+            </p>
+            <p className="mt-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              {archivedAccounts.length}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Hidden until you expand them
+            </p>
+          </div>
+          <div className="rounded-[24px] border border-[#e8e1d4] bg-[#fbf7ee] px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Cash wallet
+            </p>
+            <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              {cashWalletAccount?.name ?? 'Not available'}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              System wallet for cash moves
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="mb-3">
+            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Active accounts ({activeAccounts.length})
+            </h4>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Lightweight account management lives here. Deeper browsing stays on the full Accounts page.
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-28 animate-pulse rounded-[26px] border border-[#e8dfd0] bg-[#fbf8f1]"
                 />
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => handleAdjustBalance(account.id)}
-                  className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium disabled:opacity-60"
-                >
-                  Apply
-                </button>
-              </div>
-
-              <div className="mt-2.5 flex items-center justify-end gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => openEdit(account)}
-                  className="h-7 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs inline-flex items-center gap-1"
-                >
-                  <Pencil size={12} /> Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={saving || activeAccounts.length <= 1}
-                  onClick={() => handleArchiveToggle(account.id, 'archive')}
-                  className="h-7 px-2.5 rounded-lg border border-amber-200 text-amber-700 dark:border-amber-700 dark:text-amber-300 text-xs inline-flex items-center gap-1 disabled:opacity-50"
-                >
-                  <Archive size={12} /> Delete
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          ) : activeAccounts.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-zinc-300 bg-[#fbf8f1] px-4 py-5 text-sm text-zinc-500">
+              No active accounts yet. Create one to start tracking real balances.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeAccounts.map((account) => {
+                const badge = getAccountBadge(account);
+                const Icon = getAccountIcon(account.type);
+                const expanded = expandedAccountId === account.id;
 
-      <button
-        type="button"
-        onClick={() => setShowArchived((prev) => !prev)}
-        className="mt-3 text-xs text-zinc-600 dark:text-zinc-300 inline-flex items-center gap-1"
-      >
-        <RefreshCcw size={12} />
-        {showArchived ? 'Hide archived accounts' : `Show archived accounts (${archivedAccounts.length})`}
-      </button>
-
-      {showArchived && archivedAccounts.length > 0 && (
-        <div className="mt-2 space-y-2">
-          {archivedAccounts.map((account) => (
-            <div key={account.id} className="rounded-xl border border-zinc-200/70 dark:border-zinc-700 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300">{account.name}</p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{account.type}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {formatCurrencySigned(account.computedBalance)}
-                  </p>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => handleArchiveToggle(account.id, 'restore')}
-                    className="mt-1 h-7 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs inline-flex items-center gap-1"
+                return (
+                  <article
+                    key={account.id}
+                    className="rounded-[28px] border border-[#e8dfd0] bg-[#fbf8f1] p-4"
                   >
-                    <Undo2 size={12} /> Restore
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span
+                          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${getIconSurface(account.type)}`}
+                        >
+                          <Icon size={18} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                              {account.name}
+                            </p>
+                            {badge ? (
+                              <span className="inline-flex rounded-full bg-[#e1f5ee] px-2 py-0.5 text-[11px] font-medium text-[#1D9E75]">
+                                {badge}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {getAccountTypeLabel(account.type)}
+                          </p>
+                        </div>
+                      </div>
 
-      {status && (
-        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-300 inline-flex items-center gap-1.5">
-          <Wallet size={12} /> {status}
-        </p>
-      )}
-    </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+                        <div>
+                          <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                            {formatCurrencySigned(account.computedBalance)}
+                          </p>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            computed balance
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedAccountId((current) =>
+                              current === account.id ? null : account.id
+                            )
+                          }
+                          className="inline-flex min-h-9 items-center justify-center gap-1 rounded-full border border-[#ddd6c8] bg-white/80 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-white sm:hidden"
+                        >
+                          Manage
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {expanded ? (
+                      <div className="mt-3 grid grid-cols-1 gap-2 sm:hidden">
+                        <button
+                          type="button"
+                          onClick={() => openAdjustDialog(account)}
+                          className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          Adjust balance
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditDialog(account)}
+                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          <Pencil size={14} />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving || activeAccounts.length <= 1}
+                          onClick={() => void handleArchiveToggle(account.id, 'archive')}
+                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-amber-200 bg-white px-4 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-50"
+                        >
+                          <Archive size={14} />
+                          Archive
+                        </button>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3 hidden items-center gap-2 sm:flex">
+                      <button
+                        type="button"
+                        onClick={() => openAdjustDialog(account)}
+                        className="inline-flex min-h-10 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                      >
+                        Adjust balance
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditDialog(account)}
+                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={saving || activeAccounts.length <= 1}
+                        onClick={() => void handleArchiveToggle(account.id, 'archive')}
+                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-white px-4 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-50"
+                      >
+                        <Archive size={14} />
+                        Archive
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowArchived((current) => !current)}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#ddd6c8] bg-white/80 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-white"
+        >
+          {showArchived ? 'Hide archived accounts' : `Show archived accounts (${archivedAccounts.length})`}
+          <ChevronDown
+            size={14}
+            className={`transition-transform ${showArchived ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {showArchived && archivedAccounts.length > 0 ? (
+          <div className="mt-3 rounded-[28px] border border-[color:var(--color-border-secondary,#d9d7cf)] bg-[#f7f3ea] p-4">
+            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Archived accounts ({archivedAccounts.length})
+            </h4>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Archived accounts stay out of the way here, but you can restore them anytime.
+            </p>
+
+            <div className="mt-3 space-y-2.5">
+              {archivedAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="flex flex-col gap-3 rounded-[24px] border border-[#e3dccd] bg-white/88 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                        {account.name}
+                      </p>
+                      {account.isSystemCashWallet ? (
+                        <span className="inline-flex rounded-full bg-[#e1f5ee] px-2 py-0.5 text-[11px] font-medium text-[#1D9E75]">
+                          Cash wallet
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {getAccountTypeLabel(account.type)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      {formatCurrencySigned(account.computedBalance)}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => void handleArchiveToggle(account.id, 'restore')}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                    >
+                      <Undo2 size={14} />
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {status ? (
+          <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#eef7f0] px-3 py-2 text-sm text-[#1D9E75]">
+            <Wallet size={14} />
+            {status}
+          </p>
+        ) : null}
+      </div>
+
+      <AccountFormDialog
+        open={showFormDialog}
+        mode={editingAccount ? 'edit' : 'create'}
+        account={editingAccount}
+        onClose={closeFormDialog}
+        onSaved={handleSavedAccount}
+      />
+
+      <AccountAdjustDialog
+        open={showAdjustDialog}
+        account={adjustingAccount}
+        onClose={closeAdjustDialog}
+        onAdjusted={handleAdjustedAccount}
+      />
+    </>
   );
 }
