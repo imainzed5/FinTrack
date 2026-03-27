@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.19.0
+### Current version: v0.20.0
 
 ---
 ### Patch 
@@ -88,6 +88,10 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.20.0 — 2026-03-28
+  - feat(transactions): Transaction cards & mobile sheet improvements — redesigned transaction cards into a cleaner, reference-inspired mobile layout; switched cards to a softer white surface (replacing the warmer paper tint); added a mobile timeline gutter with dots and connecting rail beside grouped transaction rows; grouped date headers now show a relative/weekday label with the full date underneath; the category line now shows only the main category (no subcategory); mobile long-press opens a details sheet with a minimal slide/fade open-close animation; the sheet stack level is set above the FAB and it only renders optional rows (subcategory, details, notes, tags, recurring, sync status) when present; removed the helper sentence from the sheet header; raised transaction delete confirmation modals above the FAB. `eslint` and `tsc --noEmit` pass.
+  - Files updated: src/components/TransactionList.tsx, src/app/transactions/page.tsx, src/components/pages/TransactionsClientPage.tsx
+
 v0.19.0 — 2026-03-28
   - feat: Settings workspace redesign, Accounts active-first, and appearance theme system: redesigned Settings into a workspace (desktop: category sidebar + focused detail pane; mobile: summary-first with warm bottom sheet; budgets, payday, sync/data, and appearance regrouped under clearer hierarchy — mobile sheet flow at page.tsx lines 891 and 1319); AccountsSection now shows active accounts by default with archived hidden behind a disclosure, uses existing add/edit/adjust dialogs, and labels archive actions as "Archive"/"Restore" (AccountsSection.tsx lines 189, 469); Appearance supports System/Light/Dark via `ThemeProvider` (ThemeProvider.tsx line 6).
   - Files updated: src/app/settings/page.tsx (lines 891, 1319), src/components/AccountsSection.tsx (lines 189, 469), src/components/ThemeProvider.tsx (line 6)
