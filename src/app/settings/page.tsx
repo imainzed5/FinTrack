@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import {
   useCallback,
   useEffect,
@@ -238,6 +239,7 @@ function MobileIndexRow({
   );
 }
 
+
 function SettingsSurface({
   eyebrow,
   title,
@@ -352,16 +354,15 @@ function SettingsSheet({
       onClick={onClose}
     >
       <div
-        className="w-full rounded-t-[32px] border-x border-t border-[#ddd6c8] bg-[#f7f2e8]"
+        className="modal-shell flex w-full max-h-[92dvh] flex-col rounded-t-[32px] border-x border-t border-[#ddd6c8] bg-[#f7f2e8]"
         style={{
-          maxHeight: '88vh',
           transform: animating ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 320ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-zinc-300" />
-        <div className="flex items-start justify-between gap-3 border-b border-[#e8dfd0] px-4 pb-4 pt-4">
+        <div className="shrink-0 flex items-start justify-between gap-3 border-b border-[#e8dfd0] px-4 pb-4 pt-4">
           <div className="flex min-w-0 items-start gap-3">
             <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-[#1D9E75] shadow-[0_10px_24px_rgba(29,158,117,0.08)]">
               <Icon size={18} />
@@ -387,7 +388,7 @@ function SettingsSheet({
             <X size={16} />
           </button>
         </div>
-        <div className="overflow-y-auto px-4 py-4" style={{ maxHeight: 'calc(88vh - 118px)' }}>
+        <div className="modal-content-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
           {children}
         </div>
       </div>
@@ -480,6 +481,7 @@ function SettingsDialog({
 }
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -600,6 +602,20 @@ export default function SettingsPage() {
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
+  useEffect(() => {
+    const requestedSection = searchParams.get('section');
+    if (
+      requestedSection === 'accounts' ||
+      requestedSection === 'budgets' ||
+      requestedSection === 'payday' ||
+      requestedSection === 'security' ||
+      requestedSection === 'sync-data' ||
+      requestedSection === 'appearance'
+    ) {
+      setActiveSection(requestedSection);
+    }
+  }, [searchParams]);
 
   const handleSavePayday = async () => {
     setPaydaySaving(true);
@@ -1335,17 +1351,6 @@ export default function SettingsPage() {
                   A warmer, calmer place for active accounts, budgets, payday rules, security, sync, and appearance. Financial controls stay first. Maintenance stays tidy.
                 </p>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-700">
-                    Accounts & Money first
-                  </span>
-                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-700">
-                    Mobile summary-first
-                  </span>
-                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-700">
-                    Active accounts only by default
-                  </span>
-                </div>
               </div>
 
               <div className="w-full max-w-xl rounded-[28px] border border-white/80 bg-white/65 p-4 backdrop-blur-sm">

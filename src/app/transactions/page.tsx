@@ -999,7 +999,7 @@ export default function TransactionsPage() {
   return (
     <>
       <div className="mx-auto max-w-6xl px-4 pb-32 pt-4 sm:px-6 sm:pb-6">
-        <div className="sticky top-2 z-30 -mx-4 bg-white/95 px-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/90 sm:mx-0 sm:px-0">
+        <div className="-mx-4 bg-white/95 px-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/90 sm:mx-0 sm:px-0">
           <div className="rounded-2xl border border-zinc-200 bg-white/95 p-4 dark:border-zinc-800 dark:bg-zinc-900/95">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -1423,16 +1423,15 @@ export default function TransactionsPage() {
                   />
                 ) : (
                   <>
-                    <TransactionList
-                      transactions={paginated}
-                      onDelete={requestDeleteConfirmation}
-                      onEdit={setEditingTransaction}
-                      showDelete
-                      showEdit
-                      mobileFirst
-                      groupByDate
-                      stickyHeaderOffsetClassName="top-28 sm:top-24"
-                    />
+                <TransactionList
+                  transactions={paginated}
+                  onDelete={requestDeleteConfirmation}
+                  onEdit={setEditingTransaction}
+                  showDelete
+                  showEdit
+                  mobileFirst
+                  groupByDate
+                />
 
                     {totalPages > 1 && (
                       <div ref={paginationRef} className="mt-6 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
@@ -1591,7 +1590,7 @@ export default function TransactionsPage() {
 
       {pendingDeleteTransaction && (
         <div
-          className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center px-4"
+          className="fixed inset-0 z-[51] bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center px-4"
           onClick={closeDeleteConfirmation}
           role="dialog"
           aria-modal="true"

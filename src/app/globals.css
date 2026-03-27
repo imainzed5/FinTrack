@@ -64,7 +64,7 @@ body.panel-open .bottom-nav {
   }
 
   .mobile-fab-offset {
-    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 }
 

@@ -143,8 +143,9 @@ export default function FloatingAddButton({
       )}
 
       <div
-        className="fixed bottom-20 mobile-fab-offset right-4 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end gap-2"
+        className="fixed right-4 z-50 flex flex-col items-end gap-2 sm:bottom-8 sm:right-8"
         style={{
+          bottom: 'calc(env(safe-area-inset-bottom) + 4.85rem)',
           opacity: visible ? 1 : 0,
           pointerEvents: visible ? 'auto' : 'none',
           transition: 'opacity 0.2s ease',
