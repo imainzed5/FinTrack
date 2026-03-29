@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
+  BarController,
   Tooltip,
   Legend,
   CategoryScale,
+  LineController,
   LinearScale,
+  PieController,
   PointElement,
   LineElement,
   BarElement,
@@ -24,10 +27,13 @@ function peso(value: number) {
 
 ChartJS.register(
   ArcElement,
+  BarController,
   Tooltip,
   Legend,
   CategoryScale,
+  LineController,
   LinearScale,
+  PieController,
   PointElement,
   LineElement,
   BarElement,
