@@ -14,6 +14,7 @@ import {
   type DeviceProfile,
   type LocalAppSnapshot,
 } from './local-first';
+import { deriveSupabaseUserDisplayName } from './supabase/user-profile';
 import { requireSupabaseUser } from './supabase/server';
 
 interface CloudBackupRow {
@@ -25,26 +26,6 @@ interface CloudBackupRow {
 
 function isMissingBackupTable(error: { message?: string } | null): boolean {
   return Boolean(error?.message?.includes('user_device_backups'));
-}
-
-function deriveDisplayName(user: User, profileDisplayName?: string | null): string {
-  if (profileDisplayName?.trim()) {
-    return profileDisplayName.trim();
-  }
-
-  const metadataName = user.user_metadata?.full_name;
-  if (typeof metadataName === 'string' && metadataName.trim()) {
-    return metadataName.trim();
-  }
-
-  if (user.email) {
-    const [emailName] = user.email.split('@');
-    if (emailName?.trim()) {
-      return emailName.trim();
-    }
-  }
-
-  return 'Moneda user';
 }
 
 function hasSnapshotData(snapshot: LocalAppSnapshot): boolean {
@@ -120,7 +101,7 @@ async function buildLegacySnapshot(user: User, supabase: SupabaseClient): Promis
   const deviceProfile: DeviceProfile = {
     id: user.id,
     deviceId: user.id,
-    displayName: deriveDisplayName(user, profileFields.displayName),
+    displayName: deriveSupabaseUserDisplayName(user, profileFields.displayName),
     currency: DEFAULT_DEVICE_CURRENCY,
     onboardingComplete: true,
     cloudLinkedUserId: user.id,

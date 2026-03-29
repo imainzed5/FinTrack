@@ -12,6 +12,10 @@ import {
   parseRememberMeCookie,
   REMEMBER_ME_COOKIE_NAME,
 } from '@/lib/supabase/auth-state';
+import {
+  deriveSupabaseUserDisplayName,
+  readSupabaseUserMetadataDisplayName,
+} from '@/lib/supabase/user-profile';
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
@@ -88,11 +92,7 @@ export async function GET(request: NextRequest) {
     return nextResponse;
   }
 
-  let fullName = '';
-  const metadataName = user.user_metadata?.full_name;
-  if (typeof metadataName === 'string' && metadataName.trim().length > 0) {
-    fullName = metadataName.trim();
-  }
+  let fullName = readSupabaseUserMetadataDisplayName(user.user_metadata) ?? '';
 
   if (!fullName) {
     const { data: profile } = await supabase
@@ -100,9 +100,11 @@ export async function GET(request: NextRequest) {
       .select('display_name')
       .eq('id', user.id)
       .maybeSingle();
-    if (profile && typeof profile.display_name === 'string') {
-      fullName = profile.display_name;
-    }
+
+    fullName = deriveSupabaseUserDisplayName(
+      user,
+      profile && typeof profile.display_name === 'string' ? profile.display_name : null
+    );
   }
 
   const response: AuthSessionResponse = {

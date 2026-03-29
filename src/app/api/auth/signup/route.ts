@@ -9,7 +9,6 @@ import {
   TERMS_OF_SERVICE_VERSION,
 } from '@/lib/policy';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { getSiteUrl } from '@/lib/supabase/config';
 
 function parseSignupPayload(body: unknown): SignupPayload {
   if (!body || typeof body !== 'object') {
@@ -61,14 +60,12 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const emailRedirectTo = `${getSiteUrl(request.nextUrl.origin)}/auth/login`;
   const acceptedAt = new Date().toISOString();
 
   const { data, error } = await supabase.auth.signUp({
     email: payload.email,
     password: payload.password,
     options: {
-      emailRedirectTo,
       data: {
         full_name: payload.fullName,
         accepted_terms_at: acceptedAt,
@@ -82,6 +79,15 @@ export async function POST(request: NextRequest) {
   if (error) {
     const lowerMessage = error.message.toLowerCase();
     const errorCode = typeof error.code === 'string' ? error.code.toLowerCase() : '';
+
+    if (lowerMessage.includes('error sending confirmation email')) {
+      const response: AuthApiResponse = {
+        success: false,
+        error:
+          'Account creation is temporarily unavailable because the verification email could not be sent. Check your Supabase Auth email provider or SMTP settings, or disable Confirm email for local testing.',
+      };
+      return NextResponse.json(response, { status: 503 });
+    }
 
     if (
       errorCode === 'over_email_send_rate_limit' ||

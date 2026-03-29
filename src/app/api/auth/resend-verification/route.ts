@@ -5,7 +5,6 @@ import {
   normalizeEmailAddress,
 } from '@/lib/auth-contract';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { getSiteUrl } from '@/lib/supabase/config';
 
 interface ResendVerificationPayload {
   email: string;
@@ -59,19 +58,24 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const emailRedirectTo = `${getSiteUrl(request.nextUrl.origin)}/auth/login`;
 
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email: payload.email,
-    options: {
-      emailRedirectTo,
-    },
   });
 
   if (error) {
     const lowerMessage = error.message.toLowerCase();
     const errorCode = typeof error.code === 'string' ? error.code.toLowerCase() : '';
+
+    if (lowerMessage.includes('error sending confirmation email')) {
+      const response: AuthApiResponse = {
+        success: false,
+        error:
+          'Verification email delivery is currently failing in Supabase. Check the Auth email provider or SMTP settings before retrying.',
+      };
+      return NextResponse.json(response, { status: 503 });
+    }
 
     if (
       errorCode === 'over_email_send_rate_limit' ||
