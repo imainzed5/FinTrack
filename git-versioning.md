@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.22.0
+### Current version: v0.23.0
 
 ---
 ### Minor 
@@ -88,6 +88,13 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.23.0 — 2026-03-29
+  - feat(onboarding): Replace the single-screen local onboarding form with a checkpoint-based Berde setup flow at [src/app/onboarding/page.tsx](src/app/onboarding/page.tsx), including step navigation, backtracking, and an editable final review before device creation.
+  - feat(onboarding): Add onboarding draft persistence with local resume support so in-progress setup survives refreshes and returns the user to the correct checkpoint.
+  - feat(ux): Redesign onboarding into a desktop-first 30/70 layout with a left checkpoint rail, a focused setup panel, compact Berde presence, and reduced storytelling copy to keep account creation fast.
+  - feat(currency): Replace the generic currency icon with currency-specific symbols in onboarding selection cards and review controls.
+  - verification: `npm run lint` passed after the onboarding flow and layout updates.
+
 v0.22.0 — 2026-03-29
   - feat(local-first): Convert Moneda to device-first access with a shared `AppSessionProvider`, local onboarding at `/onboarding`, local-first route gating in `AppShell`, and viewer-aware sidebar/auth flows so the app works without sign-in.
   - feat(storage): Add IndexedDB-backed app data via `src/lib/local-store.ts` and local-first snapshot contracts in `src/lib/local-first.ts`; migrate dashboard, transactions, insights, timeline, accounts, savings, debts, settings, and shared dialogs away from auth-gated `/api/*` reads for primary local use.
