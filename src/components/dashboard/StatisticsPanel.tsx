@@ -5,6 +5,7 @@ import {
   ArcElement,
   Chart as ChartJS,
   Legend,
+  type TooltipItem,
   Tooltip,
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
@@ -211,7 +212,7 @@ function StatisticsContent({
                     tooltip: {
                       enabled: true,
                       callbacks: {
-                        label: (ctx: any) => ` ${formatCurrency(ctx.raw)}`,
+                        label: (ctx: TooltipItem<'doughnut'>) => ` ${formatCurrency(Number(ctx.raw ?? 0))}`,
                       },
                     },
                   },

@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { BarChart3, CalendarDays } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,16 +21,38 @@ import { resolveBerdeState } from '@/lib/berde/berde.logic';
 import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
 import { getBerdeInsightsForMood, mapStateToMood } from '../../lib/berde-messages';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { getDashboardData, getSavingsGoalsSummary } from '@/lib/local-store';
 import { getTodayDateKeyInManila } from '@/lib/utils';
+import { useAppSession } from '@/components/AppSessionProvider';
+import { DashboardSkeleton } from '@/components/SkeletonLoaders';
 import type { DashboardData, SavingsGoalsSummary } from '@/lib/types';
 
-interface DashboardClientPageProps {
-  data: DashboardData;
-  firstName: string;
-  userId: string;
-}
-
 type DailySpendingPoint = DashboardData['dailySpending'][number] & { date?: string };
+
+const EMPTY_DASHBOARD_DATA: DashboardData = {
+  totalSpentThisMonth: 0,
+  totalSpentLastMonth: 0,
+  totalBalance: 0,
+  remainingBudget: 0,
+  monthlyBudget: 0,
+  savingsRate: 0,
+  expenseGrowthRate: 0,
+  budgetStatuses: [],
+  budgetAlerts: [],
+  categoryBreakdown: [],
+  weeklySpending: [],
+  dailySpending: [],
+  calendarSpending: [],
+  currentMonthTransactions: [],
+  recentTransactions: [],
+  insights: [],
+};
+
+function deriveFirstName(value: string): string {
+  const normalized = value.includes('@') ? value.split('@')[0] : value;
+  const firstToken = normalized.trim().split(/\s+/)[0];
+  return firstToken || 'there';
+}
 
 function getTimeOfDay(now: Date): string {
   const hour = now.getHours();
@@ -54,11 +75,13 @@ function normalizeDateKey(value: unknown): string | null {
   return dateKey;
 }
 
-export default function DashboardClientPage({ data, firstName, userId }: DashboardClientPageProps) {
-  const router = useRouter();
+export default function DashboardClientPage() {
+  const { viewer } = useAppSession();
+  const [data, setData] = useState<DashboardData>(EMPTY_DASHBOARD_DATA);
+  const [loading, setLoading] = useState(true);
   const [statsOpen, setStatsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarExpanded, setCalendarExpanded] = useState<boolean>(() => {
+  const [calendarExpanded] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return false;
     }
@@ -83,6 +106,8 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
   const today = getTodayDateKeyInManila();
   const formattedDate = format(now, 'EEEE, MMMM d');
   const timeOfDay = getTimeOfDay(now);
+  const firstName = deriveFirstName(viewer.displayName);
+  const userId = viewer.id;
   const safeFirstName = firstName.trim() || 'there';
   const monthOverview = format(now, 'MMMM yyyy');
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -176,20 +201,59 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
     transactions: data.recentTransactions,
     insights: data.insights,
   });
+  const hasBerdeThoughts = berdeInsights.length > 0;
   const primaryBerdeInsight = berdeInsights[0] ?? {
-    mood,
-    type: 'fallback',
-    message: berdeContext.quote,
-    dataLine: berdeContext.triggerReason,
+    mood: 'dry' as const,
+    type: 'studying',
+    message: "Berde's still studying your habits.",
+    boldPhrase: 'Log a few more transactions and the patterns will start to show.',
+    dataLine: 'Fresh device data is still building up',
   };
 
-  const refreshDashboard = useCallback(() => {
-    router.refresh();
-  }, [router]);
+  const refreshDashboard = useCallback(async () => {
+    const [dashboard, summary] = await Promise.all([
+      getDashboardData(),
+      getSavingsGoalsSummary(),
+    ]);
+    setData(dashboard);
+    setSavingsSummary(summary);
+    setLoading(false);
+    setSavingsLoading(false);
+  }, []);
 
   const handleCategorySelect = useCallback((category: string) => {
     setDefaultCategory(category);
     setShowAddModal(true);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([getDashboardData(), getSavingsGoalsSummary()])
+      .then(([dashboard, summary]) => {
+        if (cancelled) {
+          return;
+        }
+
+        setData(dashboard);
+        setSavingsSummary(summary);
+        setLoading(false);
+        setSavingsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setData(EMPTY_DASHBOARD_DATA);
+        setSavingsSummary({ goals: [], totalSaved: 0, activeGoalCount: 0, savingsRate: 0 });
+        setLoading(false);
+        setSavingsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -198,41 +262,11 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
       setShowRemainingPopup(false);
       setShowSavingsGoalsPopup(false);
       setShowTodayPopup(false);
-      router.refresh();
+      void refreshDashboard();
     });
 
     return unsubscribe;
-  }, [router]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchSavings() {
-      try {
-        const res = await fetch('/api/savings/goals', { cache: 'no-store' });
-        if (!res.ok) {
-          throw new Error('Failed');
-        }
-        const fetchedData = (await res.json()) as SavingsGoalsSummary;
-        if (!cancelled) {
-          setSavingsSummary(fetchedData);
-        }
-      } catch {
-        if (!cancelled) {
-          setSavingsSummary({ goals: [], totalSaved: 0, activeGoalCount: 0, savingsRate: 0 });
-        }
-      } finally {
-        if (!cancelled) {
-          setSavingsLoading(false);
-        }
-      }
-    }
-
-    void fetchSavings();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [refreshDashboard]);
 
   useEffect(() => {
     const isAnyOpen = statsOpen || calendarOpen;
@@ -248,16 +282,9 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
     };
   }, [statsOpen, calendarOpen]);
 
-  useEffect(() => {
-    if (!calendarOpen) return;
-
-    try {
-      const isExpanded = window.localStorage.getItem('moneda-calendar-expanded') === 'true';
-      setCalendarExpanded(isExpanded);
-    } catch {
-      setCalendarExpanded(false);
-    }
-  }, [calendarOpen]);
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <>
@@ -353,6 +380,7 @@ export default function DashboardClientPage({ data, firstName, userId }: Dashboa
               <BerdeCard
                 insight={primaryBerdeInsight}
                 quote={berdeContext.quote}
+                hasThoughts={hasBerdeThoughts}
                 onClick={() => setBerdeOpen(true)}
               />
             </div>

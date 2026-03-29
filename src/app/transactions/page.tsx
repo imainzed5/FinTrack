@@ -15,6 +15,13 @@ import AddExpenseModal from '@/components/AddExpenseModal';
 import EditTransactionModal from '@/components/EditTransactionModal';
 import FilterDrawer from '@/components/FilterDrawer';
 import TransferModal from '@/components/TransferModal';
+import {
+  deleteTransaction,
+  getActiveRecurringTransactions,
+  getTimelineEvents,
+  getTransactions as getStoredTransactions,
+  updateTransaction,
+} from '@/lib/local-store';
 import { subscribeAppUpdates, subscribeTransactionUpdates } from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 import EmptyState from '@/components/EmptyState';
@@ -164,43 +171,16 @@ export default function TransactionsPage() {
     setLoading(true);
 
     try {
-      const params = new URLSearchParams();
-      params.set('month', selectedMonth);
-      if (selectedCategories.length > 0) {
-        params.set('categories', selectedCategories.join(','));
-      }
-      if (selectedPaymentMethod !== 'All methods') {
-        params.set('paymentMethod', selectedPaymentMethod);
-      }
-      const query = params.toString();
-      const endpoint = query ? `/api/transactions?${query}` : '/api/transactions';
-      const [res, totalRes] = await Promise.all([
-        fetch(endpoint),
-        query ? fetch('/api/transactions') : Promise.resolve<Response | null>(null),
-      ]);
-
-      if (!res.ok || (totalRes && !totalRes.ok)) {
-        throw new Error('Failed to fetch transactions');
-      }
-
-      const [json, totalJson] = await Promise.all([
-        res.json() as Promise<Transaction[]>,
-        totalRes ? (totalRes.json() as Promise<Transaction[]>) : Promise.resolve<Transaction[] | null>(null),
-      ]);
-
-      const nextTransactions = Array.isArray(json) ? json : [];
+      const nextTransactions = await getStoredTransactions();
       setTransactions(nextTransactions);
-      setTotalTransactionCount(
-        totalJson && Array.isArray(totalJson)
-          ? totalJson.length
-          : nextTransactions.length
-      );
+      setTotalTransactionCount(nextTransactions.length);
     } catch {
-      // offline
+      setTransactions([]);
+      setTotalTransactionCount(0);
     } finally {
       setLoading(false);
     }
-  }, [selectedCategories, selectedMonth, selectedPaymentMethod]);
+  }, []);
 
   useEffect(() => {
     fetchTransactions();
@@ -257,11 +237,10 @@ export default function TransactionsPage() {
     setTimelineLoading(true);
 
     try {
-      const res = await fetch('/api/timeline');
-      const json = await res.json();
+      const json = await getTimelineEvents();
       setTimelineEvents(Array.isArray(json) ? json : []);
     } catch {
-      // offline
+      setTimelineEvents([]);
     } finally {
       setTimelineLoading(false);
     }
@@ -270,13 +249,10 @@ export default function TransactionsPage() {
   const fetchRecurring = useCallback(async () => {
     setRecurringLoading(true);
     try {
-      const res = await fetch('/api/transactions/recurring');
-      if (res.ok) {
-        const json = await res.json();
-        setRecurringTransactions(Array.isArray(json) ? json : []);
-      }
+      const json = await getActiveRecurringTransactions();
+      setRecurringTransactions(Array.isArray(json) ? json : []);
     } catch {
-      // offline
+      setRecurringTransactions([]);
     } finally {
       setRecurringLoading(false);
     }
@@ -286,12 +262,10 @@ export default function TransactionsPage() {
     setStoppingId(tx.id);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const res = await fetch(`/api/transactions?id=${encodeURIComponent(tx.id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recurring: { ...tx.recurring, endDate: today } }),
+      const updated = await updateTransaction(tx.id, {
+        recurring: tx.recurring ? { ...tx.recurring, endDate: today } : tx.recurring,
       });
-      if (res.ok) {
+      if (updated) {
         void fetchRecurring();
       }
     } catch {
@@ -330,9 +304,9 @@ export default function TransactionsPage() {
     setIsDeleting(true);
 
     try {
-      const res = await fetch(`/api/transactions?id=${encodeURIComponent(pendingDeleteId)}`, { method: 'DELETE' });
+      const deleted = await deleteTransaction(pendingDeleteId);
 
-      if (!res.ok) {
+      if (!deleted) {
         return;
       }
 

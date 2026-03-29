@@ -14,6 +14,11 @@ import {
   type TransactionSplitInput,
   type Transaction,
 } from '@/lib/types';
+import {
+  deleteTransaction as deleteLocalTransaction,
+  getAccounts,
+  updateTransaction as updateLocalTransaction,
+} from '@/lib/local-store';
 
 interface EditTransactionModalProps {
   transaction: Transaction | null;
@@ -281,9 +286,7 @@ export default function EditTransactionModal({
 
     async function fetchAccounts() {
       try {
-        const res = await fetch('/api/accounts?includeArchived=true', { cache: 'no-store' });
-        if (!res.ok) return;
-        const json = (await res.json()) as AccountOption[];
+        const json = (await getAccounts({ includeArchived: true })) as AccountOption[];
         if (cancelled) return;
         const nextAccounts = Array.isArray(json) ? json : [];
         setAccounts(nextAccounts);
@@ -359,11 +362,8 @@ export default function EditTransactionModal({
     setFormError(null);
 
     try {
-      const res = await fetch(`/api/transactions?id=${encodeURIComponent(transaction.id)}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
+      const deleted = await deleteLocalTransaction(transaction.id);
+      if (!deleted) {
         setFormError('Failed to delete transaction.');
         return;
       }
@@ -425,38 +425,36 @@ export default function EditTransactionModal({
     try {
       const normalizedDate = new Date(date).toISOString();
 
-      const res = await fetch('/api/transactions', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: transaction.id,
-          amount: Number(amountValue.toFixed(2)),
-          category: normalizedSplit?.[0]?.category || category,
-          subCategory: normalizedSplit?.[0]?.subCategory || (subCategory.trim() || ''),
-          merchant,
-          description,
-          date: normalizedDate,
-          paymentMethod,
-          notes,
-          tags: parseTags(tagsInput),
-          attachmentBase64: attachmentBase64 || null,
-          accountId: selectedAccountId || null,
-          split: splitEnabled ? normalizedSplit : null,
-          recurring: recurringEnabled
-            ? {
-                frequency: recurringFrequency,
-                interval: 1,
-                endDate: recurringEndDate ? new Date(recurringEndDate).toISOString() : undefined,
-              }
-            : null,
-        }),
+      const updated = await updateLocalTransaction(transaction.id, {
+        amount: Number(amountValue.toFixed(2)),
+        category: normalizedSplit?.[0]?.category || category,
+        subCategory: normalizedSplit?.[0]?.subCategory || (subCategory.trim() || ''),
+        merchant,
+        description,
+        date: normalizedDate,
+        paymentMethod,
+        notes,
+        tags: parseTags(tagsInput),
+        attachmentBase64: attachmentBase64 || undefined,
+        accountId: selectedAccountId || undefined,
+        split: splitEnabled ? normalizedSplit : undefined,
+        recurring: recurringEnabled
+          ? {
+              frequency: recurringFrequency,
+              interval: 1,
+              nextRunDate: transaction.recurring?.nextRunDate || new Date(normalizedDate).toISOString(),
+              endDate: recurringEndDate ? new Date(recurringEndDate).toISOString() : undefined,
+            }
+          : undefined,
       });
-      if (res.ok) {
-        onUpdated();
-        onClose();
-      } else {
+
+      if (!updated) {
         setFormError('Failed to update transaction.');
+        return;
       }
+
+      onUpdated();
+      onClose();
     } finally {
       setSaving(false);
     }

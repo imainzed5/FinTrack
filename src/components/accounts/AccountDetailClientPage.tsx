@@ -21,6 +21,8 @@ import AccountAdjustDialog from '@/components/accounts/AccountAdjustDialog';
 import AccountFormDialog from '@/components/accounts/AccountFormDialog';
 import TransactionList from '@/components/TransactionList';
 import TransferModal from '@/components/TransferModal';
+import { getAccountsWithBalances, getTransactions, setAccountArchived } from '@/lib/local-store';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import { useNetWorthVisibility } from '@/hooks/useNetWorthVisibility';
 import type { AccountType, AccountWithBalance, Transaction } from '@/lib/types';
 
@@ -124,14 +126,9 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
     setLoading(true);
 
     try {
-      const [accountsResponse, transactionsResponse] = await Promise.all([
-        fetch('/api/accounts?includeArchived=true', { cache: 'no-store' }),
-        fetch('/api/transactions'),
-      ]);
-
       const [accountsJson, transactionsJson] = await Promise.all([
-        accountsResponse.json(),
-        transactionsResponse.json(),
+        getAccountsWithBalances({ includeArchived: true }),
+        getTransactions(),
       ]);
 
       setAccounts(Array.isArray(accountsJson) ? accountsJson : []);
@@ -146,6 +143,14 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
 
   useEffect(() => {
     void fetchPageData();
+  }, [fetchPageData]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchPageData();
+    });
+
+    return unsubscribe;
   }, [fetchPageData]);
 
   const account = useMemo(
@@ -190,22 +195,9 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
     setStatus(null);
 
     try {
-      const response = await fetch('/api/accounts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: account.id,
-          action: account.isArchived ? 'restore' : 'archive',
-        }),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to update account archive state.');
-      }
+      await setAccountArchived(account.id, !account.isArchived);
 
       router.push('/accounts');
-      router.refresh();
     } catch (archiveError) {
       setStatus(
         archiveError instanceof Error

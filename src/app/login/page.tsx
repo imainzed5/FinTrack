@@ -2,23 +2,19 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useAppSession } from '@/components/AppSessionProvider';
 
 export default function LoginEntryPage() {
   const router = useRouter();
+  const { authSession, booting } = useAppSession();
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    if (booting) {
+      return;
+    }
 
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace('/dashboard');
-        return;
-      }
-
-      router.replace('/auth/login');
-    });
-  }, [router]);
+    router.replace(authSession.authenticated ? '/dashboard' : '/auth/login');
+  }, [authSession.authenticated, booting, router]);
 
   return null;
 }

@@ -179,9 +179,13 @@ export default function BerdeDrawer({
             <BerdeSprite state="neutral" size={22} animated={false} />
           </div>
           <div>
-            <h2 className="font-display text-lg text-zinc-900">Berde has thoughts</h2>
+            <h2 className="font-display text-lg text-zinc-900">
+              {generatedInsights.length > 0 ? 'Berde has thoughts' : 'Berde is still studying'}
+            </h2>
             <p className="mt-0.5 text-xs text-zinc-500">
-              {format(new Date(), 'MMMM yyyy')} - {generatedInsights.length} things on his mind
+              {generatedInsights.length > 0
+                ? `${format(new Date(), 'MMMM yyyy')} - ${generatedInsights.length} things on his mind`
+                : 'Log a few more transactions and patterns will start to appear.'}
             </p>
           </div>
         </div>
@@ -198,9 +202,15 @@ export default function BerdeDrawer({
       </div>
 
       <div className="max-h-[78vh] space-y-2.5 overflow-y-auto px-4 py-3.5 sm:px-5 sm:py-4">
-        {generatedInsights.map((insight, index) => (
-          <InsightRow key={`${insight.type}-${index}`} insight={insight} />
-        ))}
+        {generatedInsights.length > 0 ? (
+          generatedInsights.map((insight, index) => (
+            <InsightRow key={`${insight.type}-${index}`} insight={insight} />
+          ))
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white/80 px-4 py-5 text-sm text-zinc-500">
+            Berde needs a little more history before calling out patterns. Keep logging and come back after a few transactions.
+          </div>
+        )}
       </div>
     </>
   );

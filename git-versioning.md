@@ -79,15 +79,23 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.21.0
+### Current version: v0.22.0
 
 ---
-### Patch 
+### Minor 
 
 
 ---
 
 ## Version Roadmap
+v0.22.0 — 2026-03-29
+  - feat(local-first): Convert Moneda to device-first access with a shared `AppSessionProvider`, local onboarding at `/onboarding`, local-first route gating in `AppShell`, and viewer-aware sidebar/auth flows so the app works without sign-in.
+  - feat(storage): Add IndexedDB-backed app data via `src/lib/local-store.ts` and local-first snapshot contracts in `src/lib/local-first.ts`; migrate dashboard, transactions, insights, timeline, accounts, savings, debts, settings, and shared dialogs away from auth-gated `/api/*` reads for primary local use.
+  - feat(sync): Add optional cloud backup/sync infrastructure with explicit device-vs-cloud conflict resolution (`CloudSyncDecisionDialog.tsx`), cloud backup routes/server helpers, and the `user_device_backups` Supabase migration. No silent merge path exists in this version.
+  - feat(settings): Expand Settings for local-first lifecycle management with full device backup/export coverage, safer restore preview + destructive acknowledgement, duplicate month-option fix, and a local device data wipe action for deleting the device profile and stored financial data.
+  - fix(auth/ux): Keep signup/login reachable for local-only users, clarify auth and landing copy around optional accounts, and prevent Berde from surfacing premature pattern thoughts on fresh device data.
+  - verification: `npm run lint` passed after the local-first migration, settings/import safety work, and local-data deletion/auth redirect fixes.
+
 v0.21.0 — 2026-03-28
   - feat(refactor): Modularized the `src/lib/db` implementation into a focused package of modules; `src/lib/db.ts` is now a 49-line compatibility barrel exporting the implementation.
   - refactor(db): Broke the previous 1913-line `db.ts` into modules: `shared.ts`, `rows.ts`, `selects.ts`, `normalizers.ts`, `mappers.ts`, `transactions.ts`, `recurring.ts`, `accounts.ts`, `budgets.ts`, `savings.ts`, `withdrawals.ts`, and `timeline.ts`.

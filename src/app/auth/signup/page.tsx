@@ -188,9 +188,17 @@ export default function SignupPage() {
   return (
     <AuthCardShell
       title="Create your account"
-      subtitle="Build healthy spending habits with clear, private financial insights."
+      subtitle="Create an optional Moneda account for backup, sync, and multi-device use. You can still start locally without one."
       footer={
         <p>
+          Prefer local-first access?{' '}
+          <Link
+            href="/onboarding"
+            className="font-semibold text-slate-700 underline decoration-slate-300 decoration-2 underline-offset-4 transition-colors hover:text-slate-600 dark:text-zinc-100 dark:hover:text-zinc-200"
+          >
+            Use this device
+          </Link>{' '}
+          or{' '}
           Already have an account?{' '}
           <Link
             href="/auth/login"

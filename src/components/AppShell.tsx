@@ -7,13 +7,13 @@ import BottomNav from '@/components/BottomNav';
 import ConsentModal from '@/components/ConsentModal';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { DashboardSkeleton } from '@/components/SkeletonLoaders';
-import type { AuthSessionResponse } from '@/lib/auth-contract';
+import { useAppSession } from '@/components/AppSessionProvider';
 import type { ConsentCheckResponse, PolicyVersionStatus } from '@/lib/policy';
 
 const AUTH_PATH_PREFIX = '/auth';
 const DEFAULT_AUTHENTICATED_ROUTE = '/dashboard';
 const PUBLIC_AUTH_ROUTES = new Set(['/auth/terms', '/auth/privacy']);
-const PUBLIC_APP_ROUTES = new Set(['/']);
+const PUBLIC_APP_ROUTES = new Set(['/', '/onboarding']);
 
 const EMPTY_CONSENT_POLICIES: ConsentCheckResponse['policies'] = {
   terms_of_service: {
@@ -25,14 +25,6 @@ const EMPTY_CONSENT_POLICIES: ConsentCheckResponse['policies'] = {
     accepted_version: null,
   },
 };
-
-function createUnauthenticatedSession(): AuthSessionResponse {
-  return {
-    authenticated: false,
-    rememberMe: false,
-    user: null,
-  };
-}
 
 function parsePolicyVersionStatus(value: unknown): PolicyVersionStatus | null {
   if (!value || typeof value !== 'object') {
@@ -160,67 +152,38 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const {
+    authSession,
+    booting,
+    canAccessApp,
+    deviceProfile,
+    handleLoggedOut,
+    storageMode,
+    viewer,
+  } = useAppSession();
   const isAuthRoute = pathname.startsWith(AUTH_PATH_PREFIX);
   const isPublicAuthRoute = PUBLIC_AUTH_ROUTES.has(pathname);
   const isPublicAppRoute = PUBLIC_APP_ROUTES.has(pathname);
-  const [session, setSession] = useState<AuthSessionResponse>(
-    createUnauthenticatedSession()
-  );
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
-  const [checkedPathname, setCheckedPathname] = useState('');
   const [consentStatus, setConsentStatus] =
     useState<ConsentCheckResponse | null>(null);
   const [consentError, setConsentError] = useState('');
   const [isSubmittingConsent, setIsSubmittingConsent] = useState(false);
 
-  const loadSession = useCallback(async (forPathname: string) => {
-    setIsSessionLoading(true);
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        cache: 'no-store',
-        credentials: 'include',
-      });
-      const data = (await response.json().catch(() => null)) as AuthSessionResponse | null;
-
-      if (!response.ok || !data || !data.authenticated || !data.user) {
-        setSession({
-          authenticated: false,
-          rememberMe: Boolean(data?.rememberMe),
-          user: null,
-        });
-        return;
-      }
-
-      setSession(data);
-    } catch {
-      setSession(createUnauthenticatedSession());
-    } finally {
-      setCheckedPathname(forPathname);
-      setIsSessionLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void loadSession(pathname);
-  }, [loadSession, pathname]);
-
-  useEffect(() => {
-    if (!session.authenticated) {
+    if (!authSession.authenticated) {
       setConsentStatus(null);
       setConsentError('');
       setIsSubmittingConsent(false);
     }
-  }, [session.authenticated]);
+  }, [authSession.authenticated]);
 
   useEffect(() => {
     if (
-      isSessionLoading ||
-      checkedPathname !== pathname ||
+      booting ||
       isAuthRoute ||
       isPublicAppRoute ||
-      !session.authenticated ||
-      !session.user
+      !authSession.authenticated ||
+      !authSession.user
     ) {
       return;
     }
@@ -261,64 +224,50 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       isCancelled = true;
     };
   }, [
-    checkedPathname,
+    authSession.authenticated,
+    authSession.user,
+    booting,
     isAuthRoute,
     isPublicAppRoute,
-    isSessionLoading,
     pathname,
-    session.authenticated,
-    session.user,
   ]);
 
   useEffect(() => {
     if (
-      isSessionLoading ||
-      checkedPathname !== pathname ||
+      booting ||
       isAuthRoute ||
       isPublicAppRoute ||
-      session.authenticated
+      canAccessApp
     ) {
       return;
     }
-    const nextPath = encodeURIComponent(pathname);
-    router.replace(`/auth/login?next=${nextPath}`);
+    router.replace('/');
   }, [
-    checkedPathname,
+    booting,
+    canAccessApp,
     isAuthRoute,
     isPublicAppRoute,
-    isSessionLoading,
     pathname,
     router,
-    session.authenticated,
   ]);
 
   useEffect(() => {
     if (
-      isSessionLoading ||
-      checkedPathname !== pathname ||
+      booting ||
       !isAuthRoute ||
       isPublicAuthRoute ||
-      !session.authenticated
+      !authSession.authenticated
     ) {
       return;
     }
     router.replace(DEFAULT_AUTHENTICATED_ROUTE);
   }, [
-    checkedPathname,
+    authSession.authenticated,
+    booting,
     isAuthRoute,
     isPublicAuthRoute,
-    isSessionLoading,
-    pathname,
     router,
-    session.authenticated,
   ]);
-
-  const handleLoggedOut = useCallback(() => {
-    setSession(createUnauthenticatedSession());
-    setConsentStatus(null);
-    setConsentError('');
-    setIsSubmittingConsent(false);
-  }, []);
 
   const handleAcceptLatestPolicies = useCallback(async () => {
     setConsentError('');
@@ -338,7 +287,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         if (response.status === 401) {
-          setSession(createUnauthenticatedSession());
+          handleLoggedOut();
           return;
         }
 
@@ -385,12 +334,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSubmittingConsent(false);
     }
-  }, []);
+  }, [handleLoggedOut]);
 
   const shouldShowConsentModal = Boolean(consentStatus?.needs_reconsent);
+  const showDeviceBanner =
+    storageMode === 'local_only' &&
+    !isPublicAppRoute &&
+    !isAuthRoute &&
+    Boolean(deviceProfile?.onboardingComplete);
 
   if (isAuthRoute) {
-    if (isSessionLoading || (session.authenticated && !isPublicAuthRoute)) {
+    if (booting || (authSession.authenticated && !isPublicAuthRoute)) {
       return (
         <>
           <main className="min-h-screen">
@@ -409,7 +363,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session.authenticated || !session.user) {
+  if (!canAccessApp) {
     if (isPublicAppRoute) {
       return (
         <>
@@ -438,8 +392,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Sidebar user={session.user} onLoggedOut={handleLoggedOut} />
-      <main className="min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-56 sm:pb-0 dark:bg-zinc-950">{children}</main>
+      <Sidebar viewer={viewer} onLoggedOut={handleLoggedOut} />
+      <main className="min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-56 sm:pb-0 dark:bg-zinc-950">
+        {showDeviceBanner ? (
+          <div className="border-b border-amber-200 bg-amber-50/95 px-4 py-3 text-sm text-amber-900 backdrop-blur sm:px-6">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+              <p>
+                Stored only on this device right now. Add an account anytime in Settings to back up and sync across devices.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push('/settings?section=sync-data')}
+                className="rounded-full border border-amber-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-amber-900 transition-colors hover:bg-amber-100"
+              >
+                Open backup settings
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {children}
+      </main>
       <BottomNav />
       <ConsentModal
         open={shouldShowConsentModal}

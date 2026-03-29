@@ -33,6 +33,8 @@ type RealtimeUpdateListener = (message: IncomingRealtimeUpdate) => void;
 type TransactionUpdateListener = (message: IncomingTransactionUpdate) => void;
 type BudgetUpdateListener = (message: IncomingBudgetUpdate) => void;
 
+const LOCAL_BROADCAST_CHANNEL_NAME = 'moneda-local-updates';
+
 // ─── Internal Postgres event → action mapping ────────────────────────────────
 
 type PostgresEventType = 'INSERT' | 'UPDATE' | 'DELETE';
@@ -48,11 +50,29 @@ function pgEventToAction(event: PostgresEventType): IncomingAction {
 const listeners = new Set<RealtimeUpdateListener>();
 
 let channelRef: ReturnType<ReturnType<typeof getSupabaseBrowserClient>['channel']> | null = null;
+let localBroadcastChannel: BroadcastChannel | null = null;
 
 function dispatchToListeners(update: IncomingRealtimeUpdate) {
   for (const listener of listeners) {
     listener(update);
   }
+}
+
+function ensureLocalBroadcastChannel() {
+  if (typeof window === 'undefined') return;
+  if (localBroadcastChannel) return;
+
+  localBroadcastChannel = new BroadcastChannel(LOCAL_BROADCAST_CHANNEL_NAME);
+  localBroadcastChannel.addEventListener('message', (event: MessageEvent<IncomingRealtimeUpdate>) => {
+    if (!event.data) return;
+    dispatchToListeners(event.data);
+  });
+}
+
+function broadcastLocalUpdate(update: IncomingRealtimeUpdate) {
+  dispatchToListeners(update);
+  ensureLocalBroadcastChannel();
+  localBroadcastChannel?.postMessage(update);
 }
 
 function ensureChannel() {
@@ -106,6 +126,7 @@ export function subscribeAppUpdates(listener: RealtimeUpdateListener): () => voi
   if (typeof window === 'undefined') return () => {};
 
   listeners.add(listener);
+  ensureLocalBroadcastChannel();
   ensureChannel();
 
   return () => {
@@ -140,9 +161,62 @@ export function subscribeBudgetUpdates(listener: BudgetUpdateListener): () => vo
 
 // ─── Legacy publish stubs (no-ops – Supabase broadcasts natively) ─────────────
 
-export function publishTransactionAdd(_payload: unknown): void {}
-export function publishTransactionEdit(_payload: unknown): void {}
-export function publishTransactionDelete(_id: string): void {}
-export function publishBudgetAdd(_payload: unknown): void {}
-export function publishBudgetEdit(_payload: unknown): void {}
-export function publishBudgetDelete(_id: string): void {}
+export function publishTransactionAdd(payload: unknown): void {
+  broadcastLocalUpdate({
+    type: 'transaction:update',
+    resource: 'transaction',
+    action: 'add',
+    payload,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function publishTransactionEdit(payload: unknown): void {
+  broadcastLocalUpdate({
+    type: 'transaction:update',
+    resource: 'transaction',
+    action: 'edit',
+    payload,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function publishTransactionDelete(id: string): void {
+  broadcastLocalUpdate({
+    type: 'transaction:update',
+    resource: 'transaction',
+    action: 'delete',
+    payload: { id },
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function publishBudgetAdd(payload: unknown): void {
+  broadcastLocalUpdate({
+    type: 'budget:update',
+    resource: 'budget',
+    action: 'add',
+    payload,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function publishBudgetEdit(payload: unknown): void {
+  broadcastLocalUpdate({
+    type: 'budget:update',
+    resource: 'budget',
+    action: 'edit',
+    payload,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function publishBudgetDelete(id: string): void {
+  broadcastLocalUpdate({
+    type: 'budget:update',
+    resource: 'budget',
+    action: 'delete',
+    payload: { id },
+    timestamp: new Date().toISOString(),
+  });
+}

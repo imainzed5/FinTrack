@@ -16,7 +16,6 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import type { SessionUser } from '@/lib/auth-contract';
 
 const navSections = [
   {
@@ -49,17 +48,16 @@ const navSections = [
 
 type SidebarSectionLabel = (typeof navSections)[number]['label'];
 
-interface SidebarProps {
-  user: SessionUser;
-  onLoggedOut: () => void;
+interface SidebarViewer {
+  displayName: string;
+  email: string | null;
+  authenticated: boolean;
+  storageCopy: string;
 }
 
-function getDisplayName(user: SessionUser): string {
-  if (user.fullName.trim().length > 0) {
-    return user.fullName.trim();
-  }
-  const [emailName] = user.email.split('@');
-  return emailName || 'Your account';
+interface SidebarProps {
+  viewer: SidebarViewer;
+  onLoggedOut: () => void;
 }
 
 function getInitials(name: string): string {
@@ -73,7 +71,7 @@ function getInitials(name: string): string {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
-export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
+export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -89,7 +87,7 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
   const [logoutError, setLogoutError] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const displayName = useMemo(() => getDisplayName(user), [user]);
+  const displayName = useMemo(() => viewer.displayName.trim() || 'Moneda', [viewer.displayName]);
   const initials = useMemo(() => getInitials(displayName), [displayName]);
 
   const activeHref = useMemo(() => {
@@ -152,7 +150,7 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
 
       setIsMenuOpen(false);
       onLoggedOut();
-      router.push(typeof data.redirectTo === 'string' ? data.redirectTo : '/auth/login');
+      router.push('/dashboard');
       router.refresh();
     } catch {
       setLogoutError('Network error. Please try again.');
@@ -214,14 +212,14 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
 
       <div className="px-3 py-3 border-t border-zinc-200 dark:border-zinc-800">
         <div ref={menuRef} className="relative">
-          {isMenuOpen ? (
+          {viewer.authenticated && isMenuOpen ? (
             <div className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
               <div className="border-b border-zinc-100 px-2 pb-2 dark:border-zinc-800">
                 <p className="text-[11px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                   Signed in as
                 </p>
                 <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  {user.email}
+                  {viewer.email}
                 </p>
               </div>
               <button
@@ -238,33 +236,58 @@ export default function Sidebar({ user, onLoggedOut }: SidebarProps) {
             </div>
           ) : null}
 
-          <button
-            onClick={() => {
-              setIsMenuOpen((previous) => !previous);
-              setLogoutError('');
-            }}
-            className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
-            aria-expanded={isMenuOpen}
-            aria-haspopup="menu"
-          >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-              {initials}
+          {viewer.authenticated ? (
+            <button
+              onClick={() => {
+                setIsMenuOpen((previous) => !previous);
+                setLogoutError('');
+              }}
+              className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              aria-expanded={isMenuOpen}
+              aria-haspopup="menu"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100 leading-tight">
+                  {displayName}
+                </p>
+                <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500 leading-tight">
+                  {viewer.email}
+                </p>
+              </div>
+              <ChevronUp
+                size={13}
+                className={`shrink-0 text-zinc-400 transition-transform dark:text-zinc-500 ${
+                  isMenuOpen ? '' : 'rotate-180'
+                }`}
+              />
+            </button>
+          ) : (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-3 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium leading-tight text-zinc-900 dark:text-zinc-100">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">
+                    {viewer.storageCopy}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/settings?section=sync-data"
+                className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-amber-300 bg-white/80 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-amber-900 transition-colors hover:bg-white"
+              >
+                Add backup and sync
+              </Link>
             </div>
-            <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100 leading-tight">
-                {displayName}
-              </p>
-              <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500 leading-tight">
-                {user.email}
-              </p>
-            </div>
-            <ChevronUp
-              size={13}
-              className={`shrink-0 text-zinc-400 transition-transform dark:text-zinc-500 ${
-                isMenuOpen ? '' : 'rotate-180'
-              }`}
-            />
-          </button>
+          )}
         </div>
       </div>
     </aside>

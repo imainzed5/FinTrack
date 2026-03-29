@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { AccountWithBalance } from '@/lib/types';
+import { addAccountBalanceAdjustment } from '@/lib/local-store';
 
 interface AccountAdjustDialogProps {
   open: boolean;
@@ -55,21 +56,11 @@ export default function AccountAdjustDialog({
     setError(null);
 
     try {
-      const response = await fetch('/api/accounts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: account.id,
-          action: 'adjust-balance',
-          amount: numericAmount,
-          note: note.trim() || 'Manual account balance adjustment',
-        }),
+      await addAccountBalanceAdjustment({
+        accountId: account.id,
+        amount: numericAmount,
+        note: note.trim() || 'Manual account balance adjustment',
       });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to adjust account balance.');
-      }
 
       await onAdjusted();
       onClose();

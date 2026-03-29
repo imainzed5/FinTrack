@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import BerdeSprite from '@/components/BerdeSprite';
 import AccountFormDialog from '@/components/accounts/AccountFormDialog';
+import { getAccountsWithBalances, setAccountArchived } from '@/lib/local-store';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import { useNetWorthVisibility } from '@/hooks/useNetWorthVisibility';
 import type { AccountType, AccountWithBalance } from '@/lib/types';
 
@@ -78,8 +80,7 @@ export default function AccountsClientPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/accounts?includeArchived=true', { cache: 'no-store' });
-      const json = await response.json();
+      const json = await getAccountsWithBalances({ includeArchived: true });
       setAccounts(Array.isArray(json) ? json : []);
     } catch {
       setAccounts([]);
@@ -90,6 +91,14 @@ export default function AccountsClientPage() {
 
   useEffect(() => {
     void fetchAccounts();
+  }, [fetchAccounts]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchAccounts();
+    });
+
+    return unsubscribe;
   }, [fetchAccounts]);
 
   const activeAccounts = useMemo(
@@ -129,16 +138,7 @@ export default function AccountsClientPage() {
     setStatus(null);
 
     try {
-      const response = await fetch('/api/accounts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || `Failed to ${action} account.`);
-      }
+      await setAccountArchived(id, action === 'archive');
 
       await fetchAccounts();
       setStatus(action === 'archive' ? 'Account archived.' : 'Account restored.');

@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { CheckCircle2, Pencil, Trash2, Users } from 'lucide-react';
+import { CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import type { Debt, DebtInput } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import type { BerdeState } from '@/lib/berde/berde.types';
 import { getDailyPageBerdeMessage } from '@/lib/berde/page-messages';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useAppSession } from '@/components/AppSessionProvider';
+import {
+  createDebt,
+  deleteDebt,
+  getDebts,
+  settleDebt,
+  updateDebt,
+} from '@/lib/local-store';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import AddDebtModal from '@/components/AddDebtModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import EmptyState from '@/components/EmptyState';
@@ -96,6 +104,7 @@ function resolveDebtBerdeContext(params: {
 }
 
 export default function DebtsPanel({ showHeader = true, initialUserId = '' }: DebtsPanelProps) {
+  const { viewer } = useAppSession();
   const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,19 +114,14 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [pendingDeleteDebt, setPendingDeleteDebt] = useState<Debt | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [viewerUserId, setViewerUserId] = useState<string>(initialUserId);
+  const viewerUserId = initialUserId || viewer.id;
 
   const fetchDebts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/debts', { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error('Failed to fetch debts');
-      }
-
-      const json = (await response.json()) as Debt[];
+      const json = await getDebts();
       setDebts(Array.isArray(json) ? json : []);
     } catch {
       setError('Unable to load debts right now.');
@@ -131,35 +135,15 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
   }, [fetchDebts]);
 
   useEffect(() => {
-    if (initialUserId) {
-      return;
-    }
-
-    async function loadViewerUserId() {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setViewerUserId(user?.id ?? '');
-      } catch {
-        setViewerUserId('');
-      }
-    }
-
-    void loadViewerUserId();
-  }, [initialUserId]);
-
-  const handleCreateDebt = async (input: DebtInput) => {
-    const response = await fetch('/api/debts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchDebts();
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to create debt');
-    }
+    return unsubscribe;
+  }, [fetchDebts]);
+
+  const handleCreateDebt = async (input: DebtInput) => {
+    await createDebt(input);
 
     void fetchDebts();
   };
@@ -169,13 +153,8 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
       throw new Error('Missing debt to edit');
     }
 
-    const response = await fetch(`/api/debts?id=${encodeURIComponent(editingDebt.id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    });
-
-    if (!response.ok) {
+    const updated = await updateDebt(editingDebt.id, input);
+    if (!updated) {
       throw new Error('Failed to update debt');
     }
 
@@ -187,13 +166,8 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
     setSettlingId(id);
 
     try {
-      const response = await fetch(`/api/debts?id=${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'settle' }),
-      });
-
-      if (!response.ok) {
+      const updated = await settleDebt(id);
+      if (!updated) {
         throw new Error('Failed to settle debt');
       }
 
@@ -213,11 +187,8 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
     setDeletingId(pendingDeleteDebt.id);
 
     try {
-      const response = await fetch(`/api/debts?id=${encodeURIComponent(pendingDeleteDebt.id)}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
+      const deleted = await deleteDebt(pendingDeleteDebt.id);
+      if (!deleted) {
         throw new Error('Failed to delete debt');
       }
 

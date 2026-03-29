@@ -1,6 +1,7 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useCallback,
   useEffect,
@@ -18,6 +19,7 @@ import {
   ChevronRight,
   Database,
   Download,
+  Eraser,
   Monitor,
   Moon,
   Palette,
@@ -38,11 +40,29 @@ import AccountSecuritySection from '@/components/settings/AccountSecuritySection
 import AccountsSection, {
   type AccountsSectionSummary,
 } from '@/components/settings/AccountsSection';
+import { useAppSession } from '@/components/AppSessionProvider';
 import BerdeSprite from '@/components/BerdeSprite';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useTheme } from '@/components/ThemeProvider';
 import type { BerdeState } from '@/lib/berde/berde.types';
-import { subscribeBudgetUpdates } from '@/lib/transaction-ws';
-import type { AccountWithBalance, Budget, Category, Transaction } from '@/lib/types';
+import {
+  getLocalAppSnapshotSummary,
+  parseImportedLocalSnapshot,
+  type LocalAppSnapshot,
+} from '@/lib/local-first';
+import {
+  deleteBudget,
+  exportLocalSnapshot,
+  getAccountsWithBalances,
+  getBudgets,
+  getLocalUserSettings,
+  getPendingSyncCount,
+  replaceLocalSnapshot,
+  saveLocalUserSettings,
+  setBudget,
+} from '@/lib/local-store';
+import { subscribeAppUpdates, subscribeBudgetUpdates } from '@/lib/transaction-ws';
+import type { AccountWithBalance, Budget, Category } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 
@@ -71,6 +91,19 @@ function parseDateValue(value: string): Date | null {
   if (!value) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildRecentMonthOptions(count: number): Array<{ value: string; label: string }> {
+  const now = new Date();
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
+
+    return {
+      value: format(date, 'yyyy-MM'),
+      label: format(date, 'MMMM yyyy'),
+    };
+  });
 }
 
 function resolveSettingsBerdeContext(params: {
@@ -481,8 +514,18 @@ function SettingsDialog({
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const {
+    authSession,
+    clearLocalData,
+    pendingSyncCount: sessionPendingSyncCount,
+    storageMode,
+    syncing,
+    triggerCloudSync,
+    viewer,
+  } = useAppSession();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBudgetComposer, setShowBudgetComposer] = useState(false);
@@ -497,6 +540,15 @@ export default function SettingsPage() {
   const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    fileName: string;
+    snapshot: LocalAppSnapshot;
+  } | null>(null);
+  const [importAcknowledged, setImportAcknowledged] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [showDeleteLocalDataConfirm, setShowDeleteLocalDataConfirm] = useState(false);
+  const [deletingLocalData, setDeletingLocalData] = useState(false);
+  const monthOptions = useMemo(() => buildRecentMonthOptions(6), []);
   const [activeSection, setActiveSection] = useState<SettingsSectionKey>('accounts');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [accountsSummary, setAccountsSummary] = useState<AccountsSectionSummary>({
@@ -510,10 +562,13 @@ export default function SettingsPage() {
   const [lastImportAt, setLastImportAt] = useState<Date | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const refreshPendingCount = useCallback(async () => {
+    setPendingCount(await getPendingSyncCount());
+  }, []);
+
   const fetchBudgets = useCallback(async () => {
     try {
-      const response = await fetch('/api/budgets');
-      const json = await response.json();
+      const json = await getBudgets();
       setBudgets(Array.isArray(json) ? json : []);
     } catch {
       setBudgets([]);
@@ -524,12 +579,10 @@ export default function SettingsPage() {
 
   const fetchUserSettings = useCallback(async () => {
     try {
-      const response = await fetch('/api/user-settings');
-      if (!response.ok) return;
-      const json = await response.json();
-      setNextPayday(typeof json.next_payday === 'string' ? json.next_payday : '');
+      const json = await getLocalUserSettings();
+      setNextPayday(typeof json.nextPayday === 'string' ? json.nextPayday : '');
     } catch {
-      // offline
+      setNextPayday('');
     }
   }, []);
 
@@ -537,10 +590,7 @@ export default function SettingsPage() {
     setAccountsSummaryLoading(true);
 
     try {
-      const response = await fetch('/api/accounts?includeArchived=true', {
-        cache: 'no-store',
-      });
-      const json = await response.json();
+      const json = await getAccountsWithBalances({ includeArchived: true });
       const accounts = Array.isArray(json) ? (json as AccountWithBalance[]) : [];
       const activeAccounts = accounts.filter((account) => !account.isArchived);
       const archivedAccounts = accounts.filter((account) => account.isArchived);
@@ -568,30 +618,29 @@ export default function SettingsPage() {
     const unsubscribeRealtime = subscribeBudgetUpdates(() => {
       void fetchBudgets();
     });
+    const unsubscribeApp = subscribeAppUpdates(() => {
+      void fetchBudgets();
+      void fetchAccountsSummary();
+      void refreshPendingCount();
+    });
 
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    async function checkPending() {
-      try {
-        const { getPendingTransactions } = await import('@/lib/indexeddb');
-        const pending = await getPendingTransactions();
-        setPendingCount(pending.length);
-      } catch {
-        setPendingCount(0);
-      }
-    }
-
-    void checkPending();
+    void refreshPendingCount();
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       unsubscribeRealtime();
+      unsubscribeApp();
     };
-  }, [fetchAccountsSummary, fetchBudgets, fetchUserSettings]);
+  }, [fetchAccountsSummary, fetchBudgets, fetchUserSettings, refreshPendingCount]);
+
+  useEffect(() => {
+    setPendingCount(sessionPendingSyncCount);
+  }, [sessionPendingSyncCount]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
@@ -622,13 +671,8 @@ export default function SettingsPage() {
     setPaydayStatus(null);
 
     try {
-      const response = await fetch('/api/user-settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ next_payday: nextPayday || null }),
-      });
-
-      setPaydayStatus(response.ok ? 'Payday saved.' : 'Failed to save payday.');
+      await saveLocalUserSettings({ nextPayday: nextPayday || null });
+      setPaydayStatus('Payday saved.');
     } catch {
       setPaydayStatus('Failed to save payday.');
     } finally {
@@ -661,11 +705,7 @@ export default function SettingsPage() {
     };
 
     try {
-      await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(budget),
-      });
+      await setBudget(budget);
       closeBudgetComposer();
       await fetchBudgets();
     } catch {
@@ -675,7 +715,7 @@ export default function SettingsPage() {
 
   const handleDeleteBudget = async (id: string) => {
     try {
-      await fetch(`/api/budgets?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await deleteBudget(id);
       await fetchBudgets();
     } catch {
       // offline
@@ -683,10 +723,13 @@ export default function SettingsPage() {
   };
 
   const handleSync = async () => {
+    if (!authSession.authenticated) {
+      return;
+    }
+
     try {
-      const { syncPendingTransactions } = await import('@/lib/indexeddb');
-      const result = await syncPendingTransactions();
-      setPendingCount((previous) => Math.max(previous - result.synced, 0));
+      await triggerCloudSync();
+      await refreshPendingCount();
       setLastSyncAt(new Date());
     } catch {
       // failed
@@ -695,15 +738,14 @@ export default function SettingsPage() {
 
   const handleExportJSON = async () => {
     try {
-      const response = await fetch('/api/transactions');
-      const transactions: Transaction[] = await response.json();
-      const blob = new Blob([JSON.stringify(transactions, null, 2)], {
+      const snapshot = await exportLocalSnapshot();
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `expense-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+      anchor.download = `moneda-device-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
       setLastExportAt(new Date());
@@ -715,59 +757,97 @@ export default function SettingsPage() {
   const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setImportStatus('Importing...');
+    setImportStatus('Reading backup...');
+    setImportPreview(null);
+    setImportAcknowledged(false);
 
     try {
       const text = await file.text();
-      const transactions: Transaction[] = JSON.parse(text);
-      if (!Array.isArray(transactions)) {
+      const snapshot = parseImportedLocalSnapshot(JSON.parse(text));
+      if (!snapshot) {
         setImportStatus('Invalid file format.');
         return;
       }
 
-      let imported = 0;
-      for (const transaction of transactions) {
-        if (!transaction.amount || !transaction.category || !transaction.date) continue;
+      setImportPreview({ fileName: file.name, snapshot });
+      setImportStatus('Backup ready to review.');
+    } catch {
+      setImportStatus('Failed to read the file. Make sure it is a valid JSON export.');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
-        const response = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: transaction.amount,
-            category: transaction.category,
-            subCategory: transaction.subCategory,
-            merchant: transaction.merchant,
-            description: transaction.description,
-            date: transaction.date,
-            paymentMethod: transaction.paymentMethod ?? 'Cash',
-            notes: transaction.notes ?? '',
-            tags: transaction.tags ?? [],
-            attachmentBase64: transaction.attachmentBase64,
-            split: transaction.split,
-            recurring: transaction.recurring
-              ? {
-                  frequency: transaction.recurring.frequency,
-                  interval: transaction.recurring.interval,
-                  endDate: transaction.recurring.endDate,
-                }
-              : undefined,
-          }),
-        });
+  const handleConfirmImport = async () => {
+    if (!importPreview) {
+      return;
+    }
 
-        if (response.ok) imported += 1;
+    setImporting(true);
+    setImportStatus('Importing...');
+
+    try {
+      await replaceLocalSnapshot(importPreview.snapshot, {
+        preserveDeviceIdentity: true,
+        source: 'device',
+      });
+      await Promise.all([fetchBudgets(), fetchUserSettings(), fetchAccountsSummary()]);
+      await refreshPendingCount();
+      if (authSession.authenticated) {
+        await triggerCloudSync({ quiet: true });
+        setLastSyncAt(new Date());
       }
 
-      setImportStatus(
-        `Imported ${imported} transaction${imported === 1 ? '' : 's'} successfully.`
-      );
+      setImportStatus('Backup restored on this device.');
       setLastImportAt(new Date());
+      setImportPreview(null);
+      setImportAcknowledged(false);
     } catch {
       setImportStatus('Failed to import. Make sure the file is a valid JSON export.');
     } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setImporting(false);
       window.setTimeout(() => setImportStatus(null), 5000);
     }
   };
+
+  const importPreviewSummary = useMemo(
+    () => (importPreview ? getLocalAppSnapshotSummary(importPreview.snapshot) : null),
+    [importPreview],
+  );
+
+  const importPreviewDate = useMemo(() => {
+    if (!importPreview) {
+      return null;
+    }
+
+    return parseDateValue(importPreview.snapshot.exportedAt);
+  }, [importPreview]);
+
+  const clearImportPreview = useCallback(() => {
+    if (importing) {
+      return;
+    }
+
+    setImportPreview(null);
+    setImportAcknowledged(false);
+    setImportStatus(null);
+  }, [importing]);
+
+  const handleDeleteLocalData = useCallback(async () => {
+    if (deletingLocalData) {
+      return;
+    }
+
+    setDeletingLocalData(true);
+
+    try {
+      await clearLocalData();
+      setShowDeleteLocalDataConfirm(false);
+      router.replace('/');
+    } finally {
+      setDeletingLocalData(false);
+    }
+  }, [clearLocalData, deletingLocalData, router]);
 
   const monthBudgets = useMemo(() => {
     return budgets
@@ -792,11 +872,15 @@ export default function SettingsPage() {
     (budget) => budget.category === 'Overall' && !budget.subCategory
   );
   const rolloverBudgetCount = monthBudgets.filter((budget) => budget.rollover).length;
-  const syncStatusText = online
-    ? pendingCount > 0
-      ? `${pendingCount} pending`
-      : 'All synced'
-    : 'Offline mode';
+  const syncStatusText = authSession.authenticated
+    ? online
+      ? pendingCount > 0
+        ? `${pendingCount} pending`
+        : syncing
+          ? 'Syncing now'
+          : viewer.storageCopy
+      : 'Offline mode'
+    : viewer.storageCopy;
   const appearanceSummaryText =
     theme === 'system'
       ? 'System theme'
@@ -852,7 +936,8 @@ export default function SettingsPage() {
     {
       id: 'security',
       title: 'Security',
-      summary: 'Password and account protection',
+      summary: authSession.authenticated ? 'Password and account protection' : 'Optional cloud account',
+      status: authSession.authenticated ? 'Cloud account linked' : 'Local only',
       description:
         'Profile, password, and session controls stay clear and trustworthy, with room to grow into stronger device security later.',
       eyebrow: 'Security & Sync',
@@ -862,7 +947,7 @@ export default function SettingsPage() {
     {
       id: 'sync-data',
       title: 'Sync & Data',
-      summary: 'Backup, export, and import',
+      summary: authSession.authenticated ? 'Backup, export, and import' : 'Export, import, and optional backup',
       status: syncStatusText,
       description:
         'Sync health, backups, exports, and imports are grouped together, with risky data moves kept visually separate.',
@@ -955,17 +1040,11 @@ export default function SettingsPage() {
                   onChange={(event) => setMonth(event.target.value)}
                   className="min-h-11 rounded-full border border-[#ddd6c8] bg-[#fbf8f1] px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
                 >
-                  {Array.from({ length: 6 }).map((_, index) => {
-                    const date = new Date();
-                    date.setMonth(date.getMonth() - index);
-                    const value = format(date, 'yyyy-MM');
-
-                    return (
-                      <option key={value} value={value}>
-                        {format(date, 'MMMM yyyy')}
-                      </option>
-                    );
-                  })}
+                  {monthOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
                 <button
                   type="button"
@@ -1118,7 +1197,62 @@ export default function SettingsPage() {
     }
 
     if (section === 'security') {
-      return <AccountSecuritySection />;
+      if (authSession.authenticated) {
+        return <AccountSecuritySection />;
+      }
+
+      return (
+        <div className="space-y-5">
+          <SettingsSurface
+            eyebrow="Security"
+            title="This device is local-first"
+            description="You can keep using Moneda without an account. Sign in only if you want cloud backup, sync, and account-level security controls."
+          >
+            <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+              <p className="text-sm leading-6 text-zinc-600">
+                Your data is currently stored on this device. Linking an account adds backup, restore, and multi-device sync without replacing local access.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href="/auth/login"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#1D9E75] px-4 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
+                >
+                  Add backup and sync
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#d9d1c2] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8]"
+                >
+                  Create account
+                </Link>
+              </div>
+            </div>
+          </SettingsSurface>
+
+          <SettingsSurface
+            eyebrow="Delete local data"
+            title="Remove this device profile"
+            description="If you no longer want Moneda data stored on this device, you can wipe the local profile and start fresh."
+            className="border-red-200/80 bg-red-50/40"
+          >
+            <div className="rounded-[24px] border border-red-200 bg-white/85 p-4">
+              <p className="text-sm leading-6 text-zinc-600">
+                This deletes the local-first profile, accounts, transactions, budgets, savings goals, savings entries, debts, and device settings stored on this device. It does not delete any optional cloud account because none is linked here.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteLocalDataConfirm(true)}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500"
+                >
+                  <Eraser size={14} />
+                  Delete local device data
+                </button>
+              </div>
+            </div>
+          </SettingsSurface>
+        </div>
+      );
     }
 
     if (section === 'sync-data') {
@@ -1147,24 +1281,37 @@ export default function SettingsPage() {
                       </p>
                     </div>
                     <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                      {pendingCount > 0
-                        ? `${pendingCount} transaction${pendingCount === 1 ? '' : 's'} waiting to sync.`
-                        : 'Everything local is caught up right now.'}
+                      {authSession.authenticated
+                        ? pendingCount > 0
+                          ? `${pendingCount} change${pendingCount === 1 ? '' : 's'} waiting to back up.`
+                          : 'Your local snapshot is ready for backup and sync.'
+                        : 'Everything stays on this device until you connect backup and sync.'}
                     </p>
                     <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      {lastSyncAt
-                        ? `Last manual sync: ${format(lastSyncAt, 'PP p')}`
-                        : 'No recent manual sync yet'}
+                      {authSession.authenticated
+                        ? lastSyncAt
+                          ? `Last manual backup: ${format(lastSyncAt, 'PP p')}`
+                          : 'No recent manual backup yet'
+                        : 'Stored only on this device right now'}
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void handleSync()}
-                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d1c2] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8]"
-                  >
-                    Sync now
-                  </button>
+                  {authSession.authenticated ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleSync()}
+                      className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d1c2] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8]"
+                    >
+                      {syncing ? 'Syncing...' : 'Backup now'}
+                    </button>
+                  ) : (
+                    <Link
+                      href="/auth/login"
+                      className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d1c2] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8]"
+                    >
+                      Connect backup
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -1172,13 +1319,13 @@ export default function SettingsPage() {
                 <SummaryTile
                   label="Pending"
                   value={String(pendingCount)}
-                  helper="Queued locally"
+                  helper={authSession.authenticated ? 'Waiting to back up' : 'Local-only changes'}
                   accent={pendingCount === 0}
                 />
                 <SummaryTile
                   label="Mode"
-                  value={online ? 'Online' : 'Offline'}
-                  helper={online ? 'Ready to sync' : 'Changes stay local until reconnected'}
+                  value={authSession.authenticated ? (online ? 'Backed up' : 'Offline') : 'Device only'}
+                  helper={authSession.authenticated ? (online ? storageMode : 'Changes back up when reconnected') : 'No account linked'}
                 />
               </div>
             </div>
@@ -1201,7 +1348,10 @@ export default function SettingsPage() {
               }
             >
               <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] px-4 py-4 text-sm text-zinc-600">
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">Portable transaction backup</p>
+                <p className="font-medium text-zinc-900 dark:text-zinc-50">Portable device backup</p>
+                <p className="mt-2 leading-6">
+                  Includes your accounts, transactions, budgets, savings goals, savings deposits, debts, and local device settings in one JSON backup.
+                </p>
                 <p className="mt-2">
                   {lastExportAt
                     ? `Last export: ${format(lastExportAt, 'PP p')}`
@@ -1221,7 +1371,7 @@ export default function SettingsPage() {
                   JSON import
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                  Use a Moneda JSON export. Imported transactions are added one by one and invalid rows are skipped.
+                  Use a Moneda device backup JSON. Import replaces the current local snapshot on this device.
                 </p>
                 <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                   {lastImportAt
@@ -1242,10 +1392,10 @@ export default function SettingsPage() {
                     className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-amber-200 px-4 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-50"
                   >
                     <Upload size={14} />
-                    Choose JSON file
+                    {importPreview ? 'Choose another JSON file' : 'Choose JSON file'}
                   </button>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Import stays separate from export for a calmer, safer data workflow.
+                    Review the backup first, then confirm restore when the counts look right.
                   </span>
                 </div>
 
@@ -1583,6 +1733,137 @@ export default function SettingsPage() {
           </div>
         </form>
       </SettingsDialog>
+
+      <SettingsDialog
+        open={Boolean(importPreview && importPreviewSummary)}
+        eyebrow="Import Review"
+        title="Review backup before restore"
+        description="This backup will replace the current local snapshot on this device. Confirm the counts and acknowledge the replacement before restoring."
+        icon={Database}
+        onClose={clearImportPreview}
+      >
+        {importPreview && importPreviewSummary ? (
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-amber-200/80 bg-[#fffaf1] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    Selected backup
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {importPreview.fileName}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {importPreviewDate
+                      ? `Exported ${format(importPreviewDate, 'PP p')}`
+                      : 'Export date unavailable'}
+                  </p>
+                </div>
+                <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800">
+                  Local data will be replaced
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <SummaryTile
+                  label="Accounts"
+                  value={String(importPreviewSummary.accountCount)}
+                  helper="Wallets and account balances"
+                />
+                <SummaryTile
+                  label="Transactions"
+                  value={String(importPreviewSummary.transactionCount)}
+                  helper="Expenses, income, and savings activity"
+                />
+                <SummaryTile
+                  label="Budgets"
+                  value={String(importPreviewSummary.budgetCount)}
+                  helper="Monthly limits and rollover rules"
+                />
+                <SummaryTile
+                  label="Savings Goals"
+                  value={String(importPreviewSummary.savingsGoalCount)}
+                  helper="Goal targets and progress"
+                />
+                <SummaryTile
+                  label="Savings Entries"
+                  value={String(importPreviewSummary.savingsDepositCount)}
+                  helper="Deposits and withdrawals"
+                />
+                <SummaryTile
+                  label="Debts"
+                  value={String(importPreviewSummary.debtCount)}
+                  helper="Outstanding and settled debt logs"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-red-200 bg-red-50/80 p-4">
+              <p className="text-sm font-semibold text-red-900">Restore safeguard</p>
+              <p className="mt-2 text-sm leading-6 text-red-800">
+                Restoring this backup overwrites the current local accounts, transactions, budgets, savings data, and debts stored on this device. This does not merge records.
+              </p>
+              <label className="mt-4 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={importAcknowledged}
+                  onChange={(event) => setImportAcknowledged(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+                  disabled={importing}
+                />
+                <span className="text-sm text-red-900">
+                  I understand this will replace the current local data on this device with the contents of
+                  {' '}
+                  <strong>{importPreview.fileName}</strong>.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#ddd6c8] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Choose another backup
+              </button>
+              <button
+                type="button"
+                onClick={clearImportPreview}
+                disabled={importing}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#ddd6c8] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmImport()}
+                disabled={importing || !importAcknowledged}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Upload size={14} />
+                {importing ? 'Restoring backup...' : 'Replace local data with this backup'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </SettingsDialog>
+
+      <ConfirmModal
+        open={showDeleteLocalDataConfirm}
+        title="Delete local device data?"
+        message="This removes the current device profile and all locally stored Moneda data on this device. This action does not merge or archive anything for recovery."
+        confirmLabel={deletingLocalData ? 'Deleting...' : 'Delete local data'}
+        onConfirm={() => {
+          void handleDeleteLocalData();
+        }}
+        onCancel={() => {
+          if (!deletingLocalData) {
+            setShowDeleteLocalDataConfirm(false);
+          }
+        }}
+      />
     </>
   );
 }

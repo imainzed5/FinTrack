@@ -14,10 +14,9 @@ import {
   type Category,
   type PaymentMethod,
   type RecurringFrequency,
-  type Transaction,
   type TransactionSplitInput,
 } from '@/lib/types';
-import { savePendingTransaction } from '@/lib/indexeddb';
+import { createTransaction, getAccounts } from '@/lib/local-store';
 
 interface AddExpenseModalProps {
   open: boolean;
@@ -58,22 +57,6 @@ function normalizeDecimalInput(value: string): string {
   const dotIndex = sanitized.indexOf('.');
   if (dotIndex === -1) return sanitized;
   return `${sanitized.slice(0, dotIndex + 1)}${sanitized.slice(dotIndex + 1).replace(/\./g, '')}`;
-}
-
-function nextRecurringRunDate(
-  fromDate: string,
-  frequency: RecurringFrequency,
-  interval = 1
-): string {
-  const date = new Date(fromDate);
-  const steps = Math.max(1, Math.floor(interval));
-
-  if (frequency === 'daily') date.setDate(date.getDate() + steps);
-  else if (frequency === 'weekly') date.setDate(date.getDate() + (7 * steps));
-  else if (frequency === 'yearly') date.setFullYear(date.getFullYear() + steps);
-  else date.setMonth(date.getMonth() + steps);
-
-  return date.toISOString();
 }
 
 async function fileToBase64(file: File): Promise<string> {
@@ -266,33 +249,18 @@ export default function AddExpenseModal({
   }, [open]);
 
   useEffect(() => {
-    if (defaultCategory) {
-      setCategory(resolveDefaultCategory(defaultCategory));
-    }
-  }, [defaultCategory]);
-
-  useEffect(() => {
     if (!open) return;
 
-    setEntryType(defaultEntryType);
-    setCategory(resolveDefaultCategory(defaultCategory));
-    setSelectedAccountId(defaultAccountId ?? '');
+    const frame = window.requestAnimationFrame(() => {
+      setEntryType(defaultEntryType);
+      setCategory(resolveDefaultCategory(defaultCategory));
+      setSelectedAccountId(defaultAccountId ?? '');
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, [defaultAccountId, defaultCategory, defaultEntryType, open]);
-
-  useEffect(() => {
-    if (entryType !== 'income') {
-      return;
-    }
-
-    if (splitEnabled) {
-      setSplitEnabled(false);
-      setSplitRows([]);
-    }
-
-    if (recurringFrequency !== 'monthly') {
-      setRecurringFrequency('monthly');
-    }
-  }, [entryType, recurringFrequency, splitEnabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -301,13 +269,10 @@ export default function AddExpenseModal({
 
     async function fetchAccounts() {
       try {
-        const res = await fetch('/api/accounts', { cache: 'no-store' });
-        if (!res.ok) return;
-        const json = (await res.json()) as AccountOption[];
-        const nextAccounts = Array.isArray(json) ? json : [];
+        const nextAccounts = await getAccounts();
         if (cancelled) return;
 
-        setAccounts(nextAccounts);
+        setAccounts(nextAccounts as AccountOption[]);
         setSelectedAccountId((prev) => {
           if (defaultAccountId && nextAccounts.some((account) => account.id === defaultAccountId)) {
             return defaultAccountId;
@@ -513,49 +478,15 @@ export default function AddExpenseModal({
     };
 
     try {
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      });
-
-      if (!res.ok) throw new Error('Failed');
-    } catch {
-      // Save offline
-      const nowIso = new Date().toISOString();
-      const offlineRecurring = recurring
-        ? {
-            frequency: recurring.frequency,
-            interval: recurring.interval || 1,
-            nextRunDate: nextRecurringRunDate(normalizedDate, recurring.frequency, recurring.interval),
-            endDate: recurring.endDate,
-          }
-        : undefined;
-
-      const offlineTx: Transaction = {
-        id: uuidv4(),
-        amount: input.amount,
-        type: resolvedType,
-        accountId: selectedAccountId || undefined,
-        linkedTransferGroupId: input.linkedTransferGroupId,
-        incomeCategory: isIncomeEntry ? incomeCategory : undefined,
-        category: input.category,
-        subCategory: input.subCategory,
-        merchant: input.merchant,
-        description: input.description,
-        date: normalizedDate,
-        paymentMethod: input.paymentMethod || 'Bank Transfer',
-        notes: input.notes || '',
-        tags: isIncomeEntry ? [] : (input.tags || []),
-        attachmentBase64: isIncomeEntry ? undefined : input.attachmentBase64,
-        metadata: input.metadata,
-        split: isIncomeEntry ? undefined : (input.split as Transaction['split']),
-        recurring: offlineRecurring,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        synced: false,
-      };
-      await savePendingTransaction(offlineTx);
+      await createTransaction(input);
+    } catch (submissionError) {
+      setSaving(false);
+      setFormError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : 'Unable to save this transaction right now.'
+      );
+      return;
     }
 
     setSaving(false);
@@ -625,7 +556,16 @@ export default function AddExpenseModal({
               </button>
               <button
                 type="button"
-                onClick={() => setEntryType('income')}
+                onClick={() => {
+                  setEntryType('income');
+                  if (splitEnabled) {
+                    setSplitEnabled(false);
+                    setSplitRows([]);
+                  }
+                  if (recurringFrequency !== 'monthly') {
+                    setRecurringFrequency('monthly');
+                  }
+                }}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
                   entryType === 'income'
                     ? 'bg-[#085041] text-[#9FE1CB]'

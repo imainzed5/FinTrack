@@ -1,6 +1,6 @@
 'use client';
 
-import { Landmark, PiggyBank, Sun, Target, Wallet } from 'lucide-react';
+import { PiggyBank, Sun, Target, Wallet } from 'lucide-react';
 import { formatCurrency, formatCurrencySigned } from '@/lib/utils';
 
 interface QuickStatTilesProps {
@@ -51,7 +51,6 @@ function Tile({ label, value, subLabel, icon, onClick, delay }: TileProps) {
 }
 
 export default function QuickStatTiles({
-  totalBalance,
   spentThisMonth,
   remaining,
   monthlyLimit,
