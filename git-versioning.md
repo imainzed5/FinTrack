@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.23.0
+### Current version: v0.23.1
 
 ---
 ### Minor 
@@ -88,6 +88,12 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.23.1 — 2026-03-29
+  - fix(modals): Correct the FAB add expense/income sheet in `src/components/AddExpenseModal.tsx` so it opens in a compact state, expands only when optional sections are enabled, and resets cleanly after close/reopen.
+  - fix(modals): Move long mobile modal content into a dedicated internal scroll region in both `src/components/AddExpenseModal.tsx` and `src/components/EditTransactionModal.tsx`, keeping hidden inputs reachable when recurring, split, and more-options sections are expanded.
+  - fix(css): Strengthen shared modal scrolling behavior in `src/app/globals.css` for flex-based touch sheets.
+  - verification: `npm run lint` passed after the modal height, reset, and scrolling fixes.
+
 v0.23.0 — 2026-03-29
   - feat(onboarding): Replace the single-screen local onboarding form with a checkpoint-based Berde setup flow at [src/app/onboarding/page.tsx](src/app/onboarding/page.tsx), including step navigation, backtracking, and an editable final review before device creation.
   - feat(onboarding): Add onboarding draft persistence with local resume support so in-progress setup survives refreshes and returns the user to the correct checkpoint.

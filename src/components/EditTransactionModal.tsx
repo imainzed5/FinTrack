@@ -123,6 +123,7 @@ export default function EditTransactionModal({
   const splitTotalMatches = Math.abs(splitTotal - (Number.isFinite(amountValue) ? amountValue : 0)) <= 0.01;
   const showMoreOptions = showOptional;
   const requiresAccountSelection = accounts.length > 0;
+  const modalMaxHeight = viewportHeight ? Math.max(360, viewportHeight - 12) : undefined;
   const fieldBaseClass = 'rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] sm:px-2.5 sm:text-xs';
   const singleLineFieldClass = `h-11 sm:h-8 ${fieldBaseClass}`;
   const compactFieldClass = 'h-11 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75] sm:h-7 sm:px-2 sm:text-[11px]';
@@ -467,13 +468,12 @@ export default function EditTransactionModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative flex w-full justify-center overflow-hidden animate-slide-up"
-        style={viewportHeight ? { height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` } : undefined}
+        className="relative flex w-full min-h-0 items-end justify-center overflow-hidden animate-slide-up sm:items-center"
       >
         <form
           onSubmit={handleSubmit}
-          className="modal-shell modal-content-scroll flex w-full max-w-sm flex-col gap-2 overflow-y-auto rounded-3xl bg-zinc-100 p-3 dark:bg-zinc-900 sm:mx-auto"
-          style={viewportHeight ? { maxHeight: `${viewportHeight}px` } : undefined}
+          className="modal-shell flex w-full max-w-sm min-h-0 flex-col overflow-hidden rounded-3xl bg-zinc-100 p-3 dark:bg-zinc-900 sm:mx-auto"
+          style={modalMaxHeight ? { maxHeight: `${modalMaxHeight}px` } : undefined}
         >
           <div className="flex items-center justify-between px-0.5 pt-0.5">
             <span id={titleId} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 pl-1">Edit expense</span>
@@ -497,33 +497,34 @@ export default function EditTransactionModal({
             </div>
           </div>
 
-          {formError && (
-            <div className="px-3 py-2 rounded-2xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/30">
-              {formError}
-            </div>
-          )}
+          <div className="modal-content-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 touch-pan-y">
+            {formError && (
+              <div className="px-3 py-2 rounded-2xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/30">
+                {formError}
+              </div>
+            )}
 
-          <div className="bg-[#1D9E75] rounded-2xl px-4 pt-3.5 pb-3">
-            <p className="text-[10px] font-medium uppercase tracking-widest mb-1.5 text-white/55">Amount</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-medium text-white/65">₱</span>
-              <input
-                ref={amountInputRef}
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={handleAmountChange}
-                placeholder="0.00"
-                className="bg-transparent text-white text-4xl font-medium tracking-tight leading-none outline-none w-full placeholder-white/30"
-              />
+            <div className="bg-[#1D9E75] rounded-2xl px-4 pt-3.5 pb-3">
+              <p className="text-[10px] font-medium uppercase tracking-widest mb-1.5 text-white/55">Amount</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-medium text-white/65">₱</span>
+                <input
+                  ref={amountInputRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  placeholder="0.00"
+                  className="bg-transparent text-white text-4xl font-medium tracking-tight leading-none outline-none w-full placeholder-white/30"
+                />
+              </div>
+              <p className="text-[10px] mt-1.5 text-white/40">
+                {recurringEnabled ? 'Recurring expense' : splitEnabled ? 'Split across categories' : 'Edit amount'}
+              </p>
             </div>
-            <p className="text-[10px] mt-1.5 text-white/40">
-              {recurringEnabled ? 'Recurring expense' : splitEnabled ? 'Split across categories' : 'Edit amount'}
-            </p>
-          </div>
 
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Details</p>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Details</p>
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-zinc-400">Description</label>
@@ -591,11 +592,11 @@ export default function EditTransactionModal({
                 </p>
               </div>
             )}
-          </div>
+            </div>
 
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2.5">Category</p>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2.5">Category</p>
+              <div className="grid grid-cols-5 gap-1.5">
               {CATEGORIES.map((cat) => {
                 const isActive = category === cat;
                 return (
@@ -618,185 +619,186 @@ export default function EditTransactionModal({
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          {recurringEnabled && (
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Recurring schedule</p>
-              <div className="grid grid-cols-4 gap-1.5">
-                {RECURRING_FREQUENCIES.map((freq) => (
-                  <button
-                    key={freq}
-                    type="button"
-                    onClick={() => setRecurringFrequency(freq)}
-                    className={`h-7 rounded-full text-[11px] font-medium border transition-colors ${
-                      recurringFrequency === freq
-                        ? 'border-[#1D9E75] bg-[#E1F5EE] text-[#0F6E56] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]'
-                        : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-400'
-                    }`}
-                  >
-                    {freq}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-zinc-400">End date <span className="text-zinc-300">(optional)</span></label>
-                <input
-                  type="date"
-                  value={recurringEndDate}
-                  min={date}
-                  onChange={(e) => setRecurringEndDate(e.target.value)}
-                  className={singleLineFieldClass}
-                />
               </div>
             </div>
-          )}
 
-          {splitEnabled && (
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Split transaction</p>
-
-              {splitRows.map((row) => (
-                <div key={row.id} className="flex flex-col gap-1.5">
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
-                    <select
-                      value={row.category}
-                      onChange={(e) => updateSplitRow(row.id, 'category', e.target.value)}
-                      className={compactFieldClass}
-                    >
-                      {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={row.amount}
-                      onChange={(e) => updateSplitRow(row.id, 'amount', e.target.value)}
-                      placeholder="₱0.00"
-                      className={compactFieldClass}
-                    />
+            {recurringEnabled && (
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Recurring schedule</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {RECURRING_FREQUENCIES.map((freq) => (
                     <button
+                      key={freq}
                       type="button"
-                      disabled={splitRows.length <= 2}
-                      onClick={() => removeSplitRow(row.id)}
-                      className="w-5 h-5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-400 text-[10px] disabled:opacity-40"
+                      onClick={() => setRecurringFrequency(freq)}
+                      className={`h-7 rounded-full text-[11px] font-medium border transition-colors ${
+                        recurringFrequency === freq
+                          ? 'border-[#1D9E75] bg-[#E1F5EE] text-[#0F6E56] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]'
+                          : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-400'
+                      }`}
                     >
-                      ✕
+                      {freq}
                     </button>
-                  </div>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-400">End date <span className="text-zinc-300">(optional)</span></label>
                   <input
-                    type="text"
-                    value={row.subCategory}
-                    onChange={(e) => updateSplitRow(row.id, 'subCategory', e.target.value)}
-                    placeholder="Sub-category"
-                    className={compactFieldClass}
-                  />
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={addSplitRow}
-                className="h-7 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 text-[11px] text-zinc-400 flex items-center justify-center gap-1"
-              >
-                <Plus size={11} /> Add row
-              </button>
-
-              <div className="flex justify-between items-center pt-1 border-t border-zinc-100 dark:border-zinc-700">
-                <span className="text-[10px] text-zinc-400">Total split</span>
-                <span className={`text-[11px] font-medium ${splitTotalMatches ? 'text-[#1D9E75]' : 'text-red-400'}`}>
-                  ₱{splitTotal.toFixed(2)} / ₱{(Number.isFinite(amountValue) ? amountValue : 0).toFixed(2)} {splitTotalMatches ? '✓' : '✗'}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowOptional((v) => !v)}
-              className="w-full flex items-center justify-between px-3.5 py-2.5"
-            >
-              <span className="text-[11px] font-medium text-zinc-400">More options</span>
-              <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showMoreOptions ? 'rotate-90' : ''}`} />
-            </button>
-
-            {showMoreOptions && (
-              <div className="px-3.5 pb-3 flex flex-col gap-2.5 border-t border-zinc-100 dark:border-zinc-700 pt-2.5 animate-fade-in">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-400">Payment method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className={singleLineFieldClass}
-                  >
-                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-400">Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Add a note..."
-                    rows={2}
-                    className={`${fieldBaseClass} resize-none py-2.5`}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-400">Tags <span className="text-zinc-300">(comma separated)</span></label>
-                  <input
-                    type="text"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                    placeholder="e.g., work, reimbursable"
+                    type="date"
+                    value={recurringEndDate}
+                    min={date}
+                    onChange={(e) => setRecurringEndDate(e.target.value)}
                     className={singleLineFieldClass}
                   />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-400">Receipt attachment</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAttachmentChange}
-                    className="w-full text-xs text-zinc-500 dark:text-zinc-400"
-                  />
-                  {attachmentName && (
-                    <div className="mt-1 flex items-center justify-between rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-2">
-                      <span className="text-xs text-zinc-600 dark:text-zinc-300 truncate">{attachmentName}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAttachmentBase64(undefined);
-                          setAttachmentName('');
-                        }}
-                        className="text-xs text-red-500"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                  {attachmentBase64 && (
-                    <div className="relative mt-1 h-20 w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-                      <Image
-                        src={attachmentBase64}
-                        alt="Receipt preview"
-                        fill
-                        sizes="(max-width: 768px) 100vw, 448px"
-                        unoptimized
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             )}
+
+            {splitEnabled && (
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Split transaction</p>
+
+                {splitRows.map((row) => (
+                  <div key={row.id} className="flex flex-col gap-1.5">
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
+                      <select
+                        value={row.category}
+                        onChange={(e) => updateSplitRow(row.id, 'category', e.target.value)}
+                        className={compactFieldClass}
+                      >
+                        {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={row.amount}
+                        onChange={(e) => updateSplitRow(row.id, 'amount', e.target.value)}
+                        placeholder="₱0.00"
+                        className={compactFieldClass}
+                      />
+                      <button
+                        type="button"
+                        disabled={splitRows.length <= 2}
+                        onClick={() => removeSplitRow(row.id)}
+                        className="w-5 h-5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-400 text-[10px] disabled:opacity-40"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={row.subCategory}
+                      onChange={(e) => updateSplitRow(row.id, 'subCategory', e.target.value)}
+                      placeholder="Sub-category"
+                      className={compactFieldClass}
+                    />
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addSplitRow}
+                  className="h-7 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 text-[11px] text-zinc-400 flex items-center justify-center gap-1"
+                >
+                  <Plus size={11} /> Add row
+                </button>
+
+                <div className="flex justify-between items-center pt-1 border-t border-zinc-100 dark:border-zinc-700">
+                  <span className="text-[10px] text-zinc-400">Total split</span>
+                  <span className={`text-[11px] font-medium ${splitTotalMatches ? 'text-[#1D9E75]' : 'text-red-400'}`}>
+                    ₱{splitTotal.toFixed(2)} / ₱{(Number.isFinite(amountValue) ? amountValue : 0).toFixed(2)} {splitTotalMatches ? '✓' : '✗'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowOptional((v) => !v)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5"
+              >
+                <span className="text-[11px] font-medium text-zinc-400">More options</span>
+                <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showMoreOptions ? 'rotate-90' : ''}`} />
+              </button>
+
+              {showMoreOptions && (
+                <div className="px-3.5 pb-3 flex flex-col gap-2.5 border-t border-zinc-100 dark:border-zinc-700 pt-2.5 animate-fade-in">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-400">Payment method</label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                      className={singleLineFieldClass}
+                    >
+                      {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-400">Notes</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Add a note..."
+                      rows={2}
+                      className={`${fieldBaseClass} resize-none py-2.5`}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-400">Tags <span className="text-zinc-300">(comma separated)</span></label>
+                    <input
+                      type="text"
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                      placeholder="e.g., work, reimbursable"
+                      className={singleLineFieldClass}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-400">Receipt attachment</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAttachmentChange}
+                      className="w-full text-xs text-zinc-500 dark:text-zinc-400"
+                    />
+                    {attachmentName && (
+                      <div className="mt-1 flex items-center justify-between rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-2">
+                        <span className="text-xs text-zinc-600 dark:text-zinc-300 truncate">{attachmentName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAttachmentBase64(undefined);
+                            setAttachmentName('');
+                          }}
+                          className="text-xs text-red-500"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                    {attachmentBase64 && (
+                      <div className="relative mt-1 h-20 w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <Image
+                          src={attachmentBase64}
+                          alt="Receipt preview"
+                          fill
+                          sizes="(max-width: 768px) 100vw, 448px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 px-0.5 pb-0.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.125rem)]">
+          <div className="mt-2 flex items-center gap-1.5 border-t border-zinc-200/80 px-0.5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.125rem)] dark:border-zinc-800">
             <button
               type="button"
               onClick={() => setRecurringEnabled((v) => !v)}

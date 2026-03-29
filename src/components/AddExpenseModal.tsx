@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import {
@@ -158,6 +158,7 @@ export default function AddExpenseModal({
   const showMoreOptions = showOptional;
   const isRecurring = isIncomeEntry ? incomeRecurringMonthly : recurringEnabled;
   const requiresAccountSelection = accounts.length > 0;
+  const modalMaxHeight = viewportHeight ? Math.max(360, viewportHeight - 12) : undefined;
   const fieldBaseClass = 'rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] sm:px-2.5 sm:text-xs';
   const singleLineFieldClass = `h-11 sm:h-8 ${fieldBaseClass}`;
   const compactFieldClass = 'h-11 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75] sm:h-7 sm:px-2 sm:text-[11px]';
@@ -293,13 +294,55 @@ export default function AddExpenseModal({
     };
   }, [defaultAccountId, open]);
 
+  const resetForm = useCallback(() => {
+    setEntryType(defaultEntryType);
+    setIncomeCategory('Freelance');
+    setIncomeRecurringMonthly(false);
+    setAmount('');
+    setCategory(resolveDefaultCategory(defaultCategory));
+    setSubCategory('');
+    setDescription('');
+    setMerchant('');
+    setPaymentMethod('Bank Transfer');
+    setNotes('');
+    setTagsInput('');
+    setAttachmentBase64(undefined);
+    setAttachmentName('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setSplitEnabled(false);
+    setSplitRows([]);
+    setRecurringEnabled(false);
+    setRecurringFrequency('monthly');
+    setRecurringEndDate('');
+    setShowOptional(false);
+    setFormError(null);
+    setSaving(false);
+    setSelectedAccountId(defaultAccountId ?? '');
+  }, [defaultAccountId, defaultCategory, defaultEntryType]);
+
+  const handleClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
+
+  useEffect(() => {
+    if (open) return;
+    const frame = window.requestAnimationFrame(() => {
+      resetForm();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [open, resetForm]);
+
   useEffect(() => {
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        handleClose();
       }
     };
 
@@ -332,34 +375,9 @@ export default function AddExpenseModal({
       window.scrollTo(0, scrollY);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [open, onClose]);
+  }, [handleClose, open]);
 
   if (!open) return null;
-
-  const resetForm = () => {
-    setEntryType(defaultEntryType);
-    setIncomeCategory('Freelance');
-    setIncomeRecurringMonthly(false);
-    setAmount('');
-    setCategory(resolveDefaultCategory(defaultCategory));
-    setSubCategory('');
-    setDescription('');
-    setMerchant('');
-    setPaymentMethod('Bank Transfer');
-    setNotes('');
-    setTagsInput('');
-    setAttachmentBase64(undefined);
-    setAttachmentName('');
-    setDate(new Date().toISOString().split('T')[0]);
-    setSplitEnabled(false);
-    setSplitRows([]);
-    setRecurringEnabled(false);
-    setRecurringFrequency('monthly');
-    setRecurringEndDate('');
-    setShowOptional(false);
-    setFormError(null);
-    setSelectedAccountId(defaultAccountId ?? '');
-  };
 
   const handleAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -490,9 +508,8 @@ export default function AddExpenseModal({
     }
 
     setSaving(false);
-    resetForm();
     onAdded();
-    onClose();
+    handleClose();
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -526,18 +543,17 @@ export default function AddExpenseModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden overscroll-none sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative flex w-full justify-center overflow-hidden animate-slide-up"
-        style={viewportHeight ? { height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` } : undefined}
+        className="relative flex w-full min-h-0 items-end justify-center overflow-hidden animate-slide-up sm:items-center"
       >
         <form
           onSubmit={handleSubmit}
-          className="modal-shell modal-content-scroll flex w-full max-w-sm flex-col gap-2 overflow-y-auto rounded-3xl bg-zinc-100 p-3 dark:bg-zinc-900 sm:mx-auto"
-          style={viewportHeight ? { maxHeight: `${viewportHeight}px` } : undefined}
+          className="modal-shell flex w-full max-w-sm min-h-0 flex-col overflow-hidden rounded-3xl bg-zinc-100 p-3 dark:bg-zinc-900 sm:mx-auto"
+          style={modalMaxHeight ? { maxHeight: `${modalMaxHeight}px` } : undefined}
         >
           <div className="flex items-center justify-between px-0.5 pt-0.5">
             <p id={titleId} className="sr-only">{isIncomeEntry ? 'Log Income' : 'Add Expense'}</p>
@@ -578,7 +594,7 @@ export default function AddExpenseModal({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label={isIncomeEntry ? 'Close log income modal' : 'Close add expense modal'}
               className="w-7 h-7 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center"
             >
@@ -586,40 +602,41 @@ export default function AddExpenseModal({
             </button>
           </div>
 
-          {formError && (
-            <div className="px-3 py-2 rounded-2xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/30">
-              {formError}
-            </div>
-          )}
+          <div className="modal-content-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 touch-pan-y">
+            {formError && (
+              <div className="px-3 py-2 rounded-2xl text-xs bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/30">
+                {formError}
+              </div>
+            )}
 
-          <div className={`rounded-2xl px-4 pt-3.5 pb-3 ${entryType === 'expense' ? 'bg-[#1D9E75]' : 'bg-[#085041]'}`}>
-            <p className={`text-[10px] font-medium uppercase tracking-widest mb-1.5 ${
-              entryType === 'expense' ? 'text-white/55' : 'text-[#5DCAA5]'
-            }`}>
-              {entryType === 'expense' ? 'Amount' : 'Amount received'}
-            </p>
-            <div className="flex items-baseline gap-1">
-              <span className={`text-lg font-medium ${entryType === 'expense' ? 'text-white/65' : 'text-[#5DCAA5]'}`}>₱</span>
-              <input
-                ref={amountInputRef}
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={handleAmountChange}
-                placeholder="0.00"
-                className="bg-transparent text-white text-4xl font-medium tracking-tight leading-none outline-none w-full placeholder-white/30"
-              />
+            <div className={`rounded-2xl px-4 pt-3.5 pb-3 ${entryType === 'expense' ? 'bg-[#1D9E75]' : 'bg-[#085041]'}`}>
+              <p className={`text-[10px] font-medium uppercase tracking-widest mb-1.5 ${
+                entryType === 'expense' ? 'text-white/55' : 'text-[#5DCAA5]'
+              }`}>
+                {entryType === 'expense' ? 'Amount' : 'Amount received'}
+              </p>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-lg font-medium ${entryType === 'expense' ? 'text-white/65' : 'text-[#5DCAA5]'}`}>₱</span>
+                <input
+                  ref={amountInputRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  placeholder="0.00"
+                  className="bg-transparent text-white text-4xl font-medium tracking-tight leading-none outline-none w-full placeholder-white/30"
+                />
+              </div>
+              <p className={`text-[10px] mt-1.5 ${entryType === 'expense' ? 'text-white/40' : 'text-[#5DCAA5]/60'}`}>
+                {isRecurring
+                  ? `Recurring ${isIncomeEntry ? 'monthly' : recurringFrequency}`
+                  : splitEnabled
+                  ? 'Split across categories'
+                  : 'Tap to enter amount'}
+              </p>
             </div>
-            <p className={`text-[10px] mt-1.5 ${entryType === 'expense' ? 'text-white/40' : 'text-[#5DCAA5]/60'}`}>
-              {isRecurring
-                ? `Recurring ${isIncomeEntry ? 'monthly' : recurringFrequency}`
-                : splitEnabled
-                ? 'Split across categories'
-                : 'Tap to enter amount'}
-            </p>
-          </div>
 
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5">
             <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Details</p>
 
             {accounts.length > 0 && (
@@ -696,9 +713,9 @@ export default function AddExpenseModal({
                 />
               </div>
             </div>
-          </div>
+            </div>
 
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3">
             <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2.5">
               {isIncomeEntry ? 'Income type' : 'Category'}
             </p>
@@ -741,10 +758,10 @@ export default function AddExpenseModal({
                 );
               })}
             </div>
-          </div>
+            </div>
 
-          {isRecurring && (
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
+            {isRecurring && (
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
               <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                 Recurring schedule
               </p>
@@ -796,11 +813,11 @@ export default function AddExpenseModal({
                   ))}
                 </div>
               )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {!isIncomeEntry && splitEnabled && (
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
+            {!isIncomeEntry && splitEnabled && (
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-3 flex flex-col gap-2.5 animate-fade-in">
               <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                 Split transaction
               </p>
@@ -856,21 +873,21 @@ export default function AddExpenseModal({
                   ₱{splitTotal.toFixed(2)} / ₱{(Number.isFinite(amountValue) ? amountValue : 0).toFixed(2)} {splitTotalMatches ? '✓' : '✗'}
                 </span>
               </div>
-            </div>
-          )}
+              </div>
+            )}
 
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowOptional((v) => !v)}
-              className="w-full flex items-center justify-between px-3.5 py-2.5"
-            >
-              <span className="text-[11px] font-medium text-zinc-400">More options</span>
-              <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showMoreOptions ? 'rotate-90' : ''}`} />
-            </button>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowOptional((v) => !v)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5"
+              >
+                <span className="text-[11px] font-medium text-zinc-400">More options</span>
+                <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showMoreOptions ? 'rotate-90' : ''}`} />
+              </button>
 
-            {showMoreOptions && (
-              <div className="px-3.5 pb-3 flex flex-col gap-2.5 border-t border-zinc-100 dark:border-zinc-700 pt-2.5 animate-fade-in">
+              {showMoreOptions && (
+                <div className="px-3.5 pb-3 flex flex-col gap-2.5 border-t border-zinc-100 dark:border-zinc-700 pt-2.5 animate-fade-in">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-zinc-400">Payment method</label>
                   <select
@@ -944,11 +961,12 @@ export default function AddExpenseModal({
                     </div>
                   </>
                 )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 px-0.5 pb-0.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.125rem)]">
+          <div className="mt-2 flex items-center gap-1.5 border-t border-zinc-200/80 px-0.5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.125rem)] dark:border-zinc-800">
             <button
               type="button"
               onClick={() => {
