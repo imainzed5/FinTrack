@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { ACCOUNT_TYPES, type AccountType, type AccountWithBalance } from '@/lib/types';
+import { createAccount, updateAccount } from '@/lib/local-store';
 
 interface AccountFormValues {
   name: string;
@@ -88,24 +89,22 @@ export default function AccountFormDialog({
     setError(null);
 
     try {
-      const payload = {
-        ...(mode === 'edit' && account ? { id: account.id } : {}),
-        name: values.name.trim(),
-        type: values.type,
-        initialBalance: Number.parseFloat(values.initialBalance || '0') || 0,
-        color: values.color.trim() || null,
-        icon: values.icon.trim() || null,
-      };
-
-      const response = await fetch('/api/accounts', {
-        method: mode === 'create' ? 'POST' : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || `Failed to ${mode} account.`);
+      if (mode === 'create') {
+        await createAccount({
+          name: values.name.trim(),
+          type: values.type,
+          initialBalance: Number.parseFloat(values.initialBalance || '0') || 0,
+          color: values.color.trim() || null,
+          icon: values.icon.trim() || null,
+        });
+      } else if (account) {
+        await updateAccount(account.id, {
+          name: values.name.trim(),
+          type: values.type,
+          initialBalance: Number.parseFloat(values.initialBalance || '0') || 0,
+          color: values.color.trim() || null,
+          icon: values.icon.trim() || null,
+        });
       }
 
       await onSaved();

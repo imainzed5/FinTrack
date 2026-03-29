@@ -211,15 +211,22 @@ export default function LoginPage() {
   return (
     <AuthCardShell
       title="Welcome back"
-      subtitle="Sign in to continue tracking your expenses and insights."
+      subtitle="Sign in if you want backup, sync, and multi-device access. You can still use Moneda locally without an account."
       footer={
         <p>
-          New to Moneda?{' '}
+          Want local-first access instead?{' '}
+          <Link
+            href="/onboarding"
+            className="font-semibold text-slate-700 underline decoration-slate-300 decoration-2 underline-offset-4 transition-colors hover:text-slate-600 dark:text-zinc-100 dark:hover:text-zinc-200"
+          >
+            Use this device
+          </Link>{' '}
+          or{' '}
           <Link
             href="/auth/signup"
             className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
           >
-            Create an account
+            create an account
           </Link>
         </p>
       }

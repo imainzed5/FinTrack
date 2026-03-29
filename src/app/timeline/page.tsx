@@ -5,6 +5,7 @@ import { Clock } from 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
 import TimelineView from '@/components/TimelineView';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { getTimelineEvents } from '@/lib/local-store';
 import AddExpenseModal from '@/components/AddExpenseModal';
 
 export default function TimelinePage() {
@@ -18,11 +19,10 @@ export default function TimelinePage() {
 
   const fetchTimeline = useCallback(async () => {
     try {
-      const res = await fetch('/api/timeline');
-      const json = await res.json();
-      setEvents(json);
+      const json = await getTimelineEvents();
+      setEvents(Array.isArray(json) ? json : []);
     } catch {
-      // offline
+      setEvents([]);
     } finally {
       setLoading(false);
     }

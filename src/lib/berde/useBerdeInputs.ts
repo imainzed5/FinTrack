@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { DashboardData, Transaction } from '@/lib/types';
 import type { BerdeInputs } from '@/lib/berde/berde.types';
 
@@ -12,27 +12,30 @@ export function useBerdeInputs(
   transactions: Transaction[],
   daysUntilPayday?: number,
 ): BerdeInputs {
-  const [sessionSavingsGoalHit, setSessionSavingsGoalHit] = useState(false);
-  const [sessionSavingsMilestoneHit, setSessionSavingsMilestoneHit] = useState(false);
-
-  useEffect(() => {
+  const [sessionSavingsGoalHit] = useState(() => {
     if (typeof window === 'undefined') {
-      return;
+      return false;
     }
 
     const goalHit = window.sessionStorage.getItem('berde:savings-goal-hit') === 'true';
-    const milestoneHit = window.sessionStorage.getItem('berde:savings-milestone-hit') === 'true';
-
     if (goalHit) {
-      setSessionSavingsGoalHit(true);
       window.sessionStorage.removeItem('berde:savings-goal-hit');
     }
 
+    return goalHit;
+  });
+  const [sessionSavingsMilestoneHit] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const milestoneHit = window.sessionStorage.getItem('berde:savings-milestone-hit') === 'true';
     if (milestoneHit) {
-      setSessionSavingsMilestoneHit(true);
       window.sessionStorage.removeItem('berde:savings-milestone-hit');
     }
-  }, []);
+
+    return milestoneHit;
+  });
 
   return useMemo(() => {
     const overallStatus =

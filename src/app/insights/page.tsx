@@ -13,6 +13,7 @@ import type { Budget, Transaction, Insight, InsightType } from '@/lib/types';
 import { InsightsSkeleton } from '@/components/SkeletonLoaders';
 import { Lightbulb, BarChart2 } from 'lucide-react';
 import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { getBudgets, getInsights, getTransactions } from '@/lib/local-store';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EmptyState from '@/components/EmptyState';
 import InsightCards from '@/components/InsightCards';
@@ -122,20 +123,10 @@ export default function InsightsPage() {
     }
 
     try {
-      const [transactionsRes, budgetsRes, insightsRes] = await Promise.all([
-        fetch('/api/transactions'),
-        fetch('/api/budgets'),
-        fetch('/api/insights'),
-      ]);
-
-      if (!transactionsRes.ok || !budgetsRes.ok || !insightsRes.ok) {
-        throw new Error('Failed to load insights data.');
-      }
-
       const [transactionsJson, budgetsJson, insightsJson] = await Promise.all([
-        transactionsRes.json() as Promise<Transaction[]>,
-        budgetsRes.json() as Promise<Budget[]>,
-        insightsRes.json() as Promise<Insight[]>,
+        getTransactions(),
+        getBudgets(),
+        getInsights(),
       ]);
 
       setTransactions(Array.isArray(transactionsJson) ? transactionsJson : []);

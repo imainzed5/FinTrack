@@ -21,18 +21,21 @@ import type {
 } from '@/lib/types';
 import type { BerdeState } from '@/lib/berde/berde.types';
 import { getDailyPageBerdeMessage } from '@/lib/berde/page-messages';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useAppSession } from '@/components/AppSessionProvider';
+import {
+  addSavingsDeposit,
+  createSavingsGoal,
+  deleteSavingsGoal,
+  getMonthlySavingsHistory,
+  getSavingsGoalsSummary,
+  updateSavingsGoal,
+} from '@/lib/local-store';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import { formatCurrency } from '@/lib/utils';
 import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
 import { MonthlySavingsChart } from '@/components/Charts';
 import ConfirmModal from '../ConfirmModal';
 import BerdeSprite from '@/components/BerdeSprite';
-
-interface SavingsClientPageProps {
-  data: SavingsGoalsSummary;
-  savingsRate: number;
-  userId?: string;
-}
 
 const EMOJI_PRESETS = ['🎯', '🏠', '✈️', '💻', '🚗', '📚', '💍', '🛍️'];
 const COLOR_SWATCHES = ['#1D9E75', '#185FA5', '#EF9F27', '#D85A30', '#3C3489', '#0F766E'];
@@ -122,8 +125,16 @@ function resolveSavingsBerdeContext(params: {
   };
 }
 
-export default function SavingsClientPage({ data, savingsRate, userId = '' }: SavingsClientPageProps) {
-  const [summary, setSummary] = useState<SavingsGoalsSummary>(data);
+const EMPTY_SUMMARY: SavingsGoalsSummary = {
+  goals: [],
+  totalSaved: 0,
+  activeGoalCount: 0,
+  savingsRate: 0,
+};
+
+export default function SavingsClientPage() {
+  const { viewer } = useAppSession();
+  const [summary, setSummary] = useState<SavingsGoalsSummary>(EMPTY_SUMMARY);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoalWithDeposits | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showAddSavings, setShowAddSavings] = useState(false);
@@ -137,7 +148,7 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
   const [savingsHistory, setSavingsHistory] = useState<MonthlySavings[]>([]);
   const [savingsHistoryLoading, setSavingsHistoryLoading] = useState(true);
-  const [viewerUserId, setViewerUserId] = useState<string>(userId);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const [goalInput, setGoalInput] = useState<SavingsGoalInput>({
     name: '',
@@ -159,11 +170,7 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
   });
 
   async function refreshSummary(): Promise<SavingsGoalsSummary> {
-    const response = await fetch('/api/savings/goals', { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error('Failed to refresh goals.');
-    }
-    const nextSummary = (await response.json()) as SavingsGoalsSummary;
+    const nextSummary = await getSavingsGoalsSummary();
     setSummary(nextSummary);
 
     if (selectedGoal) {
@@ -175,42 +182,34 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
   }
 
   useEffect(() => {
-    const fetchSavingsHistory = async () => {
+    async function loadSavingsPage() {
+      setPageLoading(true);
       setSavingsHistoryLoading(true);
 
       try {
-        const res = await fetch('/api/savings');
-        const json = (await res.json()) as MonthlySavings[];
-        setSavingsHistory(Array.isArray(json) ? json : []);
+        const [nextSummary, history] = await Promise.all([
+          getSavingsGoalsSummary(),
+          getMonthlySavingsHistory(),
+        ]);
+        setSummary(nextSummary);
+        setSavingsHistory(Array.isArray(history) ? history : []);
       } catch {
+        setSummary(EMPTY_SUMMARY);
         setSavingsHistory([]);
       } finally {
+        setPageLoading(false);
         setSavingsHistoryLoading(false);
       }
-    };
+    }
 
-    void fetchSavingsHistory();
+    void loadSavingsPage();
+
+    const unsubscribe = subscribeAppUpdates(() => {
+      void loadSavingsPage();
+    });
+
+    return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    if (userId) {
-      return;
-    }
-
-    async function loadViewerUserId() {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setViewerUserId(user?.id ?? '');
-      } catch {
-        setViewerUserId('');
-      }
-    }
-
-    void loadViewerUserId();
-  }, [userId]);
 
   const totalSaved = savingsHistory.length > 0
     ? savingsHistory[savingsHistory.length - 1].cumulative
@@ -248,13 +247,13 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
     const context = resolveSavingsBerdeContext({
       activeGoals,
       allGoals: summary.goals,
-      savingsRate,
+      savingsRate: summary.savingsRate,
     });
 
     const message = getDailyPageBerdeMessage({
       page: 'savings',
       state: context.state,
-      userId: viewerUserId,
+      userId: viewer.id,
       fallbackMessage: context.message,
     });
 
@@ -262,7 +261,7 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
       state: context.state,
       message,
     };
-  }, [activeGoals, summary.goals, savingsRate, viewerUserId]);
+  }, [activeGoals, summary.goals, summary.savingsRate, viewer.id]);
 
   async function submitNewGoal(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -275,15 +274,7 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
         deadline: goalInput.deadline ? `${goalInput.deadline}-01` : undefined,
       };
 
-      const response = await fetch('/api/savings/goals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create savings goal.');
-      }
+      await createSavingsGoal(payload);
 
       await refreshSummary();
       setShowAddGoal(false);
@@ -310,23 +301,16 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
     setDepositLoading(true);
 
     try {
-      const response = await fetch(`/api/savings/goals/${goalForDeposit.id}/deposits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await addSavingsDeposit({
           goalId: goalForDeposit.id,
           amount: Number(depositInput.amount),
           type: depositInput.type,
           note: depositInput.note,
-        }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to add savings entry.');
-      }
 
       const goalBefore = goalForDeposit;
       const nextSummary = await refreshSummary();
+      setSavingsHistory(await getMonthlySavingsHistory());
       const goalAfter = nextSummary.goals.find((goal) => goal.id === goalBefore.id);
 
       if (goalAfter && goalAfter.progressPercent >= 100 && goalBefore.progressPercent < 100) {
@@ -350,53 +334,52 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
   }
 
   async function deleteGoal(goalId: string) {
-    const response = await fetch(`/api/savings/goals/${goalId}`, { method: 'DELETE' });
-    if (!response.ok) {
-      throw new Error('Failed to delete goal.');
-    }
+    await deleteSavingsGoal(goalId);
 
     await refreshSummary();
+    setSavingsHistory(await getMonthlySavingsHistory());
     setSelectedGoal(null);
   }
 
   async function archiveGoal(goalId: string) {
-    const response = await fetch(`/api/savings/goals/${goalId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'archived' }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to archive goal.');
-    }
+    await updateSavingsGoal(goalId, { status: 'archived' });
 
     await refreshSummary();
     setSelectedGoal(null);
   }
 
   async function saveGoalEdits(goal: SavingsGoalWithDeposits) {
-    const response = await fetch(`/api/savings/goals/${goal.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: goal.name,
-        emoji: goal.emoji,
-        colorAccent: goal.colorAccent,
-        tag: goal.tag,
-        motivationNote: goal.motivationNote,
-        targetAmount: goal.targetAmount,
-        deadline: goal.deadline,
-        isPrivate: goal.isPrivate,
-        isPinned: goal.isPinned,
-      }),
+    await updateSavingsGoal(goal.id, {
+      name: goal.name,
+      emoji: goal.emoji,
+      colorAccent: goal.colorAccent,
+      tag: goal.tag,
+      motivationNote: goal.motivationNote,
+      targetAmount: goal.targetAmount,
+      deadline: goal.deadline,
+      isPrivate: goal.isPrivate,
+      isPinned: goal.isPinned,
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to update goal.');
-    }
-
     await refreshSummary();
+    setSavingsHistory(await getMonthlySavingsHistory());
     setEditMode(false);
+  }
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8f7f2] px-4 py-5 sm:px-6 md:py-6">
+        <div className="mx-auto max-w-5xl space-y-4">
+          <div className="h-10 w-48 animate-pulse rounded-2xl bg-zinc-200/80" />
+          <div className="h-28 animate-pulse rounded-3xl bg-zinc-200/70" />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-24 animate-pulse rounded-3xl bg-zinc-200/70" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -466,7 +449,7 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
                 <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Savings rate</p>
                 <TrendingUp size={16} color="#3C3489" />
               </div>
-              <p className="text-[20px] font-medium leading-tight text-zinc-900">{Math.round(savingsRate)}%</p>
+              <p className="text-[20px] font-medium leading-tight text-zinc-900">{Math.round(summary.savingsRate)}%</p>
               <p className="mt-1 text-[11px] text-zinc-500">tap for Berde insights</p>
             </button>
           </section>
@@ -1050,7 +1033,7 @@ export default function SavingsClientPage({ data, savingsRate, userId = '' }: Sa
       <SavingsRatePopup
         open={showSavingsRatePopup}
         onClose={() => setShowSavingsRatePopup(false)}
-        savingsRate={savingsRate}
+        savingsRate={summary.savingsRate}
         firstName="friend"
       />
     </>

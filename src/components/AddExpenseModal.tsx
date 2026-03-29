@@ -14,10 +14,9 @@ import {
   type Category,
   type PaymentMethod,
   type RecurringFrequency,
-  type Transaction,
   type TransactionSplitInput,
 } from '@/lib/types';
-import { savePendingTransaction } from '@/lib/indexeddb';
+import { createTransaction, getAccounts } from '@/lib/local-store';
 
 interface AddExpenseModalProps {
   open: boolean;
@@ -58,22 +57,6 @@ function normalizeDecimalInput(value: string): string {
   const dotIndex = sanitized.indexOf('.');
   if (dotIndex === -1) return sanitized;
   return `${sanitized.slice(0, dotIndex + 1)}${sanitized.slice(dotIndex + 1).replace(/\./g, '')}`;
-}
-
-function nextRecurringRunDate(
-  fromDate: string,
-  frequency: RecurringFrequency,
-  interval = 1
-): string {
-  const date = new Date(fromDate);
-  const steps = Math.max(1, Math.floor(interval));
-
-  if (frequency === 'daily') date.setDate(date.getDate() + steps);
-  else if (frequency === 'weekly') date.setDate(date.getDate() + (7 * steps));
-  else if (frequency === 'yearly') date.setFullYear(date.getFullYear() + steps);
-  else date.setMonth(date.getMonth() + steps);
-
-  return date.toISOString();
 }
 
 async function fileToBase64(file: File): Promise<string> {
@@ -161,6 +144,7 @@ export default function AddExpenseModal({
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [autoFocusAmount, setAutoFocusAmount] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const isIncomeEntry = entryType === 'income';
@@ -174,6 +158,9 @@ export default function AddExpenseModal({
   const showMoreOptions = showOptional;
   const isRecurring = isIncomeEntry ? incomeRecurringMonthly : recurringEnabled;
   const requiresAccountSelection = accounts.length > 0;
+  const fieldBaseClass = 'rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] sm:px-2.5 sm:text-xs';
+  const singleLineFieldClass = `h-11 sm:h-8 ${fieldBaseClass}`;
+  const compactFieldClass = 'h-11 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75] sm:h-7 sm:px-2 sm:text-[11px]';
 
   const EXPENSE_CATEGORY_ICONS: Record<string, string> = {
     Food: '🍜',
@@ -239,33 +226,41 @@ export default function AddExpenseModal({
   }, [open, autoFocusAmount]);
 
   useEffect(() => {
-    if (defaultCategory) {
-      setCategory(resolveDefaultCategory(defaultCategory));
-    }
-  }, [defaultCategory]);
+    if (!open) return;
+
+    const syncViewportHeight = () => {
+      const nextHeight = window.visualViewport?.height ?? window.innerHeight;
+      setViewportHeight(Math.round(nextHeight));
+    };
+
+    syncViewportHeight();
+
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', syncViewportHeight);
+    viewport?.addEventListener('scroll', syncViewportHeight);
+    window.addEventListener('resize', syncViewportHeight);
+
+    return () => {
+      viewport?.removeEventListener('resize', syncViewportHeight);
+      viewport?.removeEventListener('scroll', syncViewportHeight);
+      window.removeEventListener('resize', syncViewportHeight);
+      setViewportHeight(null);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
 
-    setEntryType(defaultEntryType);
-    setCategory(resolveDefaultCategory(defaultCategory));
-    setSelectedAccountId(defaultAccountId ?? '');
+    const frame = window.requestAnimationFrame(() => {
+      setEntryType(defaultEntryType);
+      setCategory(resolveDefaultCategory(defaultCategory));
+      setSelectedAccountId(defaultAccountId ?? '');
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, [defaultAccountId, defaultCategory, defaultEntryType, open]);
-
-  useEffect(() => {
-    if (entryType !== 'income') {
-      return;
-    }
-
-    if (splitEnabled) {
-      setSplitEnabled(false);
-      setSplitRows([]);
-    }
-
-    if (recurringFrequency !== 'monthly') {
-      setRecurringFrequency('monthly');
-    }
-  }, [entryType, recurringFrequency, splitEnabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -274,13 +269,10 @@ export default function AddExpenseModal({
 
     async function fetchAccounts() {
       try {
-        const res = await fetch('/api/accounts', { cache: 'no-store' });
-        if (!res.ok) return;
-        const json = (await res.json()) as AccountOption[];
-        const nextAccounts = Array.isArray(json) ? json : [];
+        const nextAccounts = await getAccounts();
         if (cancelled) return;
 
-        setAccounts(nextAccounts);
+        setAccounts(nextAccounts as AccountOption[]);
         setSelectedAccountId((prev) => {
           if (defaultAccountId && nextAccounts.some((account) => account.id === defaultAccountId)) {
             return defaultAccountId;
@@ -311,12 +303,33 @@ export default function AddExpenseModal({
       }
     };
 
-    const previousOverflow = document.body.style.overflow;
+    const scrollY = window.scrollY;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyWidth = document.body.style.width;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overscrollBehavior = 'none';
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.width = previousBodyWidth;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+      window.scrollTo(0, scrollY);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [open, onClose]);
@@ -465,49 +478,15 @@ export default function AddExpenseModal({
     };
 
     try {
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      });
-
-      if (!res.ok) throw new Error('Failed');
-    } catch {
-      // Save offline
-      const nowIso = new Date().toISOString();
-      const offlineRecurring = recurring
-        ? {
-            frequency: recurring.frequency,
-            interval: recurring.interval || 1,
-            nextRunDate: nextRecurringRunDate(normalizedDate, recurring.frequency, recurring.interval),
-            endDate: recurring.endDate,
-          }
-        : undefined;
-
-      const offlineTx: Transaction = {
-        id: uuidv4(),
-        amount: input.amount,
-        type: resolvedType,
-        accountId: selectedAccountId || undefined,
-        linkedTransferGroupId: input.linkedTransferGroupId,
-        incomeCategory: isIncomeEntry ? incomeCategory : undefined,
-        category: input.category,
-        subCategory: input.subCategory,
-        merchant: input.merchant,
-        description: input.description,
-        date: normalizedDate,
-        paymentMethod: input.paymentMethod || 'Bank Transfer',
-        notes: input.notes || '',
-        tags: isIncomeEntry ? [] : (input.tags || []),
-        attachmentBase64: isIncomeEntry ? undefined : input.attachmentBase64,
-        metadata: input.metadata,
-        split: isIncomeEntry ? undefined : (input.split as Transaction['split']),
-        recurring: offlineRecurring,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        synced: false,
-      };
-      await savePendingTransaction(offlineTx);
+      await createTransaction(input);
+    } catch (submissionError) {
+      setSaving(false);
+      setFormError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : 'Unable to save this transaction right now.'
+      );
+      return;
     }
 
     setSaving(false);
@@ -546,15 +525,20 @@ export default function AddExpenseModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden overscroll-none sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full animate-slide-up"
+        className="relative flex w-full justify-center overflow-hidden animate-slide-up"
+        style={viewportHeight ? { height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` } : undefined}
       >
-        <form onSubmit={handleSubmit} className="bg-zinc-100 dark:bg-zinc-900 rounded-3xl p-3 flex flex-col gap-2 w-full max-w-sm mx-auto overflow-y-auto max-h-[100dvh] modal-shell modal-content-scroll">
+        <form
+          onSubmit={handleSubmit}
+          className="modal-shell modal-content-scroll flex w-full max-w-sm flex-col gap-2 overflow-y-auto rounded-3xl bg-zinc-100 p-3 dark:bg-zinc-900 sm:mx-auto"
+          style={viewportHeight ? { maxHeight: `${viewportHeight}px` } : undefined}
+        >
           <div className="flex items-center justify-between px-0.5 pt-0.5">
             <p id={titleId} className="sr-only">{isIncomeEntry ? 'Log Income' : 'Add Expense'}</p>
 
@@ -572,7 +556,16 @@ export default function AddExpenseModal({
               </button>
               <button
                 type="button"
-                onClick={() => setEntryType('income')}
+                onClick={() => {
+                  setEntryType('income');
+                  if (splitEnabled) {
+                    setSplitEnabled(false);
+                    setSplitRows([]);
+                  }
+                  if (recurringFrequency !== 'monthly') {
+                    setRecurringFrequency('monthly');
+                  }
+                }}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
                   entryType === 'income'
                     ? 'bg-[#085041] text-[#9FE1CB]'
@@ -637,7 +630,7 @@ export default function AddExpenseModal({
                 <select
                   value={selectedAccountId}
                   onChange={(e) => setSelectedAccountId(e.target.value)}
-                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                  className={singleLineFieldClass}
                 >
                   {accounts.map((account) => (
                     <option key={account.id} value={account.id}>
@@ -660,7 +653,7 @@ export default function AddExpenseModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g., Dinner with friends"
-                className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75]"
+                className={singleLineFieldClass}
               />
             </div>
 
@@ -673,7 +666,7 @@ export default function AddExpenseModal({
                   onChange={(e) => setSubCategory(e.target.value)}
                   disabled={splitEnabled}
                   placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
-                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] disabled:opacity-60"
+                  className={`${singleLineFieldClass} disabled:opacity-60`}
                 />
               </div>
             )}
@@ -690,7 +683,7 @@ export default function AddExpenseModal({
                   value={merchant}
                   onChange={(e) => setMerchant(e.target.value)}
                   placeholder={isIncomeEntry ? 'e.g., GCash' : 'e.g., Jollibee'}
-                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75]"
+                  className={singleLineFieldClass}
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -699,7 +692,7 @@ export default function AddExpenseModal({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                  className={singleLineFieldClass}
                 />
               </div>
             </div>
@@ -781,7 +774,7 @@ export default function AddExpenseModal({
                       value={recurringEndDate}
                       min={date}
                       onChange={(e) => setRecurringEndDate(e.target.value)}
-                      className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                      className={singleLineFieldClass}
                     />
                   </div>
                 </>
@@ -818,7 +811,7 @@ export default function AddExpenseModal({
                     <select
                       value={row.category}
                       onChange={(e) => updateSplitRow(row.id, 'category', e.target.value)}
-                      className="h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 text-[11px] text-zinc-700 dark:text-zinc-300 outline-none"
+                      className={compactFieldClass}
                     >
                       {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -828,7 +821,7 @@ export default function AddExpenseModal({
                       value={row.amount}
                       onChange={(e) => updateSplitRow(row.id, 'amount', e.target.value)}
                       placeholder="₱0.00"
-                      className="h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 text-[11px] text-zinc-700 dark:text-zinc-300 outline-none"
+                      className={compactFieldClass}
                     />
                     <button
                       type="button"
@@ -844,7 +837,7 @@ export default function AddExpenseModal({
                     value={row.subCategory}
                     onChange={(e) => updateSplitRow(row.id, 'subCategory', e.target.value)}
                     placeholder="Sub-category"
-                    className="h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 text-[11px] text-zinc-700 dark:text-zinc-300 outline-none"
+                    className={compactFieldClass}
                   />
                 </div>
               ))}
@@ -883,7 +876,7 @@ export default function AddExpenseModal({
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 outline-none focus:border-[#1D9E75]"
+                    className={singleLineFieldClass}
                   >
                     {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -896,7 +889,7 @@ export default function AddExpenseModal({
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add a note..."
                     rows={2}
-                    className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-2 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] resize-none"
+                    className={`${fieldBaseClass} resize-none py-2.5`}
                   />
                 </div>
 
@@ -909,7 +902,7 @@ export default function AddExpenseModal({
                         value={tagsInput}
                         onChange={(e) => setTagsInput(e.target.value)}
                         placeholder="e.g., work, reimbursable"
-                        className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2.5 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75]"
+                        className={singleLineFieldClass}
                       />
                     </div>
 

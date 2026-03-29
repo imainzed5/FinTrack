@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import AccountAdjustDialog from '@/components/accounts/AccountAdjustDialog';
 import AccountFormDialog from '@/components/accounts/AccountFormDialog';
+import { getAccountsWithBalances, setAccountArchived } from '@/lib/local-store';
+import { subscribeAppUpdates } from '@/lib/transaction-ws';
 import type { AccountType, AccountWithBalance } from '@/lib/types';
 import { formatCurrencySigned } from '@/lib/utils';
 
@@ -70,10 +72,7 @@ export default function AccountsSection({
     setLoading(true);
 
     try {
-      const response = await fetch('/api/accounts?includeArchived=true', {
-        cache: 'no-store',
-      });
-      const json = await response.json();
+      const json = await getAccountsWithBalances({ includeArchived: true });
       setAccounts(Array.isArray(json) ? json : []);
     } catch {
       setAccounts([]);
@@ -84,6 +83,14 @@ export default function AccountsSection({
 
   useEffect(() => {
     void fetchAccounts();
+  }, [fetchAccounts]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAppUpdates(() => {
+      void fetchAccounts();
+    });
+
+    return unsubscribe;
   }, [fetchAccounts]);
 
   const activeAccounts = useMemo(
@@ -129,16 +136,7 @@ export default function AccountsSection({
     setStatus(null);
 
     try {
-      const response = await fetch('/api/accounts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || `Failed to ${action} account.`);
-      }
+      await setAccountArchived(id, action === 'archive');
 
       await fetchAccounts();
       setExpandedAccountId(null);

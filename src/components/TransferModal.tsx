@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { ArrowLeftRight, Wallet, X } from 'lucide-react';
+import { createTransfer, getAccountsWithBalances } from '@/lib/local-store';
 
 interface AccountOption {
   id: string;
@@ -122,10 +123,7 @@ export default function TransferModal({
 
     async function fetchAccounts() {
       try {
-        const res = await fetch('/api/accounts', { cache: 'no-store' });
-        if (!res.ok) return;
-
-        const json = (await res.json()) as AccountOption[];
+        const json = (await getAccountsWithBalances()) as AccountOption[];
         if (cancelled) return;
 
         const nextAccounts = Array.isArray(json) ? json : [];
@@ -274,63 +272,21 @@ export default function TransferModal({
     setLoading(true);
     try {
       if (requiresExternalDestination) {
-        const res = await fetch('/api/external-withdrawals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fromAccountId,
-            amount: Number(amountValue.toFixed(2)),
-            feeAmount: externalFee,
-            etaAt: externalEta,
-            destinationSummary: externalDestinationSummary.trim(),
-            notes: notes.trim() || undefined,
-            metadata: {
-              flow: mode,
-              destinationType,
-            },
-          }),
-        });
-
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(payload.error || 'Failed to create external withdrawal request.');
-        }
-
-        setAmount('');
-        setNotes('');
-        setExternalDestinationSummary('');
-        onCreated({
-          kind: 'external-request',
-          externalWithdrawalRequestId: typeof payload.id === 'string' ? payload.id : undefined,
-          message: typeof payload.etaAt === 'string'
-            ? `External withdrawal is pending. Estimated arrival: ${formatEta(payload.etaAt)}.`
-            : 'External withdrawal is pending.',
-        });
-        onClose();
+        throw new Error('External payouts are not available in local-first mode yet.');
         return;
       }
 
-      const res = await fetch('/api/transfers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromAccountId,
-          toAccountId,
-          amount: Number(amountValue.toFixed(2)),
-          date: new Date(date).toISOString(),
-          notes: notes.trim() || undefined,
-          metadata: {
-            flow: mode,
-            destinationType: mode === 'withdraw' ? destinationType : 'internal',
-          },
-        }),
+      const payload = await createTransfer({
+        fromAccountId,
+        toAccountId,
+        amount: Number(amountValue.toFixed(2)),
+        date: new Date(date).toISOString(),
+        notes: notes.trim() || undefined,
+        metadata: {
+          flow: mode,
+          destinationType: mode === 'withdraw' ? destinationType : 'internal',
+        },
       });
-
-      const payload = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(payload.error || 'Failed to create transfer.');
-      }
 
       if (mode === 'withdraw' && destinationType === 'cash' && recordAsExpense && toAccountId) {
         onRequestRecordExpense?.({

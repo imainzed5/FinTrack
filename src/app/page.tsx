@@ -68,18 +68,18 @@ const features: Feature[] = [
 
 const journey: JourneyStep[] = [
   {
-    title: 'Sign up in minutes',
-    description: 'Create your account and set your monthly baseline in a calm, guided flow.',
+    title: 'Set up this device',
+    description: 'Create your device profile, wallet, and first budget in a calm guided flow.',
   },
   {
-    title: 'Connect or add transactions',
+    title: 'Track right away',
     description:
-      'Bring in your spending data your way, then organize it into categories that make sense to you.',
+      'Add transactions, savings goals, and debts locally, then organize them into categories that make sense to you.',
   },
   {
-    title: 'See the full picture',
+    title: 'Add backup when ready',
     description:
-      'Open your dashboard and understand where money goes, what to improve, and where you can save.',
+      'Sign in later if you want cloud backup and multi-device sync without giving up local access.',
   },
 ];
 
@@ -178,22 +178,22 @@ export default function LandingPage() {
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                href="/auth/signup"
+                href="/onboarding"
                 className="inline-flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-teal-500"
               >
-                Start Free
+                Use on this device
                 <ArrowRight size={16} aria-hidden />
               </Link>
               <Link
                 href="/auth/login"
                 className="rounded-full border border-slate-300 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/85 dark:text-zinc-200"
               >
-                I already have an account
+                Back up or sign in
               </Link>
             </div>
 
             <p className="mt-4 text-sm text-slate-500 dark:text-zinc-400">
-              No credit card. No pressure. Just better visibility into your money.
+              Start locally first. Add an account later if you want backup and multi-device sync.
             </p>
           </div>
 
@@ -259,10 +259,10 @@ export default function LandingPage() {
               </p>
               <div className="mt-6">
                 <Link
-                  href="/auth/signup"
+                  href="/onboarding"
                   className="inline-flex items-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-5 py-2.5 text-sm font-semibold text-teal-700 transition-colors hover:bg-teal-100 dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-teal-200 dark:hover:bg-teal-500/20"
                 >
-                  Start your clarity plan
+                  Use Moneda on this device
                   <ArrowRight size={16} aria-hidden />
                 </Link>
               </div>
@@ -332,13 +332,32 @@ export default function LandingPage() {
             <p className="text-sm text-amber-900 dark:text-amber-100">
               Moneda does not punish you for spending. It gives you context so you can make better choices next month.
             </p>
-            <div className="mt-3">
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {journey.map((step) => (
+                <div
+                  key={step.title}
+                  className="rounded-2xl border border-amber-200/80 bg-white/80 px-4 py-3 dark:bg-zinc-900/70"
+                >
+                  <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">{step.title}</p>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-zinc-300">{step.description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
               <Link
-                href="/auth/signup"
+                href="/onboarding"
                 className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-400"
               >
-                Try Moneda now
+                Use Moneda now
                 <ArrowRight size={16} aria-hidden />
+              </Link>
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white/85 px-4 py-2 text-sm font-semibold text-amber-900 transition-colors hover:bg-white"
+              >
+                Add backup and sync later
               </Link>
             </div>
           </div>
@@ -364,16 +383,16 @@ export default function LandingPage() {
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/auth/signup"
+              href="/onboarding"
               className="rounded-full bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-500"
             >
-              Sign Up
+              Set up this device
             </Link>
             <Link
               href="/auth/login"
               className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
             >
-              Log In
+              Back up or sign in
             </Link>
           </div>
         </section>
@@ -412,6 +431,12 @@ export default function LandingPage() {
               className="rounded-full bg-teal-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-teal-500"
             >
               Create account
+            </Link>
+            <Link
+              href="/onboarding"
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            >
+              Use on this device
             </Link>
           </div>
 

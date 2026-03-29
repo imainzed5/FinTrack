@@ -843,6 +843,23 @@ function getSupportingInsights(input: {
   return deduped;
 }
 
+function hasEnoughSignalForBerdeThoughts(input: {
+  signalData: BerdeSignalData;
+  insights: Insight[];
+}): boolean {
+  const { signalData, insights } = input;
+
+  if (signalData.transactionCount >= 3) {
+    return true;
+  }
+
+  if (signalData.billName !== 'A bill' && signalData.dueAmount > 0) {
+    return true;
+  }
+
+  return insights.some((insight) => insight.requiresTransactionCount <= signalData.transactionCount);
+}
+
 export function mapStateToMood(state: BerdeState): BerdeMood {
   switch (state) {
     case 'celebratory':
@@ -896,6 +913,10 @@ export function getBerdeInsightsForMood(
     budgetStatuses: data.budgetStatuses,
     transactions: data.transactions,
   });
+
+  if (!hasEnoughSignalForBerdeThoughts({ signalData, insights: data.insights })) {
+    return [];
+  }
 
   const primary = getPrimaryInsight(mood, signalData);
   const supporting = getSupportingInsights({

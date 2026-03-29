@@ -7,6 +7,7 @@ import { type BerdeInsight, type BerdeMood } from '../../lib/berde-messages';
 interface BerdeCardProps {
   insight: BerdeInsight;
   quote?: string;
+  hasThoughts?: boolean;
   onClick: () => void;
 }
 
@@ -18,7 +19,7 @@ function resolveSpriteState(mood: BerdeMood) {
   return 'neutral' as const;
 }
 
-export default function BerdeCard({ insight, quote, onClick }: BerdeCardProps) {
+export default function BerdeCard({ insight, quote, hasThoughts = true, onClick }: BerdeCardProps) {
   const spriteState = resolveSpriteState(insight.mood);
 
   return (
@@ -82,7 +83,9 @@ export default function BerdeCard({ insight, quote, onClick }: BerdeCardProps) {
             style={{ color: 'rgba(255,255,255,0.4)' }}
           >
             <Clock3 size={10} />
-            <span>Berde has more to say - tap to read</span>
+            <span>
+              {hasThoughts ? 'Berde has more to say - tap to read' : 'Still learning from this device'}
+            </span>
           </div>
         </div>
       </div>
