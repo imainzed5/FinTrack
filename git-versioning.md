@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.23.3
+### Current version: v0.23.4
 
 ---
 ### Minor 
@@ -88,6 +88,11 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.23.4 — 2026-03-30
+  - fix(charts): Register the missing Chart.js controllers in `src/components/Charts.tsx`, resolving the runtime `"bar" is not a registered controller` failure for dashboard and statistics visualizations.
+  - fix(theme): Migrate older saved `moneda-theme=system` fallback values to light in `src/components/ThemeProvider.tsx`, so existing clients now align with the new default light preference.
+  - verification: `npm run build` passed after the chart registry and theme-preference migration patch.
+
 v0.23.3 — 2026-03-30
   - fix(theme): Change the default appearance preference to light in `src/components/ThemeProvider.tsx`, so fresh installs and missing saved preferences no longer fall back to system theme.
   - verification: `npm run build` passed after the theme-default patch.

@@ -30,13 +30,20 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
+function normalizeStoredThemePreference(value: string | null): ThemePreference {
+  if (value === 'dark') {
+    return 'dark';
+  }
+
+  // Older installs stored `system` as the implicit default. For now, migrate
+  // that fallback to `light` so fresh and existing clients align.
+  return 'light';
+}
+
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemePreference>(() => {
     if (typeof window === 'undefined') return 'light';
-    const stored = localStorage.getItem('moneda-theme');
-    return stored === 'light' || stored === 'dark' || stored === 'system'
-      ? stored
-      : 'light';
+    return normalizeStoredThemePreference(localStorage.getItem('moneda-theme'));
   });
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
   const resolvedTheme: ResolvedTheme = theme === 'system' ? systemTheme : theme;
