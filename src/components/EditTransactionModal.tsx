@@ -11,7 +11,7 @@ import {
   type Category,
   type PaymentMethod,
   type RecurringFrequency,
-  type TransactionSplitInput,
+  type TransactionSplit,
   type Transaction,
 } from '@/lib/types';
 import {
@@ -392,7 +392,7 @@ export default function EditTransactionModal({
       return;
     }
 
-    let normalizedSplit: TransactionSplitInput[] | undefined;
+    let normalizedSplit: TransactionSplit[] | undefined;
     if (splitEnabled) {
       const parsed = splitRows
         .map((row) => ({

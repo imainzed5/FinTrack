@@ -212,6 +212,45 @@ function normalizeUserSettings(value: unknown): LocalUserSettings {
   };
 }
 
+function normalizeDeviceProfile(value: unknown): DeviceProfile | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (
+    typeof value.id !== 'string' ||
+    typeof value.deviceId !== 'string' ||
+    typeof value.displayName !== 'string' ||
+    typeof value.currency !== 'string' ||
+    typeof value.onboardingComplete !== 'boolean' ||
+    typeof value.createdAt !== 'string' ||
+    typeof value.updatedAt !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    deviceId: value.deviceId,
+    displayName: value.displayName,
+    currency: value.currency,
+    onboardingComplete: value.onboardingComplete,
+    defaultAccountId: typeof value.defaultAccountId === 'string' ? value.defaultAccountId : undefined,
+    defaultBudgetAmount:
+      typeof value.defaultBudgetAmount === 'number' ? value.defaultBudgetAmount : undefined,
+    cloudLinkedUserId:
+      typeof value.cloudLinkedUserId === 'string' || value.cloudLinkedUserId === null
+        ? value.cloudLinkedUserId
+        : undefined,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    lastSyncedAt:
+      typeof value.lastSyncedAt === 'string' || value.lastSyncedAt === null
+        ? value.lastSyncedAt
+        : undefined,
+  };
+}
+
 function normalizeTransactions(value: unknown): Transaction[] | null {
   if (!Array.isArray(value)) {
     return null;
@@ -355,7 +394,7 @@ export function parseImportedLocalSnapshot(value: unknown): LocalAppSnapshot | n
   const snapshot: LocalAppSnapshot = {
     version: typeof value.version === 'number' ? value.version : 1,
     exportedAt: typeof value.exportedAt === 'string' ? value.exportedAt : exportedAt,
-    deviceProfile: isRecord(value.deviceProfile) ? (value.deviceProfile as DeviceProfile) : null,
+    deviceProfile: normalizeDeviceProfile(value.deviceProfile),
     userSettings: normalizeUserSettings(value.userSettings),
     accounts: Array.isArray(value.accounts) ? (value.accounts as Account[]) : [],
     transactions,
