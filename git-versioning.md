@@ -79,7 +79,7 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.23.2
+### Current version: v0.23.3
 
 ---
 ### Minor 
@@ -88,6 +88,10 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 ---
 
 ## Version Roadmap
+v0.23.3 — 2026-03-30
+  - fix(theme): Change the default appearance preference to light in `src/components/ThemeProvider.tsx`, so fresh installs and missing saved preferences no longer fall back to system theme.
+  - verification: `npm run build` passed after the theme-default patch.
+
 v0.23.2 — 2026-03-30
   - fix(build): Resolve the production TypeScript failure in `src/components/EditTransactionModal.tsx` by aligning edit-modal split updates with the concrete `TransactionSplit` type expected by local transaction updates.
   - fix(import): Replace an unsafe `DeviceProfile` cast in `src/lib/local-first.ts` with explicit snapshot normalization so imported local backups pass strict production type-checking.

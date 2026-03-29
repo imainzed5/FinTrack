@@ -20,7 +20,7 @@ const ThemeContext = createContext<{
   setTheme: (theme: ThemePreference) => void;
   toggle: () => void;
 }>({
-  theme: 'system',
+  theme: 'light',
   resolvedTheme: 'light',
   setTheme: () => {},
   toggle: () => {},
@@ -32,11 +32,11 @@ export function useTheme() {
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemePreference>(() => {
-    if (typeof window === 'undefined') return 'system';
+    if (typeof window === 'undefined') return 'light';
     const stored = localStorage.getItem('moneda-theme');
     return stored === 'light' || stored === 'dark' || stored === 'system'
       ? stored
-      : 'system';
+      : 'light';
   });
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
   const resolvedTheme: ResolvedTheme = theme === 'system' ? systemTheme : theme;
