@@ -11,9 +11,11 @@ import {
 } from 'react';
 import type { AuthSessionResponse } from '@/lib/auth-contract';
 import CloudSyncDecisionDialog from '@/components/CloudSyncDecisionDialog';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import {
   deriveStorageSyncMode,
   getDeviceStorageCopy,
+  isTimestampNewer,
   type CloudSyncStatus,
   type DeviceProfile,
   type LocalAppSnapshot,
@@ -173,6 +175,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [conflictOpen, setConflictOpen] = useState(false);
   const syncTimerRef = useRef<number | null>(null);
+  const suppressAutoSyncUntilRef = useRef(0);
+  const suppressCloudPullUntilRef = useRef(0);
 
   const storageMode = useMemo(
     () => deriveStorageSyncMode({ authSession, deviceProfile, cloudSyncStatus, syncing }),
@@ -182,6 +186,72 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const refreshPendingSyncCount = useCallback(async () => {
     setPendingSyncCount(await getPendingSyncCount());
   }, []);
+
+  const suppressAutoSyncForCloudRestore = useCallback(() => {
+    suppressAutoSyncUntilRef.current = Date.now() + 2500;
+  }, []);
+
+  const suppressCloudPullForLocalWrite = useCallback(() => {
+    suppressCloudPullUntilRef.current = Date.now() + 3000;
+  }, []);
+
+  const applyCloudSnapshotToDevice = useCallback(
+    async (
+      snapshot: LocalAppSnapshot,
+      userId: string,
+      options: { preserveDeviceIdentity?: boolean } = {},
+    ): Promise<DeviceProfile | null> => {
+      suppressAutoSyncForCloudRestore();
+
+      const profile = await replaceLocalSnapshot(snapshot, {
+        preserveDeviceIdentity: options.preserveDeviceIdentity ?? true,
+        linkedCloudUserId: userId,
+        source: 'cloud',
+      });
+
+      setDeviceProfile(profile);
+      await refreshPendingSyncCount();
+      return profile;
+    },
+    [refreshPendingSyncCount, suppressAutoSyncForCloudRestore],
+  );
+
+  const refreshFromCloudIfNeeded = useCallback(
+    async (options: { force?: boolean } = {}): Promise<boolean> => {
+      if (!authSession.authenticated || !authSession.user || conflictOpen) {
+        return false;
+      }
+
+      const profile = await getDeviceProfile();
+      if (!profile || profile.cloudLinkedUserId !== authSession.user.id) {
+        return false;
+      }
+
+      const cloudStatus = await fetchCloudSyncStatus();
+      setCloudSyncStatus(cloudStatus);
+      setCloudSyncError(cloudStatus?.issueMessage ?? null);
+
+      if (!cloudStatus?.hasCloudData || cloudStatus.backupStorageAvailable === false) {
+        return false;
+      }
+
+      const localPendingSyncCount = await getPendingSyncCount();
+      if (!options.force && localPendingSyncCount > 0) {
+        return false;
+      }
+
+      if (!options.force && !isTimestampNewer(cloudStatus.lastUpdatedAt, profile.lastSyncedAt)) {
+        return false;
+      }
+
+      const cloudSnapshot = await fetchCloudSnapshot();
+      await applyCloudSnapshotToDevice(cloudSnapshot, authSession.user.id, {
+        preserveDeviceIdentity: true,
+      });
+      return true;
+    },
+    [applyCloudSnapshotToDevice, authSession, conflictOpen],
+  );
 
   const syncCurrentSnapshot = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!authSession.authenticated || !authSession.user || conflictOpen) {
@@ -194,6 +264,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
 
     try {
       setCloudSyncError(null);
+      suppressCloudPullForLocalWrite();
       const snapshot = await exportLocalSnapshot();
       await uploadSnapshotToCloud(snapshot);
       const profile = await markLocalSnapshotSynced(authSession.user.id);
@@ -209,7 +280,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
         setSyncing(false);
       }
     }
-  }, [authSession, conflictOpen, refreshPendingSyncCount]);
+  }, [authSession, conflictOpen, refreshPendingSyncCount, suppressCloudPullForLocalWrite]);
 
   const bootstrapSession = useCallback(async () => {
     setBooting(true);
@@ -239,30 +310,41 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
         nextCloudSyncStatus = cloudStatus;
         nextCloudSyncError = cloudStatus?.issueMessage ?? null;
         const backupStorageAvailable = cloudStatus?.backupStorageAvailable !== false;
+        const localPendingSyncCount = await getPendingSyncCount();
 
         if (!nextDeviceProfile) {
           if (cloudStatus?.hasCloudData) {
             const cloudSnapshot = await fetchCloudSnapshot();
-            nextDeviceProfile = await replaceLocalSnapshot(cloudSnapshot, {
-              linkedCloudUserId: nextAuthSession.user.id,
-              source: 'cloud',
-            });
+            nextDeviceProfile = await applyCloudSnapshotToDevice(
+              cloudSnapshot,
+              nextAuthSession.user.id,
+              { preserveDeviceIdentity: false },
+            );
           } else {
             nextDeviceProfile = await seedDeviceProfileFromAuth(nextAuthSession);
           }
         } else if (nextDeviceProfile.cloudLinkedUserId === nextAuthSession.user.id) {
           if (!cloudStatus?.hasCloudData && backupStorageAvailable) {
             await attemptInitialBackup(nextAuthSession.user.id);
+          } else if (
+            cloudStatus?.hasCloudData &&
+            localPendingSyncCount === 0 &&
+            isTimestampNewer(cloudStatus.lastUpdatedAt, nextDeviceProfile.lastSyncedAt)
+          ) {
+            const cloudSnapshot = await fetchCloudSnapshot();
+            nextDeviceProfile = await applyCloudSnapshotToDevice(
+              cloudSnapshot,
+              nextAuthSession.user.id,
+            );
           }
         } else if (localDataExists && cloudStatus?.hasCloudData) {
           setConflictOpen(true);
         } else if (cloudStatus?.hasCloudData) {
           const cloudSnapshot = await fetchCloudSnapshot();
-          nextDeviceProfile = await replaceLocalSnapshot(cloudSnapshot, {
-            preserveDeviceIdentity: true,
-            linkedCloudUserId: nextAuthSession.user.id,
-            source: 'cloud',
-          });
+          nextDeviceProfile = await applyCloudSnapshotToDevice(
+            cloudSnapshot,
+            nextAuthSession.user.id,
+          );
         } else {
           if (backupStorageAvailable) {
             await attemptInitialBackup(nextAuthSession.user.id);
@@ -282,7 +364,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setBooting(false);
     }
-  }, [refreshPendingSyncCount]);
+  }, [applyCloudSnapshotToDevice, refreshPendingSyncCount]);
 
   useEffect(() => {
     void bootstrapSession();
@@ -305,6 +387,9 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
 
     const unsubscribe = subscribeAppUpdates(() => {
       void refreshPendingSyncCount();
+      if (Date.now() < suppressAutoSyncUntilRef.current) {
+        return;
+      }
       scheduleSync();
     });
 
@@ -323,6 +408,76 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       }
     };
   }, [authSession, conflictOpen, refreshPendingSyncCount, syncCurrentSnapshot]);
+
+  useEffect(() => {
+    if (!authSession.authenticated || !authSession.user || conflictOpen) {
+      return;
+    }
+
+    const profile = deviceProfile;
+    if (!profile || profile.cloudLinkedUserId !== authSession.user.id) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`cloud-backup-${authSession.user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_device_backups',
+          filter: `user_id=eq.${authSession.user.id}`,
+        },
+        () => {
+          if (Date.now() < suppressCloudPullUntilRef.current) {
+            return;
+          }
+
+          void refreshFromCloudIfNeeded().catch(() => undefined);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [authSession, conflictOpen, deviceProfile, refreshFromCloudIfNeeded]);
+
+  useEffect(() => {
+    if (!authSession.authenticated || !authSession.user || conflictOpen) {
+      return;
+    }
+
+    const refreshCloudSnapshot = () => {
+      void refreshFromCloudIfNeeded().catch(() => undefined);
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (document.hidden) {
+        return;
+      }
+
+      refreshCloudSnapshot();
+    }, 15000);
+
+    const handleFocus = () => refreshCloudSnapshot();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshCloudSnapshot();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [authSession, conflictOpen, refreshFromCloudIfNeeded]);
 
   const completeOnboarding = useCallback(async (input: LocalOnboardingInput) => {
     setSyncing(true);
@@ -351,18 +506,12 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     setSyncing(true);
     try {
       const cloudSnapshot = await fetchCloudSnapshot();
-      const profile = await replaceLocalSnapshot(cloudSnapshot, {
-        preserveDeviceIdentity: true,
-        linkedCloudUserId: authSession.user.id,
-        source: 'cloud',
-      });
-      setDeviceProfile(profile);
+      await applyCloudSnapshotToDevice(cloudSnapshot, authSession.user.id);
       setConflictOpen(false);
-      await refreshPendingSyncCount();
     } finally {
       setSyncing(false);
     }
-  }, [authSession, refreshPendingSyncCount]);
+  }, [applyCloudSnapshotToDevice, authSession]);
 
   const keepDeviceData = useCallback(async () => {
     if (!authSession.authenticated || !authSession.user) {

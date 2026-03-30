@@ -139,6 +139,31 @@ export function getDeviceStorageCopy(mode: StorageSyncMode): string {
   return 'Stored only on this device';
 }
 
+export function isTimestampNewer(
+  candidate: string | null | undefined,
+  baseline: string | null | undefined,
+): boolean {
+  if (!candidate) {
+    return false;
+  }
+
+  const candidateTime = new Date(candidate).getTime();
+  if (Number.isNaN(candidateTime)) {
+    return false;
+  }
+
+  if (!baseline) {
+    return true;
+  }
+
+  const baselineTime = new Date(baseline).getTime();
+  if (Number.isNaN(baselineTime)) {
+    return true;
+  }
+
+  return candidateTime > baselineTime;
+}
+
 export function createDisplayNameFromSession(session: AuthSessionResponse): string {
   if (session.user?.fullName?.trim()) {
     return session.user.fullName.trim();

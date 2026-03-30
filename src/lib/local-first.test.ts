@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveStorageSyncMode, getDeviceStorageCopy, type CloudSyncStatus } from './local-first';
+import {
+  deriveStorageSyncMode,
+  getDeviceStorageCopy,
+  isTimestampNewer,
+  type CloudSyncStatus,
+} from './local-first';
 import type { AuthSessionResponse } from './auth-contract';
 
 const AUTH_SESSION: AuthSessionResponse = {
@@ -72,4 +77,22 @@ test('deriveStorageSyncMode returns sync_ready when linked account has healthy b
 
 test('getDeviceStorageCopy returns readable copy for unavailable backup mode', () => {
   assert.equal(getDeviceStorageCopy('backup_unavailable'), 'Backup unavailable');
+});
+
+test('isTimestampNewer returns true when the candidate timestamp is newer', () => {
+  assert.equal(
+    isTimestampNewer('2026-03-31T11:00:00.000Z', '2026-03-31T10:00:00.000Z'),
+    true,
+  );
+});
+
+test('isTimestampNewer returns false when the candidate timestamp is not newer', () => {
+  assert.equal(
+    isTimestampNewer('2026-03-31T10:00:00.000Z', '2026-03-31T11:00:00.000Z'),
+    false,
+  );
+});
+
+test('isTimestampNewer treats a missing baseline as restorable cloud data', () => {
+  assert.equal(isTimestampNewer('2026-03-31T11:00:00.000Z', null), true);
 });
