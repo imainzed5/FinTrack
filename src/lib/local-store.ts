@@ -16,6 +16,7 @@ import {
   DEFAULT_DEVICE_CURRENCY,
   EMPTY_LOCAL_USER_SETTINGS,
   getLocalAppSnapshotSummary,
+  isRecordBackedUp,
   type DeviceProfile,
   type LocalAppSnapshot,
   type LocalOnboardingInput,
@@ -417,6 +418,13 @@ async function getStoredValues<T>(storeName: EntityStoreName): Promise<T[]> {
   return records.map((record) => record.value);
 }
 
+function withTransactionSyncState(record: StoredRecord<Transaction>): Transaction {
+  return {
+    ...record.value,
+    synced: isRecordBackedUp(record.meta.syncStatus),
+  };
+}
+
 async function resolveNewRecordStatus(): Promise<LocalRecordSyncStatus> {
   const profile = await getDeviceProfile();
   return profile?.cloudLinkedUserId ? 'pending_upload' : 'local_only';
@@ -732,6 +740,9 @@ export async function markLocalSnapshotSynced(userId: string): Promise<DevicePro
     markAllStoreRecordsSynced(DEBTS_STORE),
   ]);
 
+  emitTransactionUpdate('edit', { scope: 'sync-state' });
+  emitBudgetUpdate('edit', { scope: 'sync-state' });
+
   const profile = await getDeviceProfile();
   if (!profile) {
     return null;
@@ -753,6 +764,9 @@ export async function markLocalSnapshotPending(): Promise<void> {
     markAllStoreRecordsPending(SAVINGS_DEPOSITS_STORE),
     markAllStoreRecordsPending(DEBTS_STORE),
   ]);
+
+  emitTransactionUpdate('edit', { scope: 'sync-state' });
+  emitBudgetUpdate('edit', { scope: 'sync-state' });
 }
 
 export async function seedDeviceProfileFromAuth(
@@ -1131,7 +1145,8 @@ async function storeTransaction(
 }
 
 async function getRawTransactions(): Promise<Transaction[]> {
-  return getStoredValues<Transaction>(TRANSACTIONS_STORE);
+  const records = await getStoredRecords<Transaction>(TRANSACTIONS_STORE);
+  return records.map(withTransactionSyncState);
 }
 
 export async function processRecurringTransactions(): Promise<void> {
@@ -1743,7 +1758,7 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
   const records = await getStoredRecords<Transaction>(TRANSACTIONS_STORE);
   return records
     .filter((record) => record.meta.syncStatus === 'pending_upload')
-    .map((record) => record.value)
+    .map(withTransactionSyncState)
     .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime());
 }
 

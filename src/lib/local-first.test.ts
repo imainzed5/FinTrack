@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   deriveStorageSyncMode,
   getDeviceStorageCopy,
+  isRecordBackedUp,
   isTimestampNewer,
   type CloudSyncStatus,
 } from './local-first';
@@ -95,4 +96,13 @@ test('isTimestampNewer returns false when the candidate timestamp is not newer',
 
 test('isTimestampNewer treats a missing baseline as restorable cloud data', () => {
   assert.equal(isTimestampNewer('2026-03-31T11:00:00.000Z', null), true);
+});
+
+test('isRecordBackedUp returns false for pending uploads', () => {
+  assert.equal(isRecordBackedUp('pending_upload'), false);
+});
+
+test('isRecordBackedUp returns true for synced and local-only records', () => {
+  assert.equal(isRecordBackedUp('synced'), true);
+  assert.equal(isRecordBackedUp('local_only'), true);
 });
