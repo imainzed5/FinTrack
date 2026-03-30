@@ -7,6 +7,7 @@ import AuthCardShell from '@/components/auth/AuthCardShell';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import AuthTextField from '@/components/auth/AuthTextField';
 import AuthPasswordField from '@/components/auth/AuthPasswordField';
+import { useAppSession } from '@/components/AppSessionProvider';
 import type {
   AuthApiResponse,
   AuthFieldErrors,
@@ -46,6 +47,7 @@ function pickLoginFieldErrors(errors: AuthFieldErrors): LoginFieldErrors {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshSession } = useAppSession();
   const [formState, setFormState] = useState<LoginPayload>(initialLoginState);
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
   const [formError, setFormError] = useState('');
@@ -192,6 +194,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -211,8 +214,15 @@ export default function LoginPage() {
       setShowResendVerification(false);
       setFormSuccess(data.message);
       const destination = redirectTarget || data.redirectTo || '/dashboard';
+
+      try {
+        await refreshSession();
+      } catch {
+        // Keep the server-set session cookie as the source of truth even if the refresh races.
+      }
+
       window.setTimeout(() => {
-        router.push(destination);
+        router.replace(destination);
       }, 700);
     } catch {
       setFormError('Network error. Please check your connection and retry.');
