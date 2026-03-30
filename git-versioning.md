@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.24.1
+### Current version: v0.24.2
 
 
 ---
 
 ## Version Roadmap
+v0.24.2 — 2026-03-31
+  - fix(sync): Add strict instant cross-device cloud-backup refresh in `src/components/AppSessionProvider.tsx` by subscribing to `user_device_backups` realtime changes for the signed-in user instead of waiting only for focus or polling.
+  - fix(sync): Suppress self-echo cloud refreshes after local backup writes in `src/components/AppSessionProvider.tsx`, so a device does not immediately re-pull its own snapshot after uploading.
+  - chore(sync): Add `supabase/migrations/202603310001_enable_realtime_user_device_backups.sql` so `user_device_backups` participates in the `supabase_realtime` publication used by the live app.
+  - test(sync): Extend `src/lib/local-first.test.ts` timestamp coverage used by the cloud freshness checks.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the realtime cloud refresh update.
+
 v0.24.1 — 2026-03-31
   - fix(sync): Stop `/api/cloud-sync/backup` from failing with an opaque 500 when backup storage is unavailable by surfacing an explicit unavailable state in `src/lib/cloud-sync-server.ts` and `src/app/api/cloud-sync/backup/route.ts`.
   - fix(sync): Keep cloud backup status truthful in `src/components/AppSessionProvider.tsx`, `src/lib/local-first.ts`, and `src/app/settings/page.tsx` so linked accounts no longer appear fully backed up when cloud writes are unavailable.
