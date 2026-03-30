@@ -50,6 +50,10 @@ export interface LocalRecordMeta {
   source: 'device' | 'cloud';
 }
 
+export function isRecordBackedUp(syncStatus: LocalRecordMeta['syncStatus']): boolean {
+  return syncStatus !== 'pending_upload';
+}
+
 export interface LocalAppSnapshotSummary {
   accountCount: number;
   transactionCount: number;

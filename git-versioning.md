@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.24.2
+### Current version: v0.24.3
 
 
 ---
 
 ## Version Roadmap
+v0.24.3 — 2026-03-31
+  - fix(sync): Derive transaction backup state from IndexedDB record metadata in `src/lib/local-store.ts` and `src/lib/local-first.ts`, so the Transactions list no longer shows stale `Pending` badges after backup has already completed.
+  - fix(sync): Emit transaction and budget refresh events when snapshot sync state flips in `src/lib/local-store.ts`, so sync-state badges clear immediately after a successful backup.
+  - test(sync): Add metadata-backed sync-state coverage in `src/lib/local-first.test.ts`.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the pending badge fix.
+
 v0.24.2 — 2026-03-31
   - fix(sync): Add strict instant cross-device cloud-backup refresh in `src/components/AppSessionProvider.tsx` by subscribing to `user_device_backups` realtime changes for the signed-in user instead of waiting only for focus or polling.
   - fix(sync): Suppress self-echo cloud refreshes after local backup writes in `src/components/AppSessionProvider.tsx`, so a device does not immediately re-pull its own snapshot after uploading.
