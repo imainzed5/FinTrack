@@ -79,12 +79,17 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.24.4
+### Current version: v0.24.5
 
 
 ---
 
 ## Version Roadmap
+v0.24.5 — 2026-03-31
+  - fix(auth): Refresh the client app session immediately after a successful email/password sign-in in `src/app/auth/login/page.tsx`, so `AppShell` sees the authenticated state before route guards run and no longer bounces users back to the landing page.
+  - fix(auth): Make the login request explicitly send cookies and replace to the destination route after the session refresh in `src/app/auth/login/page.tsx`, preventing repeat sign-in loops after a successful login.
+  - verification: `npm run lint` and `npm run build` passed after the login redirect fix.
+
 v0.24.4 — 2026-03-31
   - fix(sync): Stop sync-state-only backup events from triggering full dashboard, insights, timeline, savings, debts, accounts, and settings refetches by filtering those updates in the page-level realtime subscribers.
   - fix(sync): Reduce distracting cloud-refresh churn in `src/components/AppSessionProvider.tsx` by removing the visible-tab polling loop, throttling focus/realtime refresh attempts, and ignoring sync-state echoes when scheduling uploads.
