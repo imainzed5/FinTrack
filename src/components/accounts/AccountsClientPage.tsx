@@ -14,7 +14,7 @@ import {
 import BerdeSprite from '@/components/BerdeSprite';
 import AccountFormDialog from '@/components/accounts/AccountFormDialog';
 import { getAccountsWithBalances, setAccountArchived } from '@/lib/local-store';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { useNetWorthVisibility } from '@/hooks/useNetWorthVisibility';
 import type { AccountType, AccountWithBalance } from '@/lib/types';
 
@@ -94,7 +94,11 @@ export default function AccountsClientPage() {
   }, [fetchAccounts]);
 
   useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void fetchAccounts();
     });
 

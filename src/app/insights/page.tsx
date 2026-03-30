@@ -12,7 +12,7 @@ import {
 import type { Budget, Transaction, Insight, InsightType } from '@/lib/types';
 import { InsightsSkeleton } from '@/components/SkeletonLoaders';
 import { Lightbulb, BarChart2 } from 'lucide-react';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { getBudgets, getInsights, getTransactions } from '@/lib/local-store';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EmptyState from '@/components/EmptyState';
@@ -147,7 +147,11 @@ export default function InsightsPage() {
   }, [fetchInsightsData]);
 
   useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void fetchInsightsData(false);
     });
 

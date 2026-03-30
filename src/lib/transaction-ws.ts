@@ -29,6 +29,8 @@ export interface IncomingBudgetUpdate {
   timestamp?: string;
 }
 
+type RealtimeUpdateWithPayload = Pick<IncomingRealtimeUpdate, 'payload'>;
+
 type RealtimeUpdateListener = (message: IncomingRealtimeUpdate) => void;
 type TransactionUpdateListener = (message: IncomingTransactionUpdate) => void;
 type BudgetUpdateListener = (message: IncomingBudgetUpdate) => void;
@@ -56,6 +58,23 @@ function dispatchToListeners(update: IncomingRealtimeUpdate) {
   for (const listener of listeners) {
     listener(update);
   }
+}
+
+function getPayloadScope(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const scope = (payload as { scope?: unknown }).scope;
+  return typeof scope === 'string' ? scope : null;
+}
+
+export function getRealtimeUpdateScope(update: RealtimeUpdateWithPayload): string | null {
+  return getPayloadScope(update.payload);
+}
+
+export function isSyncStateRealtimeUpdate(update: RealtimeUpdateWithPayload): boolean {
+  return getRealtimeUpdateScope(update) === 'sync-state';
 }
 
 function ensureLocalBroadcastChannel() {
