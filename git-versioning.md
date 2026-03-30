@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.24.3
+### Current version: v0.24.4
 
 
 ---
 
 ## Version Roadmap
+v0.24.4 — 2026-03-31
+  - fix(sync): Stop sync-state-only backup events from triggering full dashboard, insights, timeline, savings, debts, accounts, and settings refetches by filtering those updates in the page-level realtime subscribers.
+  - fix(sync): Reduce distracting cloud-refresh churn in `src/components/AppSessionProvider.tsx` by removing the visible-tab polling loop, throttling focus/realtime refresh attempts, and ignoring sync-state echoes when scheduling uploads.
+  - chore(sync): Add reusable sync-state payload helpers in `src/lib/transaction-ws.ts` so local realtime listeners can distinguish metadata-only updates from actual content changes.
+  - verification: `npm run lint` and `npm run build` passed after the realtime refresh optimization.
+
 v0.24.3 — 2026-03-31
   - fix(sync): Derive transaction backup state from IndexedDB record metadata in `src/lib/local-store.ts` and `src/lib/local-first.ts`, so the Transactions list no longer shows stale `Pending` badges after backup has already completed.
   - fix(sync): Emit transaction and budget refresh events when snapshot sync state flips in `src/lib/local-store.ts`, so sync-state badges clear immediately after a successful backup.

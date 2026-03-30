@@ -30,7 +30,7 @@ import {
   getSavingsGoalsSummary,
   updateSavingsGoal,
 } from '@/lib/local-store';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { formatCurrency } from '@/lib/utils';
 import SavingsRatePopup from '@/components/dashboard/popups/SavingsRatePopup';
 import { MonthlySavingsChart } from '@/components/Charts';
@@ -204,7 +204,11 @@ export default function SavingsClientPage() {
 
     void loadSavingsPage();
 
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void loadSavingsPage();
     });
 

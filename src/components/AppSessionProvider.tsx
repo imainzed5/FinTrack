@@ -33,7 +33,7 @@ import {
   replaceLocalSnapshot,
   seedDeviceProfileFromAuth,
 } from '@/lib/local-store';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 
 const EMPTY_SESSION: AuthSessionResponse = {
   authenticated: false,
@@ -177,6 +177,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const syncTimerRef = useRef<number | null>(null);
   const suppressAutoSyncUntilRef = useRef(0);
   const suppressCloudPullUntilRef = useRef(0);
+  const cloudRefreshInFlightRef = useRef(false);
+  const lastCloudRefreshAttemptAtRef = useRef(0);
 
   const storageMode = useMemo(
     () => deriveStorageSyncMode({ authSession, deviceProfile, cloudSyncStatus, syncing }),
@@ -251,6 +253,34 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       return true;
     },
     [applyCloudSnapshotToDevice, authSession, conflictOpen],
+  );
+
+  const requestCloudRefresh = useCallback(
+    (options: { force?: boolean; minimumGapMs?: number } = {}) => {
+      const minimumGapMs = options.minimumGapMs ?? 0;
+      const now = Date.now();
+
+      if (cloudRefreshInFlightRef.current) {
+        return;
+      }
+
+      if (!options.force && minimumGapMs > 0) {
+        const elapsed = now - lastCloudRefreshAttemptAtRef.current;
+        if (elapsed < minimumGapMs) {
+          return;
+        }
+      }
+
+      lastCloudRefreshAttemptAtRef.current = now;
+      cloudRefreshInFlightRef.current = true;
+
+      void refreshFromCloudIfNeeded({ force: options.force })
+        .catch(() => undefined)
+        .finally(() => {
+          cloudRefreshInFlightRef.current = false;
+        });
+    },
+    [refreshFromCloudIfNeeded],
   );
 
   const syncCurrentSnapshot = useCallback(async (options: { quiet?: boolean } = {}) => {
@@ -385,8 +415,11 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       }, 1200);
     };
 
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
       void refreshPendingSyncCount();
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
       if (Date.now() < suppressAutoSyncUntilRef.current) {
         return;
       }
@@ -435,7 +468,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
             return;
           }
 
-          void refreshFromCloudIfNeeded().catch(() => undefined);
+          requestCloudRefresh({ minimumGapMs: 1000 });
         },
       )
       .subscribe();
@@ -443,7 +476,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [authSession, conflictOpen, deviceProfile, refreshFromCloudIfNeeded]);
+  }, [authSession, conflictOpen, deviceProfile, requestCloudRefresh]);
 
   useEffect(() => {
     if (!authSession.authenticated || !authSession.user || conflictOpen) {
@@ -451,16 +484,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     }
 
     const refreshCloudSnapshot = () => {
-      void refreshFromCloudIfNeeded().catch(() => undefined);
+      requestCloudRefresh({ minimumGapMs: 5000 });
     };
-
-    const intervalId = window.setInterval(() => {
-      if (document.hidden) {
-        return;
-      }
-
-      refreshCloudSnapshot();
-    }, 15000);
 
     const handleFocus = () => refreshCloudSnapshot();
     const handleVisibilityChange = () => {
@@ -473,11 +498,10 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [authSession, conflictOpen, refreshFromCloudIfNeeded]);
+  }, [authSession, conflictOpen, requestCloudRefresh]);
 
   const completeOnboarding = useCallback(async (input: LocalOnboardingInput) => {
     setSyncing(true);

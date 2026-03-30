@@ -62,7 +62,11 @@ import {
   saveLocalUserSettings,
   setBudget,
 } from '@/lib/local-store';
-import { subscribeAppUpdates, subscribeBudgetUpdates } from '@/lib/transaction-ws';
+import {
+  isSyncStateRealtimeUpdate,
+  subscribeAppUpdates,
+  subscribeBudgetUpdates,
+} from '@/lib/transaction-ws';
 import type { AccountWithBalance, Budget, Category } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -625,10 +629,15 @@ export default function SettingsPage() {
     const unsubscribeRealtime = subscribeBudgetUpdates(() => {
       void fetchBudgets();
     });
-    const unsubscribeApp = subscribeAppUpdates(() => {
+    const unsubscribeApp = subscribeAppUpdates((message) => {
+      void refreshPendingCount();
+
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void fetchBudgets();
       void fetchAccountsSummary();
-      void refreshPendingCount();
     });
 
     const handleOnline = () => setOnline(true);

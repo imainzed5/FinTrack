@@ -15,7 +15,7 @@ import {
   settleDebt,
   updateDebt,
 } from '@/lib/local-store';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import AddDebtModal from '@/components/AddDebtModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import EmptyState from '@/components/EmptyState';
@@ -135,7 +135,11 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
   }, [fetchDebts]);
 
   useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void fetchDebts();
     });
 

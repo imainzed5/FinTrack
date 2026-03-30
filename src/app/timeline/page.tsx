@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Clock } from 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
 import TimelineView from '@/components/TimelineView';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { getTimelineEvents } from '@/lib/local-store';
 import AddExpenseModal from '@/components/AddExpenseModal';
 
@@ -33,7 +33,11 @@ export default function TimelinePage() {
   }, [fetchTimeline]);
 
   useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void fetchTimeline();
     });
 

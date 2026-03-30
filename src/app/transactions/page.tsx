@@ -22,7 +22,11 @@ import {
   getTransactions as getStoredTransactions,
   updateTransaction,
 } from '@/lib/local-store';
-import { subscribeAppUpdates, subscribeTransactionUpdates } from '@/lib/transaction-ws';
+import {
+  isSyncStateRealtimeUpdate,
+  subscribeAppUpdates,
+  subscribeTransactionUpdates,
+} from '@/lib/transaction-ws';
 import { TransactionsSkeleton } from '@/components/SkeletonLoaders';
 import EmptyState from '@/components/EmptyState';
 import DebtsPanel from '@/components/DebtsPanel';
@@ -281,7 +285,11 @@ export default function TransactionsPage() {
   }, [fetchTimeline, fetchRecurring]);
 
   useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       void fetchTimeline();
       void fetchRecurring();
     });

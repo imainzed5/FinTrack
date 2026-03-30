@@ -20,7 +20,7 @@ import FloatingAddButton from '@/components/FloatingAddButton';
 import { resolveBerdeState } from '@/lib/berde/berde.logic';
 import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
 import { getBerdeInsightsForMood, mapStateToMood } from '../../lib/berde-messages';
-import { subscribeAppUpdates } from '@/lib/transaction-ws';
+import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { getDashboardData, getSavingsGoalsSummary } from '@/lib/local-store';
 import { getTodayDateKeyInManila } from '@/lib/utils';
 import { useAppSession } from '@/components/AppSessionProvider';
@@ -257,7 +257,11 @@ export default function DashboardClientPage() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribeAppUpdates(() => {
+    const unsubscribe = subscribeAppUpdates((message) => {
+      if (isSyncStateRealtimeUpdate(message)) {
+        return;
+      }
+
       setShowSpentPopup(false);
       setShowRemainingPopup(false);
       setShowSavingsGoalsPopup(false);
