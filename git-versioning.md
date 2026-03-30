@@ -79,21 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.24.0
-
----
-### Minor 
-v0.24.0 — 2026-03-30
-  - feat(auth): Add Google OAuth sign-in/sign-up across [src/app/auth/login/page.tsx](src/app/auth/login/page.tsx) and [src/app/auth/signup/page.tsx](src/app/auth/signup/page.tsx) with a reusable provider button in [src/components/auth/GoogleAuthButton.tsx](src/components/auth/GoogleAuthButton.tsx).
-  - feat(auth): Add the Supabase OAuth code-exchange callback in [src/app/api/auth/callback/route.ts](src/app/api/auth/callback/route.ts) plus shared redirect/error helpers in [src/lib/auth-redirect.ts](src/lib/auth-redirect.ts).
-  - fix(auth): Improve signup and resend verification failure handling in [src/app/api/auth/signup/route.ts](src/app/api/auth/signup/route.ts) and [src/app/api/auth/resend-verification/route.ts](src/app/api/auth/resend-verification/route.ts) for upstream confirmation-email delivery failures.
-  - fix(profile): Normalize provider display names for Google-authenticated users in [src/lib/supabase/user-profile.ts](src/lib/supabase/user-profile.ts), [src/app/api/auth/session/route.ts](src/app/api/auth/session/route.ts), [src/app/api/auth/sessions/route.ts](src/app/api/auth/sessions/route.ts), and [src/lib/cloud-sync-server.ts](src/lib/cloud-sync-server.ts).
-  - verification: `npm run build` passed after the auth reliability and Google OAuth implementation.
+### Current version: v0.24.1
 
 
 ---
 
 ## Version Roadmap
+v0.24.1 — 2026-03-31
+  - fix(sync): Stop `/api/cloud-sync/backup` from failing with an opaque 500 when backup storage is unavailable by surfacing an explicit unavailable state in `src/lib/cloud-sync-server.ts` and `src/app/api/cloud-sync/backup/route.ts`.
+  - fix(sync): Keep cloud backup status truthful in `src/components/AppSessionProvider.tsx`, `src/lib/local-first.ts`, and `src/app/settings/page.tsx` so linked accounts no longer appear fully backed up when cloud writes are unavailable.
+  - fix(settings): Simplify the Sync & Data card in `src/app/settings/page.tsx` with readable backup labels, last cloud backup time, clearer pending copy, and a separate alert state for backup errors.
+  - test(sync): Add backup-mode coverage in `src/lib/local-first.test.ts`.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed; applied pending Supabase migration `202603290001_add_user_device_backups.sql` to the remote database.
+
 v0.24.0 — 2026-03-30
   - feat(auth): Add Google OAuth sign-in/sign-up across [src/app/auth/login/page.tsx](src/app/auth/login/page.tsx) and [src/app/auth/signup/page.tsx](src/app/auth/signup/page.tsx) with a reusable provider button in [src/components/auth/GoogleAuthButton.tsx](src/components/auth/GoogleAuthButton.tsx).
   - feat(auth): Add the Supabase OAuth code-exchange callback in [src/app/api/auth/callback/route.ts](src/app/api/auth/callback/route.ts) plus shared redirect/error helpers in [src/lib/auth-redirect.ts](src/lib/auth-redirect.ts).

@@ -14,6 +14,7 @@ import {
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import {
+  AlertTriangle,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -104,6 +105,10 @@ function buildRecentMonthOptions(count: number): Array<{ value: string; label: s
       label: format(date, 'MMMM yyyy'),
     };
   });
+}
+
+function formatPendingChanges(count: number): string {
+  return `${count} change${count === 1 ? '' : 's'}`;
 }
 
 function resolveSettingsBerdeContext(params: {
@@ -520,8 +525,9 @@ export default function SettingsPage() {
   const {
     authSession,
     clearLocalData,
+    cloudSyncError,
+    cloudSyncStatus,
     pendingSyncCount: sessionPendingSyncCount,
-    storageMode,
     syncing,
     triggerCloudSync,
     viewer,
@@ -560,6 +566,7 @@ export default function SettingsPage() {
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [lastExportAt, setLastExportAt] = useState<Date | null>(null);
   const [lastImportAt, setLastImportAt] = useState<Date | null>(null);
+  const [syncNotice, setSyncNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshPendingCount = useCallback(async () => {
@@ -728,11 +735,18 @@ export default function SettingsPage() {
     }
 
     try {
+      setSyncNotice(null);
       await triggerCloudSync();
       await refreshPendingCount();
       setLastSyncAt(new Date());
-    } catch {
-      // failed
+      setSyncNotice({ tone: 'success', text: 'Backup completed.' });
+    } catch (error) {
+      setSyncNotice({
+        tone: 'error',
+        text: error instanceof Error ? error.message : 'Failed to back up changes.',
+      });
+    } finally {
+      window.setTimeout(() => setSyncNotice(null), 5000);
     }
   };
 
@@ -872,14 +886,80 @@ export default function SettingsPage() {
     (budget) => budget.category === 'Overall' && !budget.subCategory
   );
   const rolloverBudgetCount = monthBudgets.filter((budget) => budget.rollover).length;
-  const syncStatusText = authSession.authenticated
-    ? online
-      ? pendingCount > 0
-        ? `${pendingCount} pending`
+  const lastCloudBackupAt = useMemo(() => {
+    const serverTimestamp = parseDateValue(cloudSyncStatus?.lastUpdatedAt ?? '');
+    return serverTimestamp ?? lastSyncAt;
+  }, [cloudSyncStatus?.lastUpdatedAt, lastSyncAt]);
+  const backupStorageAvailable = cloudSyncStatus?.backupStorageAvailable !== false;
+  const backupAlert = syncNotice
+    ? syncNotice
+    : authSession.authenticated && (cloudSyncStatus?.issueMessage || cloudSyncError)
+      ? {
+          tone: 'error' as const,
+          text: cloudSyncStatus?.issueMessage ?? cloudSyncError ?? 'Cloud backup is unavailable.',
+        }
+      : null;
+  const syncHeadline = !online
+    ? 'Offline mode active'
+    : !authSession.authenticated
+      ? 'Device-only mode'
+      : backupStorageAvailable
+        ? 'Connected'
+        : 'Connected, backup unavailable';
+  const syncSummaryText = authSession.authenticated
+    ? !backupStorageAvailable
+      ? 'Your account is connected, but cloud backup writes are unavailable until the backup storage is installed.'
+      : pendingCount > 0
+        ? `${formatPendingChanges(pendingCount)} waiting to back up.`
+        : cloudSyncStatus?.hasBackup
+          ? 'Your latest cloud backup is up to date.'
+          : 'No cloud backup has been saved yet.'
+    : 'Everything stays on this device until you connect backup and sync.';
+  const syncDetailText = authSession.authenticated
+    ? lastCloudBackupAt
+      ? `Last cloud backup: ${format(lastCloudBackupAt, 'PP p')}`
+      : 'No cloud backup yet'
+    : 'Stored only on this device right now';
+  const pendingTileHelper = authSession.authenticated
+    ? pendingCount > 0
+      ? 'Waiting to back up'
+      : backupStorageAvailable
+        ? 'All changes backed up'
+        : 'Changes stay local for now'
+    : 'Local-only changes';
+  const backupTile = !authSession.authenticated
+    ? { value: 'Device only', helper: 'No account linked', accent: false }
+    : !online
+      ? { value: 'Offline', helper: 'Backups resume when reconnected', accent: false }
+      : !backupStorageAvailable
+        ? { value: 'Unavailable', helper: 'Server backup storage needs setup', accent: false }
         : syncing
-          ? 'Syncing now'
-          : viewer.storageCopy
-      : 'Offline mode'
+          ? { value: 'Syncing', helper: 'Uploading your latest device snapshot', accent: true }
+          : cloudSyncStatus?.hasBackup
+            ? {
+                value: 'Backed up',
+                helper: lastCloudBackupAt
+                  ? `Updated ${format(lastCloudBackupAt, 'MMM d, p')}`
+                  : 'Cloud snapshot saved',
+                accent: true,
+              }
+            : {
+                value: pendingCount > 0 ? 'Needs backup' : 'Ready',
+                helper: pendingCount > 0 ? 'Manual backup available now' : 'No cloud snapshot saved yet',
+                accent: false,
+              };
+  const syncStatusText = authSession.authenticated
+    ? !online
+      ? 'Offline mode'
+      : !backupStorageAvailable
+        ? 'Backup unavailable'
+        : pendingCount > 0
+          ? `${pendingCount} pending`
+          : syncing
+            ? 'Syncing now'
+            : cloudSyncStatus?.hasBackup
+              ? 'Backed up'
+              : 'Needs backup'
     : viewer.storageCopy;
   const appearanceSummaryText =
     theme === 'system'
@@ -1277,22 +1357,14 @@ export default function SettingsPage() {
                         <WifiOff size={16} className="text-amber-600" />
                       )}
                       <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                        {online ? 'Connected' : 'Offline mode active'}
+                        {syncHeadline}
                       </p>
                     </div>
                     <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                      {authSession.authenticated
-                        ? pendingCount > 0
-                          ? `${pendingCount} change${pendingCount === 1 ? '' : 's'} waiting to back up.`
-                          : 'Your local snapshot is ready for backup and sync.'
-                        : 'Everything stays on this device until you connect backup and sync.'}
+                      {syncSummaryText}
                     </p>
                     <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      {authSession.authenticated
-                        ? lastSyncAt
-                          ? `Last manual backup: ${format(lastSyncAt, 'PP p')}`
-                          : 'No recent manual backup yet'
-                        : 'Stored only on this device right now'}
+                      {syncDetailText}
                     </p>
                   </div>
 
@@ -1300,9 +1372,10 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => void handleSync()}
+                      disabled={syncing || !online || !backupStorageAvailable}
                       className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d1c2] bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#f5f1e8]"
                     >
-                      {syncing ? 'Syncing...' : 'Backup now'}
+                      {syncing ? 'Backing up...' : 'Backup now'}
                     </button>
                   ) : (
                     <Link
@@ -1313,19 +1386,37 @@ export default function SettingsPage() {
                     </Link>
                   )}
                 </div>
+
+                {backupAlert ? (
+                  <div
+                    className={`mt-4 flex items-start gap-2 rounded-[20px] px-3 py-3 text-sm ${
+                      backupAlert.tone === 'success'
+                        ? 'bg-emerald-50 text-emerald-800'
+                        : 'bg-amber-50 text-amber-900'
+                    }`}
+                  >
+                    {backupAlert.tone === 'success' ? (
+                      <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+                    ) : (
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                    )}
+                    <p>{backupAlert.text}</p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <SummaryTile
                   label="Pending"
                   value={String(pendingCount)}
-                  helper={authSession.authenticated ? 'Waiting to back up' : 'Local-only changes'}
-                  accent={pendingCount === 0}
+                  helper={pendingTileHelper}
+                  accent={pendingCount === 0 && backupStorageAvailable}
                 />
                 <SummaryTile
-                  label="Mode"
-                  value={authSession.authenticated ? (online ? 'Backed up' : 'Offline') : 'Device only'}
-                  helper={authSession.authenticated ? (online ? storageMode : 'Changes back up when reconnected') : 'No account linked'}
+                  label="Backup"
+                  value={backupTile.value}
+                  helper={backupTile.helper}
+                  accent={backupTile.accent}
                 />
               </div>
             </div>
