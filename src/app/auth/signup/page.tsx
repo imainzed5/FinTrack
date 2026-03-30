@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
 import AuthCardShell from '@/components/auth/AuthCardShell';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import AuthTextField from '@/components/auth/AuthTextField';
 import AuthPasswordField from '@/components/auth/AuthPasswordField';
 import type {
@@ -12,6 +13,11 @@ import type {
   AuthFieldErrors,
   SignupPayload,
 } from '@/lib/auth-contract';
+import {
+  buildAuthPagePath,
+  getOAuthErrorMessage,
+  normalizeRedirectTarget,
+} from '@/lib/auth-redirect';
 import {
   evaluatePasswordStrength,
   normalizeEmailAddress,
@@ -69,12 +75,29 @@ function getStrengthTextTone(score: number): string {
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formState, setFormState] = useState<SignupPayload>(initialSignupState);
   const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rateLimitCooldownSeconds, setRateLimitCooldownSeconds] = useState(0);
+  const [oauthErrorDismissed, setOauthErrorDismissed] = useState(false);
+
+  const redirectTarget = useMemo(
+    () => normalizeRedirectTarget(searchParams.get('next')),
+    [searchParams]
+  );
+
+  const oauthErrorMessage = useMemo(
+    () => (oauthErrorDismissed ? '' : getOAuthErrorMessage(searchParams.get('oauthError'))),
+    [oauthErrorDismissed, searchParams]
+  );
+
+  const loginHref = useMemo(
+    () => buildAuthPagePath('/auth/login', { next: redirectTarget }),
+    [redirectTarget]
+  );
 
   const passwordStrength = useMemo(
     () => evaluatePasswordStrength(formState.password),
@@ -107,17 +130,23 @@ export default function SignupPage() {
     };
   }, [rateLimitCooldownSeconds]);
 
+  useEffect(() => {
+    setOauthErrorDismissed(false);
+  }, [searchParams]);
+
   const handleTextChange =
     (field: Exclude<SignupField, 'acceptedTerms'>) =>
     (event: ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       setFormState((previous) => ({ ...previous, [field]: value }));
       setFieldErrors((previous) => ({ ...previous, [field]: undefined }));
+      setOauthErrorDismissed(true);
       setFormError('');
       setFormSuccess('');
     };
 
   const handleTermsChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setOauthErrorDismissed(true);
     setFormState((previous) => ({
       ...previous,
       acceptedTerms: event.target.checked,
@@ -127,6 +156,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setOauthErrorDismissed(true);
     setFormError('');
     setFormSuccess('');
 
@@ -175,8 +205,9 @@ export default function SignupPage() {
 
       setRateLimitCooldownSeconds(0);
       setFormSuccess(data.message);
+      const destination = buildAuthPagePath('/auth/login', { next: redirectTarget });
       window.setTimeout(() => {
-        router.push('/auth/login');
+        router.push(destination);
       }, 1100);
     } catch {
       setFormError('Network error. Please check your connection and retry.');
@@ -201,7 +232,7 @@ export default function SignupPage() {
           or{' '}
           Already have an account?{' '}
           <Link
-            href="/auth/login"
+            href={loginHref}
             className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
           >
             Sign in
@@ -210,6 +241,25 @@ export default function SignupPage() {
       }
     >
       <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+        <GoogleAuthButton
+          mode="signup"
+          nextPath={redirectTarget}
+          disabled={isSubmitting}
+          onError={(message) => {
+            setOauthErrorDismissed(true);
+            setFormError(message);
+            setFormSuccess('');
+          }}
+        />
+
+        <div className="flex items-center gap-3" aria-hidden>
+          <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-zinc-500">
+            or create with email
+          </span>
+          <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        </div>
+
         <AuthTextField
           id="fullName"
           label="Full name"
@@ -344,6 +394,9 @@ export default function SignupPage() {
         </div>
 
         <div className="min-h-5" aria-live="polite" role="status">
+          {oauthErrorMessage ? (
+            <p className="text-sm text-rose-600 dark:text-rose-400">{oauthErrorMessage}</p>
+          ) : null}
           {formError ? (
             <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p>
           ) : null}

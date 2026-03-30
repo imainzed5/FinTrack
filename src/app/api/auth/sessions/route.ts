@@ -13,6 +13,10 @@ import {
   parseRememberMeCookie,
   REMEMBER_ME_COOKIE_NAME,
 } from '@/lib/supabase/auth-state';
+import {
+  deriveSupabaseUserDisplayName,
+  readSupabaseUserMetadataDisplayName,
+} from '@/lib/supabase/user-profile';
 import { isAuthRequiredError, requireSupabaseUser } from '@/lib/supabase/server';
 
 interface PublicSessionRecord {
@@ -122,11 +126,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    let fullName = '';
-    const metadataName = user.user_metadata?.full_name;
-    if (typeof metadataName === 'string' && metadataName.trim().length > 0) {
-      fullName = metadataName.trim();
-    }
+    let fullName = readSupabaseUserMetadataDisplayName(user.user_metadata) ?? '';
 
     if (!fullName) {
       const { data: profile } = await supabase
@@ -135,9 +135,10 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle();
 
-      if (profile && typeof profile.display_name === 'string') {
-        fullName = profile.display_name;
-      }
+      fullName = deriveSupabaseUserDisplayName(
+        user,
+        profile && typeof profile.display_name === 'string' ? profile.display_name : null
+      );
     }
 
     let rows: UserAuthSessionRow[] = [];

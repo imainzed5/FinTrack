@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCloudSnapshot, saveCloudSnapshot } from '@/lib/cloud-sync-server';
+import {
+  getCloudSnapshot,
+  isCloudBackupUnavailableError,
+  saveCloudSnapshot,
+} from '@/lib/cloud-sync-server';
 import { isLocalAppSnapshot } from '@/lib/local-first';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
@@ -36,6 +40,13 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     if (isAuthRequiredError(error)) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+
+    if (isCloudBackupUnavailableError(error)) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 503 },
+      );
     }
 
     const message = error instanceof Error ? error.message : 'Failed to save cloud backup.';

@@ -52,6 +52,8 @@ interface AppSessionContextValue {
   syncing: boolean;
   authSession: AuthSessionResponse;
   deviceProfile: DeviceProfile | null;
+  cloudSyncStatus: CloudSyncStatus | null;
+  cloudSyncError: string | null;
   storageMode: StorageSyncMode;
   hasDeviceProfile: boolean;
   onboardingComplete: boolean;
@@ -66,6 +68,14 @@ interface AppSessionContextValue {
 }
 
 const AppSessionContext = createContext<AppSessionContextValue | null>(null);
+
+async function readResponseErrorMessage(
+  response: Response,
+  fallbackMessage: string,
+): Promise<string> {
+  const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+  return typeof payload?.error === 'string' ? payload.error : fallbackMessage;
+}
 
 async function fetchAuthSession(): Promise<AuthSessionResponse> {
   try {
@@ -112,7 +122,7 @@ async function fetchCloudSnapshot(): Promise<LocalAppSnapshot> {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to load cloud backup.');
+    throw new Error(await readResponseErrorMessage(response, 'Failed to load cloud backup.'));
   }
 
   return (await response.json()) as LocalAppSnapshot;
@@ -129,7 +139,7 @@ async function uploadSnapshotToCloud(snapshot: LocalAppSnapshot): Promise<void> 
   });
 
   if (!response.ok) {
-    throw new Error('Failed to upload cloud backup.');
+    throw new Error(await readResponseErrorMessage(response, 'Failed to upload cloud backup.'));
   }
 }
 
@@ -158,13 +168,15 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const [syncing, setSyncing] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSessionResponse>(EMPTY_SESSION);
   const [deviceProfile, setDeviceProfile] = useState<DeviceProfile | null>(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus | null>(null);
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [conflictOpen, setConflictOpen] = useState(false);
   const syncTimerRef = useRef<number | null>(null);
 
   const storageMode = useMemo(
-    () => deriveStorageSyncMode({ authSession, deviceProfile, syncing }),
-    [authSession, deviceProfile, syncing]
+    () => deriveStorageSyncMode({ authSession, deviceProfile, cloudSyncStatus, syncing }),
+    [authSession, cloudSyncStatus, deviceProfile, syncing]
   );
 
   const refreshPendingSyncCount = useCallback(async () => {
@@ -181,11 +193,17 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     }
 
     try {
+      setCloudSyncError(null);
       const snapshot = await exportLocalSnapshot();
       await uploadSnapshotToCloud(snapshot);
       const profile = await markLocalSnapshotSynced(authSession.user.id);
       setDeviceProfile(profile);
+      setCloudSyncStatus(await fetchCloudSyncStatus());
       await refreshPendingSyncCount();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to upload cloud backup.';
+      setCloudSyncError(message);
+      throw error;
     } finally {
       if (!options.quiet) {
         setSyncing(false);
@@ -199,10 +217,28 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     try {
       const nextAuthSession = await fetchAuthSession();
       let nextDeviceProfile = await getDeviceProfile();
+      let nextCloudSyncStatus: CloudSyncStatus | null = null;
+      let nextCloudSyncError: string | null = null;
       const localDataExists = await hasLocalAppData();
+
+      const attemptInitialBackup = async (userId: string) => {
+        try {
+          const snapshot = await exportLocalSnapshot();
+          await uploadSnapshotToCloud(snapshot);
+          nextDeviceProfile = await markLocalSnapshotSynced(userId);
+          nextCloudSyncStatus = await fetchCloudSyncStatus();
+          nextCloudSyncError = null;
+        } catch (error) {
+          nextCloudSyncError =
+            error instanceof Error ? error.message : 'Failed to upload cloud backup.';
+        }
+      };
 
       if (nextAuthSession.authenticated && nextAuthSession.user) {
         const cloudStatus = await fetchCloudSyncStatus();
+        nextCloudSyncStatus = cloudStatus;
+        nextCloudSyncError = cloudStatus?.issueMessage ?? null;
+        const backupStorageAvailable = cloudStatus?.backupStorageAvailable !== false;
 
         if (!nextDeviceProfile) {
           if (cloudStatus?.hasCloudData) {
@@ -215,10 +251,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
             nextDeviceProfile = await seedDeviceProfileFromAuth(nextAuthSession);
           }
         } else if (nextDeviceProfile.cloudLinkedUserId === nextAuthSession.user.id) {
-          if (!cloudStatus?.hasCloudData) {
-            const snapshot = await exportLocalSnapshot();
-            await uploadSnapshotToCloud(snapshot);
-            nextDeviceProfile = await markLocalSnapshotSynced(nextAuthSession.user.id);
+          if (!cloudStatus?.hasCloudData && backupStorageAvailable) {
+            await attemptInitialBackup(nextAuthSession.user.id);
           }
         } else if (localDataExists && cloudStatus?.hasCloudData) {
           setConflictOpen(true);
@@ -230,9 +264,11 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
             source: 'cloud',
           });
         } else {
-          const snapshot = await exportLocalSnapshot();
-          await uploadSnapshotToCloud(snapshot);
-          nextDeviceProfile = await markLocalSnapshotSynced(nextAuthSession.user.id);
+          if (backupStorageAvailable) {
+            await attemptInitialBackup(nextAuthSession.user.id);
+          } else {
+            nextDeviceProfile = await seedDeviceProfileFromAuth(nextAuthSession);
+          }
         }
       } else {
         setConflictOpen(false);
@@ -240,6 +276,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
 
       setAuthSession(nextAuthSession);
       setDeviceProfile(nextDeviceProfile);
+      setCloudSyncStatus(nextAuthSession.authenticated ? nextCloudSyncStatus : null);
+      setCloudSyncError(nextAuthSession.authenticated ? nextCloudSyncError : null);
       await refreshPendingSyncCount();
     } finally {
       setBooting(false);
@@ -261,7 +299,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       }
 
       syncTimerRef.current = window.setTimeout(() => {
-        void syncCurrentSnapshot({ quiet: true });
+        void syncCurrentSnapshot({ quiet: true }).catch(() => undefined);
       }, 1200);
     };
 
@@ -296,7 +334,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       setDeviceProfile(profile);
 
       if (authSession.authenticated && authSession.user) {
-        await syncCurrentSnapshot();
+        await syncCurrentSnapshot().catch(() => undefined);
       }
 
       await refreshPendingSyncCount();
@@ -368,6 +406,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       syncing,
       authSession,
       deviceProfile,
+      cloudSyncStatus,
+      cloudSyncError,
       storageMode,
       hasDeviceProfile: Boolean(deviceProfile),
       onboardingComplete: Boolean(deviceProfile?.onboardingComplete),
@@ -385,6 +425,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     bootstrapSession,
     booting,
     clearLocalData,
+    cloudSyncError,
+    cloudSyncStatus,
     completeOnboarding,
     deviceProfile,
     handleLoggedOut,

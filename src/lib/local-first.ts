@@ -22,7 +22,9 @@ export const SUPPORTED_DEVICE_CURRENCIES = [
 
 export type SupportedDeviceCurrency = (typeof SUPPORTED_DEVICE_CURRENCIES)[number];
 
-export type StorageSyncMode = 'local_only' | 'sync_ready' | 'syncing';
+export type StorageSyncMode = 'local_only' | 'sync_ready' | 'syncing' | 'backup_unavailable';
+
+export type CloudSyncIssueCode = 'missing_backup_storage' | 'backup_storage_error';
 
 export interface DeviceProfile {
   id: string;
@@ -77,6 +79,9 @@ export interface CloudSyncStatus {
   hasLegacyData: boolean;
   hasCloudData: boolean;
   lastUpdatedAt: string | null;
+  backupStorageAvailable: boolean;
+  issueCode: CloudSyncIssueCode | null;
+  issueMessage: string | null;
 }
 
 export interface LocalOnboardingInput {
@@ -94,9 +99,10 @@ export const EMPTY_LOCAL_USER_SETTINGS: LocalUserSettings = {
 export function deriveStorageSyncMode(params: {
   authSession: AuthSessionResponse;
   deviceProfile: DeviceProfile | null;
+  cloudSyncStatus?: CloudSyncStatus | null;
   syncing?: boolean;
 }): StorageSyncMode {
-  const { authSession, deviceProfile, syncing = false } = params;
+  const { authSession, deviceProfile, cloudSyncStatus, syncing = false } = params;
 
   if (syncing) {
     return 'syncing';
@@ -107,6 +113,10 @@ export function deriveStorageSyncMode(params: {
     authSession.user &&
     deviceProfile?.cloudLinkedUserId === authSession.user.id
   ) {
+    if (cloudSyncStatus && !cloudSyncStatus.backupStorageAvailable) {
+      return 'backup_unavailable';
+    }
+
     return 'sync_ready';
   }
 
@@ -114,6 +124,10 @@ export function deriveStorageSyncMode(params: {
 }
 
 export function getDeviceStorageCopy(mode: StorageSyncMode): string {
+  if (mode === 'backup_unavailable') {
+    return 'Backup unavailable';
+  }
+
   if (mode === 'sync_ready') {
     return 'Backed up and syncing';
   }
