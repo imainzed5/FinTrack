@@ -109,10 +109,12 @@ interface TransactionListProps {
   showEdit?: boolean;
   mobileFirst?: boolean;
   groupByDate?: boolean;
+  previewOnDesktop?: boolean;
 }
 
 const SWIPE_ACTION_WIDTH = 96;
 const SWIPE_OPEN_THRESHOLD = 48;
+const PREVIEW_SHEET_TRANSITION_MS = 220;
 
 function safeParseDate(rawDate: string): Date {
   const parsed = parseISO(rawDate);
@@ -217,6 +219,11 @@ function getCategoryIcon(tx: Transaction): typeof Wallet {
   }
 
   return CATEGORY_ICON_MAP[tx.category] || Wallet;
+}
+
+function clickCameFromInteractiveElement(target: EventTarget | null): boolean {
+  return target instanceof Element
+    && Boolean(target.closest('button, a, input, select, textarea, summary, [role="button"], [role="menuitem"]'));
 }
 
 interface SwipeableTransactionRowProps {
@@ -366,9 +373,11 @@ function SwipeableTransactionRow({
     closeSwipe();
   };
 
-  const handleCardClick = () => {
-    if (!swipeEnabled || !onPreview) return;
+  const handleCardClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!onPreview) return;
     if (offsetRef.current !== 0) return;
+    if (isActionMenuOpen) return;
+    if (clickCameFromInteractiveElement(event.target)) return;
     onPreview(tx);
   };
 
@@ -433,7 +442,7 @@ function SwipeableTransactionRow({
       )}
 
       <div
-        className="relative rounded-[25px] border border-[#e7ebf1] bg-[#fcfdff] dark:border-zinc-800 dark:bg-zinc-900"
+        className={`relative rounded-[25px] border border-[#e7ebf1] bg-[#fcfdff] dark:border-zinc-800 dark:bg-zinc-900 ${onPreview ? 'cursor-pointer' : ''}`}
         style={cardStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -572,6 +581,7 @@ function TransactionPreviewSheet({
 }) {
   const [visible, setVisible] = useState(open);
   const [animating, setAnimating] = useState(false);
+  const pendingActionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let showTimer: number | null = null;
@@ -588,7 +598,7 @@ function TransactionPreviewSheet({
       }, 0);
     } else {
       showTimer = window.setTimeout(() => setAnimating(false), 0);
-      hideTimer = window.setTimeout(() => setVisible(false), 220);
+      hideTimer = window.setTimeout(() => setVisible(false), PREVIEW_SHEET_TRANSITION_MS);
     }
 
     return () => {
@@ -598,6 +608,14 @@ function TransactionPreviewSheet({
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
     };
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingActionTimerRef.current !== null) {
+        window.clearTimeout(pendingActionTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
@@ -641,9 +659,22 @@ function TransactionPreviewSheet({
   }
   if (transaction.synced === false) details.push({ label: 'Sync', value: 'Waiting to sync' });
 
+  const queueFollowupAction = (action: () => void) => {
+    onClose();
+
+    if (pendingActionTimerRef.current !== null) {
+      window.clearTimeout(pendingActionTimerRef.current);
+    }
+
+    pendingActionTimerRef.current = window.setTimeout(() => {
+      pendingActionTimerRef.current = null;
+      action();
+    }, PREVIEW_SHEET_TRANSITION_MS);
+  };
+
   return (
     <div
-      className="fixed inset-0 z-[51] flex items-end sm:hidden"
+      className="fixed inset-0 z-[51] flex items-end sm:items-center sm:justify-center sm:px-6 sm:py-8"
       style={{
         backgroundColor: animating ? 'rgba(24, 24, 22, 0.4)' : 'rgba(24, 24, 22, 0)',
         backdropFilter: animating ? 'blur(2px)' : 'blur(0px)',
@@ -655,7 +686,7 @@ function TransactionPreviewSheet({
       aria-labelledby="transaction-preview-title"
     >
       <div
-        className="modal-shell modal-content-scroll w-full max-h-[88dvh] overflow-y-auto rounded-t-[30px] border-x border-t border-[#dfe4ec] bg-[#f8fafc] px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3 shadow-[0_-16px_40px_rgba(20,24,32,0.16)] dark:border-zinc-800 dark:bg-zinc-950"
+        className="modal-shell modal-content-scroll w-full max-h-[88dvh] overflow-y-auto rounded-t-[30px] border-x border-t border-[#dfe4ec] bg-[#f8fafc] px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3 shadow-[0_-16px_40px_rgba(20,24,32,0.16)] dark:border-zinc-800 dark:bg-zinc-950 sm:max-h-[min(85vh,48rem)] sm:max-w-2xl sm:rounded-[30px] sm:border sm:px-6 sm:pb-6 sm:pt-5 sm:shadow-[0_24px_64px_rgba(20,24,32,0.2)]"
         style={{
           transform: animating ? 'translateY(0)' : 'translateY(18px)',
           opacity: animating ? 1 : 0,
@@ -663,7 +694,7 @@ function TransactionPreviewSheet({
         }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-300 dark:bg-zinc-700 sm:hidden" />
         <div className="mt-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -723,10 +754,7 @@ function TransactionPreviewSheet({
             {onEdit && transaction.type !== 'savings' ? (
               <button
                 type="button"
-                onClick={() => {
-                  onClose();
-                  onEdit(transaction);
-                }}
+                onClick={() => queueFollowupAction(() => onEdit(transaction))}
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-[#d7dee7] bg-white text-sm font-medium text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
               >
                 Edit
@@ -735,10 +763,7 @@ function TransactionPreviewSheet({
             {onDelete ? (
               <button
                 type="button"
-                onClick={() => {
-                  onClose();
-                  onDelete(transaction.id);
-                }}
+                onClick={() => queueFollowupAction(() => onDelete(transaction.id))}
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-red-500 text-sm font-medium text-white"
               >
                 Delete
@@ -759,10 +784,12 @@ export default function TransactionList({
   showEdit = false,
   mobileFirst = false,
   groupByDate = false,
+  previewOnDesktop = false,
 }: TransactionListProps) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [previewTransaction, setPreviewTransaction] = useState<Transaction | null>(null);
   const swipeEnabled = mobileFirst && isMobileViewport;
+  const previewEnabled = swipeEnabled || previewOnDesktop;
 
   useEffect(() => {
     if (!mobileFirst) {
@@ -878,7 +905,7 @@ export default function TransactionList({
                       showDelete={showDelete}
                       showEdit={showEdit}
                       swipeEnabled={swipeEnabled}
-                      onPreview={swipeEnabled ? setPreviewTransaction : undefined}
+                      onPreview={previewEnabled ? setPreviewTransaction : undefined}
                     />
                   </div>
                 ))}
@@ -908,8 +935,17 @@ export default function TransactionList({
           showDelete={showDelete}
           showEdit={showEdit}
           swipeEnabled={false}
+          onPreview={previewOnDesktop ? setPreviewTransaction : undefined}
         />
       ))}
+
+      <TransactionPreviewSheet
+        transaction={previewTransaction}
+        open={Boolean(previewTransaction)}
+        onClose={() => setPreviewTransaction(null)}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
     </div>
   );
 }

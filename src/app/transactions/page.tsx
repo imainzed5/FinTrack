@@ -1413,6 +1413,7 @@ export default function TransactionsPage() {
                   showEdit
                   mobileFirst
                   groupByDate
+                  previewOnDesktop
                 />
 
                     {totalPages > 1 && (

@@ -17,6 +17,7 @@ import {
   Tablet,
   Trash2,
 } from 'lucide-react';
+import { useAppSession } from '@/components/AppSessionProvider';
 
 interface AccountSummary {
   userId: string;
@@ -309,6 +310,7 @@ function getPasswordStrengthTone(score: number): string {
 
 export default function AccountSecuritySection() {
   const router = useRouter();
+  const { handleLoggedOut } = useAppSession();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -604,11 +606,23 @@ export default function AccountSecuritySection() {
     setPasswordStatus('Signing you out...');
 
     try {
-      await fetch('/api/auth/logout', {
+      const response = await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      router.push('/auth/login');
+
+      const data = (await response.json().catch(() => null)) as BasicApiResponse & {
+        redirectTo?: string;
+      } | null;
+
+      if (!response.ok || !data?.success) {
+        setPasswordError(data?.error || 'Unable to sign out right now. Please use the account menu logout action.');
+        setPasswordStatus('');
+        return;
+      }
+
+      await handleLoggedOut();
+      router.push(data.redirectTo || '/auth/login');
       router.refresh();
     } catch {
       setPasswordError('Unable to sign out right now. Please use the account menu logout action.');

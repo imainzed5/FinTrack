@@ -65,8 +65,13 @@ interface AppSessionContextValue {
   completeOnboarding: (input: LocalOnboardingInput) => Promise<void>;
   clearLocalData: () => Promise<void>;
   refreshSession: () => Promise<void>;
-  handleLoggedOut: () => void;
+  handleLoggedOut: () => Promise<void>;
   triggerCloudSync: (options?: { quiet?: boolean }) => Promise<void>;
+}
+
+interface AuthSessionFetchResult {
+  session: AuthSessionResponse;
+  resolved: boolean;
 }
 
 const AppSessionContext = createContext<AppSessionContextValue | null>(null);
@@ -79,7 +84,7 @@ async function readResponseErrorMessage(
   return typeof payload?.error === 'string' ? payload.error : fallbackMessage;
 }
 
-async function fetchAuthSession(): Promise<AuthSessionResponse> {
+async function fetchAuthSession(): Promise<AuthSessionFetchResult> {
   try {
     const response = await fetch('/api/auth/session', {
       method: 'GET',
@@ -89,12 +94,21 @@ async function fetchAuthSession(): Promise<AuthSessionResponse> {
 
     const data = (await response.json().catch(() => null)) as AuthSessionResponse | null;
     if (!response.ok || !data) {
-      return EMPTY_SESSION;
+      return {
+        session: EMPTY_SESSION,
+        resolved: false,
+      };
     }
 
-    return data;
+    return {
+      session: data,
+      resolved: true,
+    };
   } catch {
-    return EMPTY_SESSION;
+    return {
+      session: EMPTY_SESSION,
+      resolved: false,
+    };
   }
 }
 
@@ -196,6 +210,19 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const suppressCloudPullForLocalWrite = useCallback(() => {
     suppressCloudPullUntilRef.current = Date.now() + 3000;
   }, []);
+
+  const purgeAccountLinkedDeviceData = useCallback(
+    async (profileOverride?: DeviceProfile | null): Promise<DeviceProfile | null> => {
+      const profile = profileOverride ?? await getDeviceProfile();
+      if (!profile?.cloudLinkedUserId) {
+        return profile ?? null;
+      }
+
+      await clearLocalAppData();
+      return null;
+    },
+    [],
+  );
 
   const applyCloudSnapshotToDevice = useCallback(
     async (
@@ -316,7 +343,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     setBooting(true);
 
     try {
-      const nextAuthSession = await fetchAuthSession();
+      const { session: nextAuthSession, resolved: authSessionResolved } = await fetchAuthSession();
       let nextDeviceProfile = await getDeviceProfile();
       let nextCloudSyncStatus: CloudSyncStatus | null = null;
       let nextCloudSyncError: string | null = null;
@@ -383,6 +410,10 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
           }
         }
       } else {
+        if (authSessionResolved && nextDeviceProfile?.cloudLinkedUserId) {
+          nextDeviceProfile = await purgeAccountLinkedDeviceData(nextDeviceProfile);
+        }
+
         setConflictOpen(false);
       }
 
@@ -394,7 +425,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setBooting(false);
     }
-  }, [applyCloudSnapshotToDevice, refreshPendingSyncCount]);
+  }, [applyCloudSnapshotToDevice, purgeAccountLinkedDeviceData, refreshPendingSyncCount]);
 
   useEffect(() => {
     void bootstrapSession();
@@ -553,10 +584,16 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     }
   }, [authSession, refreshPendingSyncCount, syncCurrentSnapshot]);
 
-  const handleLoggedOut = useCallback(() => {
+  const handleLoggedOut = useCallback(async () => {
+    const nextDeviceProfile = await purgeAccountLinkedDeviceData();
+
     setAuthSession(EMPTY_SESSION);
+    setDeviceProfile(nextDeviceProfile);
+    setCloudSyncStatus(null);
+    setCloudSyncError(null);
     setConflictOpen(false);
-  }, []);
+    await refreshPendingSyncCount();
+  }, [purgeAccountLinkedDeviceData, refreshPendingSyncCount]);
 
   const clearLocalData = useCallback(async () => {
     setSyncing(true);

@@ -1,90 +1,102 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
-import { normalizeRedirectTarget } from '@/lib/auth-redirect';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 interface GoogleAuthButtonProps {
-  mode: 'login' | 'signup';
+  mode?: 'login' | 'signup';
   nextPath?: string | null;
   disabled?: boolean;
   onError?: (message: string) => void;
 }
 
-function GoogleIcon() {
-  return (
-    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
-      <path
-        d="M21.805 10.023H12.24v3.955h5.492c-.237 1.273-.953 2.351-2.028 3.074v2.553h3.287c1.925-1.773 3.034-4.39 3.034-7.496 0-.703-.063-1.381-.18-2.086Z"
-        fill="#4285F4"
-      />
-      <path
-        d="M12.24 21.96c2.74 0 5.039-.908 6.719-2.455l-3.287-2.553c-.909.609-2.071.969-3.432.969-2.637 0-4.872-1.778-5.671-4.169H3.171v2.633A10.144 10.144 0 0 0 12.24 21.96Z"
-        fill="#34A853"
-      />
-      <path
-        d="M6.569 13.752A6.095 6.095 0 0 1 6.252 11.98c0-.615.111-1.212.317-1.772V7.575H3.171a10.146 10.146 0 0 0 0 8.81l3.398-2.633Z"
-        fill="#FBBC04"
-      />
-      <path
-        d="M12.24 6.04c1.49 0 2.827.512 3.879 1.518l2.909-2.91C17.274 2.982 14.975 2 12.24 2A10.144 10.144 0 0 0 3.171 7.575l3.398 2.633c.799-2.391 3.034-4.168 5.671-4.168Z"
-        fill="#EA4335"
-      />
-    </svg>
-  );
-}
-
 export default function GoogleAuthButton({
-  mode,
-  nextPath,
+  mode = 'login',
+  nextPath = null,
   disabled = false,
   onError,
 }: GoogleAuthButtonProps) {
-  const [pending, setPending] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = getSupabaseBrowserClient();
 
-  const handleClick = async () => {
-    onError?.('');
-    setPending(true);
-
+  const handleSignIn = async () => {
     try {
-      const redirectTo = new URL('/api/auth/callback', window.location.origin);
-      redirectTo.searchParams.set('source', mode);
+      setIsLoading(true);
+      setError(null);
+      const redirectUrl = new URL('/api/auth/callback', window.location.origin);
+      redirectUrl.searchParams.set('source', mode);
 
-      const normalizedNextPath = normalizeRedirectTarget(nextPath);
-      if (normalizedNextPath) {
-        redirectTo.searchParams.set('next', normalizedNextPath);
+      if (nextPath) {
+        redirectUrl.searchParams.set('next', nextPath);
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectTo.toString(),
+          redirectTo: redirectUrl.toString(),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
-      if (error || !data?.url) {
-        setPending(false);
-        onError?.('Unable to connect to Google right now. Please try again.');
-        return;
+      if (authError) throw authError;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not connect to Google. Please try again.';
+      console.error('Google auth error:', err);
+      onError?.(message);
+      if (!onError) {
+        setError(message);
       }
-
-      window.location.assign(data.url);
-    } catch {
-      setPending(false);
-      onError?.('Unable to connect to Google right now. Please try again.');
+      setIsLoading(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled || pending}
-      className="flex min-h-11 w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-900 dark:disabled:border-zinc-800 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-500"
-    >
-      <GoogleIcon />
-      <span>{pending ? 'Connecting to Google...' : 'Continue with Google'}</span>
-    </button>
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={handleSignIn}
+        disabled={disabled || isLoading}
+        className="relative flex min-h-11 w-full items-center justify-center gap-2 rounded-[0.875rem] border border-slate-200 bg-white/90 px-4 py-2.5 text-[15px] font-medium text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all hover:bg-slate-50 focus:ring-4 focus:ring-slate-100 disabled:opacity-70 dark:border-zinc-800 dark:bg-zinc-950/75 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:focus:ring-zinc-800"
+      >
+        {isLoading ? (
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600 dark:border-zinc-700 dark:border-t-zinc-400" />
+        ) : (
+          <>
+            <svg
+              className="h-[18px] w-[18px]"
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                fill="#4285F4"
+              />
+              <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+              />
+              <path
+                d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                fill="#EA4335"
+              />
+            </svg>
+            Continue with Google
+          </>
+        )}
+      </button>
+      {error && (
+        <p className="text-center text-xs font-medium text-rose-600 dark:text-rose-400">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

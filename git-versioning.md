@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.24.5
+### Current version: v0.25.0
 
 
 ---
 
 ## Version Roadmap
+v0.25.0 — 2026-04-01
+  - feat(accounts): Add account-structure insights with a dedicated drawer in `src/components/accounts/AccountsClientPage.tsx`, backed by the new `src/lib/accounts-insights.ts` module and coverage in `src/lib/accounts-insights.test.ts`.
+  - feat(transactions): Add desktop transaction preview support in `src/components/TransactionList.tsx`, `src/app/transactions/page.tsx`, and `src/components/pages/TransactionsClientPage.tsx` so previews are available beyond the mobile sheet flow.
+  - feat(auth): Redesign the login, signup, forgot-password, and shared auth shell/components in `src/app/auth/**` and `src/components/auth/**` to use a quieter, form-first auth experience.
+  - fix(auth): Clear account-linked local device data on logout and unauthenticated boot in `src/components/AppSessionProvider.tsx`, `src/components/Sidebar.tsx`, `src/components/AppShell.tsx`, and `src/components/settings/AccountSecuritySection.tsx` so account data is not still visible after sign-out.
+  - fix(config): Validate `NEXT_PUBLIC_SUPABASE_URL` in `src/lib/supabase/config.ts` so site URLs fail fast instead of breaking auth with HTML responses.
+
 v0.24.5 — 2026-03-31
   - fix(auth): Refresh the client app session immediately after a successful email/password sign-in in `src/app/auth/login/page.tsx`, so `AppShell` sees the authenticated state before route guards run and no longer bounces users back to the landing page.
   - fix(auth): Make the login request explicitly send cookies and replace to the destination route after the session refresh in `src/app/auth/login/page.tsx`, preventing repeat sign-in loops after a successful login.

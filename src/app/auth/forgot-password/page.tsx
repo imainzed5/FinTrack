@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { type ChangeEvent, type FormEvent, useState } from 'react';
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
           setEmailError(data.fieldErrors.email);
         }
 
-        const fallback = 'Unable to request password reset. Please try again.';
+        const fallback = 'Unable to request password reset. Please try again.'; 
         setFormError(data.success ? fallback : data.error);
         return;
       }
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
       setFormSuccess(data.message);
       setEmail('');
     } catch {
-      setFormError('Network error. Please check your connection and retry.');
+      setFormError('Network error. Please check your connection and retry.');   
     } finally {
       setIsSubmitting(false);
     }
@@ -74,13 +74,13 @@ export default function ForgotPasswordPage() {
   return (
     <AuthCardShell
       title="Forgot your password?"
-      subtitle="Enter your account email and we will send a secure reset link."
+      subtitle="Enter your account email and we will send a secure reset link." 
       footer={
         <p>
           Remembered your password?{' '}
           <Link
             href="/auth/login"
-            className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
+            className="font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300"
           >
             Back to sign in
           </Link>
@@ -102,17 +102,21 @@ export default function ForgotPasswordPage() {
 
         <div className="min-h-5" aria-live="polite" role="status">
           {formError ? (
-            <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p>
+            <div className="rounded-xl border border-rose-200/60 bg-rose-50 p-3 text-[13px] font-medium leading-snug text-rose-800 dark:border-rose-900/30 dark:bg-rose-500/10 dark:text-rose-300">
+              {formError}
+            </div>
           ) : null}
           {formSuccess ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">{formSuccess}</p>
+            <div className="rounded-xl border border-teal-200/60 bg-teal-50 p-3 text-[13px] font-medium leading-snug text-teal-800 dark:border-teal-900/30 dark:bg-teal-500/10 dark:text-teal-300">
+              {formSuccess}
+            </div>
           ) : null}
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:text-emerald-100 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:disabled:bg-emerald-700"
+          className="flex w-full items-center justify-center rounded-[1.125rem] bg-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:bg-teal-600 dark:hover:bg-teal-500 dark:focus-visible:ring-offset-zinc-950 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
         >
           {isSubmitting ? 'Sending reset link...' : 'Send reset link'}
         </button>

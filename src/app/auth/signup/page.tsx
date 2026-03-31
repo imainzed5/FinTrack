@@ -1,9 +1,8 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Circle } from 'lucide-react';
 import AuthCardShell from '@/components/auth/AuthCardShell';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import AuthTextField from '@/components/auth/AuthTextField';
@@ -22,9 +21,10 @@ import {
   evaluatePasswordStrength,
   normalizeEmailAddress,
   PASSWORD_RULES,
-  type PasswordRuleChecks,
   validateSignupPayload,
+  type PasswordRuleChecks,
 } from '@/lib/auth-contract';
+import { CheckCircle2, Circle } from 'lucide-react';
 
 type SignupField = 'fullName' | 'email' | 'password' | 'confirmPassword' | 'acceptedTerms';
 type SignupFieldErrors = Partial<Record<SignupField, string>>;
@@ -219,212 +219,209 @@ export default function SignupPage() {
   return (
     <AuthCardShell
       title="Create your account"
-      subtitle="Create an optional Moneda account for backup, sync, and multi-device use. You can still start locally without one."
+      subtitle="Connect your devices and backup your history."
       footer={
-        <p>
-          Prefer local-first access?{' '}
-          <Link
-            href="/onboarding"
-            className="font-semibold text-slate-700 underline decoration-slate-300 decoration-2 underline-offset-4 transition-colors hover:text-slate-600 dark:text-zinc-100 dark:hover:text-zinc-200"
-          >
-            Use this device
-          </Link>{' '}
-          or{' '}
-          Already have an account?{' '}
-          <Link
-            href={loginHref}
-            className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
-          >
-            Sign in
-          </Link>
-        </p>
+        <span className="flex flex-col gap-2">
+          <span>
+            Already have an account?{' '}
+            <Link
+              href={loginHref}
+              className="font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300"
+            >
+              Sign in
+            </Link>
+          </span>
+          <span className="text-xs text-slate-400 dark:text-zinc-500">
+            Prefer local-first?{' '}
+            <Link
+              href="/onboarding"
+              className="underline underline-offset-4 hover:text-slate-600 dark:hover:text-zinc-300"
+            >
+              Use this device unconditionally
+            </Link>
+          </span>
+        </span>
       }
     >
-      <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-        <GoogleAuthButton
-          mode="signup"
-          nextPath={redirectTarget}
-          disabled={isSubmitting}
-          onError={(message) => {
-            setOauthErrorDismissed(true);
-            setFormError(message);
-            setFormSuccess('');
-          }}
-        />
+      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+        <div>
+          <GoogleAuthButton
+            mode="signup"
+            nextPath={redirectTarget}
+            disabled={isSubmitting || rateLimitCooldownSeconds > 0}
+            onError={(message) => {
+              setOauthErrorDismissed(true);
+              setFormError(message);
+              setFormSuccess('');
+            }}
+          />
+        </div>
 
         <div className="flex items-center gap-3" aria-hidden>
           <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-zinc-500">
-            or create with email
+          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-zinc-500">
+            or use email
           </span>
           <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
         </div>
 
-        <AuthTextField
-          id="fullName"
-          label="Full name"
-          autoFocus
-          enterKeyHint="next"
-          autoComplete="name"
-          value={formState.fullName}
-          onChange={handleTextChange('fullName')}
-          error={fieldErrors.fullName}
-          placeholder="John Doe"
-        />
+        <div className="space-y-4">
+          <AuthTextField
+            id="fullName"
+            label="Full name"
+            type="text"
+            placeholder="John Doe"
+            value={formState.fullName}
+            onChange={handleTextChange('fullName')}
+            error={fieldErrors.fullName}
+            disabled={isSubmitting}
+            autoComplete="name"
+          />
 
-        <AuthTextField
-          id="email"
-          label="Email"
-          type="email"
-          inputMode="email"
-          enterKeyHint="next"
-          autoComplete="email"
-          value={formState.email}
-          onChange={handleTextChange('email')}
-          error={fieldErrors.email}
-          placeholder="John.doe@email.com"
-        />
+          <AuthTextField
+            id="email"
+            label="Email"
+            type="email"
+            placeholder="john.doe@email.com"
+            value={formState.email}
+            onChange={handleTextChange('email')}
+            error={fieldErrors.email}
+            disabled={isSubmitting}
+            autoComplete="email"
+          />
 
-        <AuthPasswordField
-          id="password"
-          label="Password"
-          autoComplete="new-password"
-          enterKeyHint="next"
-          value={formState.password}
-          onChange={handleTextChange('password')}
-          error={fieldErrors.password}
-          hint="Use a unique password for your account security."
-          placeholder="Create a password"
-        />
-
-        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/70">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-medium text-slate-700 dark:text-zinc-300">Password strength</p>
-            <p className={`text-xs font-semibold ${getStrengthTextTone(passwordStrength.score)}`}>
-              {passwordStrength.label}
-            </p>
-          </div>
-
-          <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-zinc-800" aria-hidden>
-            <div
-              className={`h-2 rounded-full transition-all ${getStrengthTone(
-                passwordStrength.score
-              )}`}
-              style={{ width: `${strengthProgress}%` }}
+          <div className="space-y-3">
+            <AuthPasswordField
+              id="password"
+              label="Password"
+              value={formState.password}
+              onChange={handleTextChange('password')}
+              error={fieldErrors.password}
+              disabled={isSubmitting}
+              autoComplete="new-password"
             />
+
+            {formState.password.length > 0 && (
+              <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-3.5 dark:border-zinc-800/60 dark:bg-zinc-900/30">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-zinc-400">
+                    Password strength
+                  </span>
+                  <span className={`text-[11px] font-bold uppercase tracking-[0.15em] ${getStrengthTextTone(passwordStrength.score)}`}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+                <div className="mb-4 flex h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out ${getStrengthTone(passwordStrength.score)}`}
+                    style={{ width: strengthProgress + '%' }}
+                  />
+                </div>
+                <ul className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 text-[13px]">
+                  {PASSWORD_RULES.map((rule) => {
+                    const isMet = passwordStrength.checks[rule.id as keyof PasswordRuleChecks];
+                    return (
+                      <li key={rule.id} className="flex items-start gap-2">
+                        {isMet ? (
+                          <CheckCircle2 size={16} className="shrink-0 text-emerald-500 dark:text-emerald-400" />
+                        ) : (
+                          <Circle size={16} className="shrink-0 text-slate-300 dark:text-zinc-700" />
+                        )}
+                        <span className={isMet ? 'text-slate-700 dark:text-zinc-300' : 'text-slate-500 dark:text-zinc-500'}>
+                          {rule.label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
 
-          <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {PASSWORD_RULES.map((rule) => {
-              const passed = passwordStrength.checks[rule.id as keyof PasswordRuleChecks];
-              return (
-                <li key={rule.id} className="flex items-center gap-1.5 text-xs">
-                  {passed ? (
-                    <CheckCircle2 size={14} className="text-emerald-500" aria-hidden />
-                  ) : (
-                    <Circle size={14} className="text-slate-400 dark:text-zinc-500" aria-hidden />
-                  )}
-                  <span className={passed ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-zinc-400'}>
-                    {rule.label}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <AuthPasswordField
+            id="confirmPassword"
+            label="Confirm password"
+            placeholder="Repeat your password"
+            value={formState.confirmPassword}
+            onChange={handleTextChange('confirmPassword')}
+            error={fieldErrors.confirmPassword}
+            disabled={isSubmitting}
+            autoComplete="new-password"
+          />
         </div>
 
-        <AuthPasswordField
-          id="confirmPassword"
-          label="Confirm password"
-          autoComplete="new-password"
-          enterKeyHint="done"
-          value={formState.confirmPassword}
-          onChange={handleTextChange('confirmPassword')}
-          error={fieldErrors.confirmPassword}
-          placeholder="Repeat your password"
-        />
-
-        <div>
-          <label
-            htmlFor="accepted-terms"
-            className="inline-flex min-h-11 cursor-pointer items-start gap-2 rounded-xl px-1 text-sm text-slate-700 dark:text-zinc-200"
-          >
+        <div className="flex items-start gap-3">
+          <div className="relative flex mt-0.5 items-center justify-center">
             <input
-              id="accepted-terms"
+              id="acceptedTerms"
               type="checkbox"
               checked={formState.acceptedTerms}
               onChange={handleTermsChange}
-              aria-invalid={Boolean(fieldErrors.acceptedTerms)}
-              aria-describedby={
-                fieldErrors.acceptedTerms ? 'accepted-terms-error' : undefined
-              }
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+              disabled={isSubmitting}
+              className="peer h-4 w-4 shrink-0 appearance-none rounded border border-slate-300 bg-white transition-colors checked:border-transparent checked:bg-teal-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/30 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:checked:bg-teal-500"
             />
-            <span>
-              I agree to the{' '}
-              <Link
-                href="/auth/terms?returnTo=%2Fauth%2Fsignup"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
-              >
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link
-                href="/auth/privacy?returnTo=%2Fauth%2Fsignup"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
-              >
-                Privacy Policy
-              </Link>
-              .
-            </span>
-          </label>
-          {fieldErrors.acceptedTerms ? (
-            <p
-              id="accepted-terms-error"
-              role="alert"
-              className="mt-1 text-xs text-rose-600 dark:text-rose-400"
+            <svg
+              className="pointer-events-none absolute h-2.5 w-2.5 text-white opacity-0 peer-checked:opacity-100"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden
             >
-              {fieldErrors.acceptedTerms}
-            </p>
-          ) : null}
+              <path
+                d="M3 8L6 11L11 3.5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <div className="text-[13px] leading-relaxed">
+            <label htmlFor="acceptedTerms" className="text-slate-600 dark:text-zinc-400 cursor-pointer">
+              I agree to the{' '}
+            </label>
+            <Link
+              href="/auth/terms"
+              className="text-teal-700 hover:text-teal-600 underline underline-offset-4 dark:text-teal-400 dark:hover:text-teal-300 font-medium"
+              target="_blank"
+            >
+              Terms of Service
+            </Link>
+            <span className="text-slate-600 dark:text-zinc-400"> and </span>
+            <Link
+              href="/auth/privacy"
+              className="text-teal-700 hover:text-teal-600 underline underline-offset-4 dark:text-teal-400 dark:hover:text-teal-300 font-medium"
+              target="_blank"
+            >
+              Privacy Policy
+            </Link>
+            .
+            {fieldErrors.acceptedTerms && (
+              <p className="mt-1 font-medium text-rose-600 dark:text-rose-400">
+                {fieldErrors.acceptedTerms}
+              </p>
+            )}
+          </div>
         </div>
 
-        <div className="min-h-5" aria-live="polite" role="status">
-          {oauthErrorMessage ? (
-            <p className="text-sm text-rose-600 dark:text-rose-400">{oauthErrorMessage}</p>
-          ) : null}
-          {formError ? (
-            <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p>
-          ) : null}
-          {formSuccess ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">{formSuccess}</p>
-          ) : null}
-          {rateLimitCooldownSeconds > 0 ? (
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              Too many attempts. Please wait {rateLimitCooldownSeconds}s before trying again.
-            </p>
-          ) : null}
-        </div>
+        {formError || oauthErrorMessage ? (
+           <div className="rounded-xl border border-rose-200/60 bg-rose-50 p-3 text-[13px] font-medium leading-snug text-rose-800 dark:border-rose-900/30 dark:bg-rose-500/10 dark:text-rose-300">
+             {formError || oauthErrorMessage}
+           </div>
+         ) : null}
+ 
+        {formSuccess && (
+           <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 p-3 text-[13px] font-medium leading-snug text-emerald-800 dark:border-emerald-900/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+             {formSuccess}
+           </div>
+         )}
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:text-emerald-100 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:disabled:bg-emerald-700"
-        >
-          {isSubmitting
-            ? 'Creating account...'
-            : rateLimitCooldownSeconds > 0
-              ? `Try again in ${rateLimitCooldownSeconds}s`
-              : 'Create account'}
-        </button>
-
-        <p className="text-center text-xs text-slate-500 dark:text-zinc-400">
-          No card required. You can start tracking immediately.
-        </p>
+         <button
+           type="submit"
+           disabled={!canSubmit}
+           className="flex w-full items-center justify-center rounded-[1.125rem] bg-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:bg-teal-600 dark:hover:bg-teal-500 dark:focus-visible:ring-offset-zinc-950 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+         >
+           {isSubmitting ? 'Creating account...' : 'Create account'}
+         </button>
       </form>
     </AuthCardShell>
   );

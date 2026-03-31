@@ -57,7 +57,7 @@ interface SidebarViewer {
 
 interface SidebarProps {
   viewer: SidebarViewer;
-  onLoggedOut: () => void;
+  onLoggedOut: () => Promise<void>;
 }
 
 function getInitials(name: string): string {
@@ -149,8 +149,8 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
       }
 
       setIsMenuOpen(false);
-      onLoggedOut();
-      router.push('/dashboard');
+      await onLoggedOut();
+      router.push(data?.redirectTo || '/auth/login');
       router.refresh();
     } catch {
       setLogoutError('Network error. Please try again.');
