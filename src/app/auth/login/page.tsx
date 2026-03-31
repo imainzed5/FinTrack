@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -234,146 +234,157 @@ export default function LoginPage() {
   return (
     <AuthCardShell
       title="Welcome back"
-      subtitle="Sign in if you want backup, sync, and multi-device access. You can still use Moneda locally without an account."
+      subtitle="Sign in to your Moneda account to pick up where you left off."
       footer={
-        <p>
-          Want local-first access instead?{' '}
-          <Link
-            href="/onboarding"
-            className="font-semibold text-slate-700 underline decoration-slate-300 decoration-2 underline-offset-4 transition-colors hover:text-slate-600 dark:text-zinc-100 dark:hover:text-zinc-200"
-          >
-            Use this device
-          </Link>{' '}
-          or{' '}
-          <Link
-            href={signupHref}
-            className="font-semibold text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-4 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
-          >
-            create an account
-          </Link>
-        </p>
+        <span className="flex flex-col gap-2">
+          <span>
+            Don&apos;t have an account?{' '}
+            <Link
+              href={signupHref}
+              className="font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300"
+            >
+              Sign up
+            </Link>
+          </span>
+          <span className="text-xs text-slate-400 dark:text-zinc-500">
+            Prefer local-first?{' '}
+            <Link
+              href="/onboarding"
+              className="underline underline-offset-4 hover:text-slate-600 dark:hover:text-zinc-300"
+            >
+              Use this device unconditionally
+            </Link>
+          </span>
+        </span>
       }
     >
       <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-        <GoogleAuthButton
-          mode="login"
-          nextPath={redirectTarget}
-          disabled={isSubmitting || isResendingVerification}
-          onError={(message) => {
-            setOauthErrorDismissed(true);
-            setFormError(message);
-            setFormSuccess('');
-            setResendMessage('');
-          }}
-        />
+        <div className="space-y-4">
+          <AuthTextField
+            id="email"
+            label="Email"
+            autoFocus
+            type="email"
+            placeholder="john.doe@email.com"
+            value={formState.email}
+            onChange={handleTextChange('email')}
+            error={fieldErrors.email}
+            disabled={isSubmitting || isResendingVerification}
+            autoComplete="email"
+          />
 
-        <div className="flex items-center gap-3" aria-hidden>
-          <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-zinc-500">
-            or use email
-          </span>
-          <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        </div>
+          <AuthPasswordField
+            id="password"
+            label="Password"
+            value={formState.password}
+            onChange={handleTextChange('password')}
+            error={fieldErrors.password}
+            disabled={isSubmitting || isResendingVerification}
+            autoComplete="current-password"
+          />
 
-        <AuthTextField
-          id="email"
-          label="Email"
-          autoFocus
-          type="email"
-          inputMode="email"
-          enterKeyHint="next"
-          autoComplete="email"
-          value={formState.email}
-          onChange={handleTextChange('email')}
-          error={fieldErrors.email}
-          placeholder="John.doe@email.com"
-        />
-
-        <AuthPasswordField
-          id="password"
-          label="Password"
-          autoComplete="current-password"
-          enterKeyHint="go"
-          value={formState.password}
-          onChange={handleTextChange('password')}
-          error={fieldErrors.password}
-          placeholder="Enter your password"
-        />
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <label
-            htmlFor="remember-me"
-            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-1 text-sm text-slate-700 dark:text-zinc-200"
-          >
-            <input
-              id="remember-me"
-              type="checkbox"
-              checked={formState.rememberMe}
-              onChange={handleRememberMeChange}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-            />
-            Remember me
-          </label>
-
-          <Link
-            href="/auth/forgot-password"
-            className="text-sm font-medium text-slate-700 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-emerald-700 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-emerald-300"
-          >
-            Forgot password?
-          </Link>
-        </div>
-
-        <div className="min-h-5" aria-live="polite" role="status">
-          {showResetNotice ? (
-            <p className="text-sm text-sky-700 dark:text-sky-300">
-              Your reset request was received. If the email exists, a reset link was sent.
-            </p>
-          ) : null}
-          {!showResetNotice && oauthErrorMessage ? (
-            <p className="text-sm text-rose-600 dark:text-rose-400">{oauthErrorMessage}</p>
-          ) : null}
-          {formError ? (
-            <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p>
-          ) : null}
-          {formSuccess ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">{formSuccess}</p>
-          ) : null}
-          {resendMessage ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">{resendMessage}</p>
-          ) : null}
-        </div>
-
-        {showResendVerification ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-600/40 dark:bg-amber-500/10">
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              Need a fresh verification email for this account?
-            </p>
-            <button
-              type="button"
-              onClick={handleResendVerification}
-              disabled={isResendingVerification || resendCooldownSeconds > 0}
-              className="mt-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-amber-300 disabled:text-amber-100 dark:bg-amber-500 dark:hover:bg-amber-400 dark:disabled:bg-amber-800"
+          <div className="flex items-center justify-between text-[13px]">
+            <label className="flex items-center gap-2 cursor-pointer select-none group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={formState.rememberMe}
+                  onChange={handleRememberMeChange}
+                  disabled={isSubmitting || isResendingVerification}
+                  className="peer h-4 w-4 shrink-0 appearance-none rounded border border-slate-300 bg-white transition-colors checked:border-transparent checked:bg-teal-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/30 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:checked:bg-teal-500"
+                />
+                <svg
+                  className="pointer-events-none absolute h-2.5 w-2.5 text-white opacity-0 peer-checked:opacity-100"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M3 8L6 11L11 3.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <span className="font-medium text-slate-600 group-hover:text-slate-900 dark:text-zinc-400 dark:group-hover:text-zinc-200">
+                Remember me
+              </span>
+            </label>
+            <Link
+              href="/auth/forgot-password"
+              className="font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 dark:text-zinc-400 dark:decoration-zinc-700 dark:hover:text-zinc-200"
             >
-              {isResendingVerification
-                ? 'Sending verification email...'
-                : resendCooldownSeconds > 0
-                  ? `Try again in ${resendCooldownSeconds}s`
-                  : 'Resend verification email'}
-            </button>
+              Forgot password?
+            </Link>
+          </div>
+        </div>
+
+        {formError || oauthErrorMessage ? (
+          <div className="rounded-xl border border-rose-200/60 bg-rose-50 p-3 text-[13px] font-medium leading-snug text-rose-800 dark:border-rose-900/30 dark:bg-rose-500/10 dark:text-rose-300">
+            {formError || oauthErrorMessage}
+          </div>
+        ) : null}
+
+        {formSuccess || showResetNotice ? (
+          <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 p-3 text-[13px] font-medium leading-snug text-emerald-800 dark:border-emerald-900/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+            {formSuccess || (showResetNotice ? 'Your password has been successfully reset. You can now sign in.' : '')}
+          </div>
+        ) : null}
+
+        {resendMessage ? (
+          <div className="rounded-xl border border-teal-200/60 bg-teal-50 p-3 text-[13px] font-medium leading-snug text-teal-800 dark:border-teal-900/30 dark:bg-teal-500/10 dark:text-teal-300">
+            {resendMessage}
           </div>
         ) : null}
 
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:text-emerald-100 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:disabled:bg-emerald-700"
+          className="flex w-full items-center justify-center rounded-[1.125rem] bg-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:bg-teal-600 dark:hover:bg-teal-500 dark:focus-visible:ring-offset-zinc-950 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
         >
           {isSubmitting ? 'Signing in...' : 'Sign in'}
         </button>
 
-        <p className="text-center text-xs text-slate-500 dark:text-zinc-400">
-          Your financial data is encrypted in transit and at rest.
-        </p>
+        {showResendVerification && resendCooldownSeconds === 0 && !formSuccess && (
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={isResendingVerification}
+            className="flex w-full items-center justify-center rounded-[1.125rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {isResendingVerification ? 'Sending...' : 'Resend verification email'}
+          </button>
+        )}
+        
+        {showResendVerification && resendCooldownSeconds > 0 && !formSuccess && (
+          <div className="text-center text-[13px] text-slate-500 dark:text-zinc-400">
+            Please wait {resendCooldownSeconds}s to resend verification.
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center gap-3" aria-hidden>
+          <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-zinc-500">
+            or continue with
+          </span>
+          <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        </div>
+
+        <div className="mt-5">
+          <GoogleAuthButton
+            mode="login"
+            nextPath={redirectTarget}
+            disabled={isSubmitting || isResendingVerification}
+            onError={(message) => {
+              setOauthErrorDismissed(true);
+              setFormError(message);
+              setFormSuccess('');
+              setResendMessage('');
+            }}
+          />
+        </div>
       </form>
     </AuthCardShell>
   );

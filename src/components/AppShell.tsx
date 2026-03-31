@@ -287,7 +287,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         if (response.status === 401) {
-          handleLoggedOut();
+          await handleLoggedOut();
           return;
         }
 
