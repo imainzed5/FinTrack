@@ -73,6 +73,7 @@ export const ACCOUNT_SELECT = `
   user_id,
   name,
   type,
+  expense_payment_method,
   initial_balance,
   color,
   icon,

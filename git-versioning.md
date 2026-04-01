@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.26.0
+### Current version: v0.27.0
 
 
 ---
 
 ## Version Roadmap
+v0.27.0 — 2026-04-02
+  - feat(dashboard): Fix the dashboard Upcoming card in `src/lib/insights-engine.ts`, `src/lib/types.ts`, and `src/components/pages/DashboardClientPage.tsx` by exposing a dedicated `upcomingRecurringTransactions` payload so recurring templates due within 14 days are no longer hidden by current-month recent-transaction slicing.
+  - feat(timeline): Make the Financial Timeline smarter in `src/lib/insights-engine.ts`, `src/lib/types.ts`, `src/components/TimelineView.tsx`, and `src/lib/timeline-events.test.ts` with predictive pacing events, income-aware context, savings-rate trend events, post-income behavior detection, and budget-recovery milestones.
+  - feat(accounts): Add persisted account expense payment profiles across `src/components/accounts/AccountFormDialog.tsx`, `src/components/AddExpenseModal.tsx`, `src/lib/accounts-utils.ts`, `src/lib/local-store.ts`, `src/lib/db/accounts*.ts`, `src/app/api/accounts/route.ts`, and `supabase/migrations/202604020001_add_account_expense_payment_method.sql` so expense payment methods follow the selected account instead of relying on a conflicting manual field in the add-expense modal.
+  - test(accounts): Extend `src/lib/accounts-utils.test.ts` and `src/lib/dashboard-history.test.ts` to cover account payment inference/profile behavior and the recurring-upcoming dashboard payload.
+  - verification: `npm test` and `npm run lint` passed after the smarter timeline, upcoming-recurring dashboard fix, and account payment-profile update.
+
 v0.26.0 — 2026-04-02
   - feat(dashboard): Add shared dashboard history in `src/lib/insights-engine.ts` and `src/lib/types.ts` so Berde and the calendar panel can use previous-month continuity plus multi-month calendar data without breaking current-month budget math.
   - feat(calendar): Update `src/components/dashboard/CalendarPanel.tsx` and `src/components/pages/DashboardClientPage.tsx` so the dashboard calendar can browse actual past-month spend data and selected-day transactions instead of reusing only current-month data.

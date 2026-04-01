@@ -6,8 +6,8 @@ import {
   setAccountArchived,
   updateAccount,
 } from '@/lib/db';
-import type { AccountType } from '@/lib/types';
-import { ACCOUNT_TYPES } from '@/lib/types';
+import type { AccountType, PaymentMethod } from '@/lib/types';
+import { ACCOUNT_TYPES, PAYMENT_METHODS } from '@/lib/types';
 import { isAuthRequiredError } from '@/lib/supabase/server';
 
 function handleRouteError(error: unknown, fallbackMessage: string): NextResponse {
@@ -34,6 +34,12 @@ function normalizeAccountType(value: unknown): AccountType | undefined {
   if (typeof value !== 'string') return undefined;
   if (!ACCOUNT_TYPES.includes(value as AccountType)) return undefined;
   return value as AccountType;
+}
+
+function normalizePaymentMethod(value: unknown): PaymentMethod | undefined {
+  if (typeof value !== 'string') return undefined;
+  if (!PAYMENT_METHODS.includes(value as PaymentMethod)) return undefined;
+  return value as PaymentMethod;
 }
 
 export function normalizeAccountAction(value: unknown): 'archive' | 'restore' | undefined {
@@ -63,6 +69,9 @@ export async function POST(request: NextRequest) {
       typeof body.initialBalance === 'number' && Number.isFinite(body.initialBalance)
         ? body.initialBalance
         : 0;
+    const expensePaymentMethod = Object.prototype.hasOwnProperty.call(body, 'expensePaymentMethod')
+      ? normalizePaymentMethod(body.expensePaymentMethod)
+      : undefined;
 
     if (!name) {
       return NextResponse.json({ error: 'Account name is required.' }, { status: 400 });
@@ -72,9 +81,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid account type.' }, { status: 400 });
     }
 
+    if (Object.prototype.hasOwnProperty.call(body, 'expensePaymentMethod') && !expensePaymentMethod) {
+      return NextResponse.json({ error: 'Invalid expense payment method.' }, { status: 400 });
+    }
+
     const account = await createAccount({
       name,
       type,
+      expensePaymentMethod,
       initialBalance,
       color: normalizeText(body.color),
       icon: normalizeText(body.icon),
@@ -136,14 +150,22 @@ export async function PATCH(request: NextRequest) {
     const nextType = Object.prototype.hasOwnProperty.call(body, 'type')
       ? normalizeAccountType(body.type)
       : undefined;
+    const nextExpensePaymentMethod = Object.prototype.hasOwnProperty.call(body, 'expensePaymentMethod')
+      ? normalizePaymentMethod(body.expensePaymentMethod)
+      : undefined;
 
     if (Object.prototype.hasOwnProperty.call(body, 'type') && !nextType) {
       return NextResponse.json({ error: 'Invalid account type.' }, { status: 400 });
     }
 
+    if (Object.prototype.hasOwnProperty.call(body, 'expensePaymentMethod') && !nextExpensePaymentMethod) {
+      return NextResponse.json({ error: 'Invalid expense payment method.' }, { status: 400 });
+    }
+
     const account = await updateAccount(id, {
       name: Object.prototype.hasOwnProperty.call(body, 'name') ? normalizeText(body.name) : undefined,
       type: nextType,
+      expensePaymentMethod: nextExpensePaymentMethod,
       color: Object.prototype.hasOwnProperty.call(body, 'color') ? normalizeText(body.color) ?? null : undefined,
       icon: Object.prototype.hasOwnProperty.call(body, 'icon') ? normalizeText(body.icon) ?? null : undefined,
       initialBalance: Object.prototype.hasOwnProperty.call(body, 'initialBalance')

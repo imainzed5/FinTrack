@@ -3,7 +3,11 @@
 import { addDays, addMonths, addYears, differenceInCalendarDays, format } from 'date-fns';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { v4 as uuidv4 } from 'uuid';
-import { computeAccountBalance, resolvePreferredDefaultAccount } from './accounts-utils';
+import {
+  computeAccountBalance,
+  resolveDefaultExpensePaymentMethodForAccountType,
+  resolvePreferredDefaultAccount,
+} from './accounts-utils';
 import {
   buildDashboardData,
   computeMonthlySavingsHistory,
@@ -909,6 +913,7 @@ export async function getTotalBalance(): Promise<number> {
 export async function createAccount(input: {
   name: string;
   type: AccountType;
+  expensePaymentMethod?: PaymentMethod;
   initialBalance?: number;
   color?: string | null;
   icon?: string | null;
@@ -928,6 +933,8 @@ export async function createAccount(input: {
     userId: buildLocalUserId(profile),
     name,
     type: input.type,
+    expensePaymentMethod:
+      input.expensePaymentMethod ?? resolveDefaultExpensePaymentMethodForAccountType(input.type),
     initialBalance: roundMoney(input.initialBalance ?? 0),
     color: normalizeText(input.color ?? undefined),
     icon: normalizeText(input.icon ?? undefined),
@@ -958,6 +965,7 @@ export async function updateAccount(
   updates: {
     name?: string;
     type?: AccountType;
+    expensePaymentMethod?: PaymentMethod;
     color?: string | null;
     icon?: string | null;
     initialBalance?: number;
@@ -975,6 +983,9 @@ export async function updateAccount(
       ? normalizeText(updates.name) ?? account.name
       : account.name,
     type: updates.type ?? account.type,
+    expensePaymentMethod: Object.prototype.hasOwnProperty.call(updates, 'expensePaymentMethod')
+      ? updates.expensePaymentMethod ?? resolveDefaultExpensePaymentMethodForAccountType(updates.type ?? account.type)
+      : account.expensePaymentMethod,
     color: Object.prototype.hasOwnProperty.call(updates, 'color')
       ? normalizeText(updates.color ?? undefined)
       : account.color,

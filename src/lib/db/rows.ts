@@ -52,6 +52,7 @@ export interface AccountRow {
   user_id: string;
   name: string;
   type: AccountType;
+  expense_payment_method?: Transaction['paymentMethod'] | null;
   initial_balance: number | string;
   color: string | null;
   icon: string | null;

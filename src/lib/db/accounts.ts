@@ -87,6 +87,7 @@ export async function getOrCreateSystemCashWallet(): Promise<Account> {
       user_id: userId,
       name: 'Cash',
       type: 'Cash',
+      expense_payment_method: 'Cash',
       initial_balance: 0,
       is_archived: false,
       is_system_cash_wallet: true,
@@ -101,6 +102,7 @@ export async function getOrCreateSystemCashWallet(): Promise<Account> {
 export async function createAccount(input: {
   name: string;
   type: AccountType;
+  expensePaymentMethod?: Account['expensePaymentMethod'];
   initialBalance?: number;
   color?: string;
   icon?: string;
@@ -120,6 +122,7 @@ export async function createAccount(input: {
       user_id: userId,
       name,
       type: input.type,
+      expense_payment_method: input.expensePaymentMethod ?? null,
       initial_balance: Number((input.initialBalance ?? 0).toFixed(2)),
       color: input.color ?? null,
       icon: input.icon ?? null,
@@ -137,6 +140,7 @@ export async function updateAccount(
   updates: {
     name?: string;
     type?: AccountType;
+    expensePaymentMethod?: Account['expensePaymentMethod'];
     color?: string | null;
     icon?: string | null;
     initialBalance?: number;
@@ -158,6 +162,10 @@ export async function updateAccount(
       throw new Error('Invalid account type.');
     }
     payload.type = updates.type;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'expensePaymentMethod')) {
+    payload.expense_payment_method = updates.expensePaymentMethod ?? null;
   }
 
   if (Object.prototype.hasOwnProperty.call(updates, 'color')) {

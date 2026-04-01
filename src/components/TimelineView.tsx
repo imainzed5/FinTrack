@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns';
 import {
   Play, CreditCard, TrendingUp, TrendingDown,
   PiggyBank, AlertTriangle, Star, Trophy, Flame,
-  Zap, ExternalLink, Lightbulb, Info, CalendarX,
+  Zap, ExternalLink, Lightbulb, Info, CalendarX, BarChart3, Target,
 } from 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -19,14 +19,20 @@ type EventCfg = { icon: IconType; dot: string; badge: string; label: string };
 const EVENT_CFG: Record<string, EventCfg> = {
   started_tracking:     { icon: Play,          dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400', label: 'Journey Start' },
   subscription_detected:{ icon: CreditCard,    dot: 'bg-purple-500',  badge: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400',   label: 'Subscription'  },
+  income_logged:        { icon: PiggyBank,     dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400', label: 'Income'         },
   spending_spike:       { icon: TrendingUp,    dot: 'bg-red-500',     badge: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',               label: 'Spending Spike'},
   spending_improvement: { icon: TrendingDown,  dot: 'bg-teal-500',    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400',           label: 'Improvement'   },
+  budget_recovery:      { icon: Trophy,        dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400', label: 'Recovery'       },
   budget_exceeded:      { icon: AlertTriangle, dot: 'bg-amber-500',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',       label: 'Over Budget'   },
   highest_savings:      { icon: PiggyBank,     dot: 'bg-blue-500',    badge: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',           label: 'Best Savings'  },
   best_savings_rate:    { icon: Star,          dot: 'bg-indigo-500',  badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400',   label: 'Best Rate'     },
   savings_milestone:    { icon: Trophy,        dot: 'bg-yellow-500',  badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400',   label: 'Milestone'     },
   savings_streak:       { icon: Flame,         dot: 'bg-orange-500',  badge: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400',   label: 'Streak'        },
   low_spend_month:      { icon: Zap,           dot: 'bg-teal-500',    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400',           label: 'Low Spend'     },
+  savings_rate_trend:   { icon: BarChart3,     dot: 'bg-sky-500',     badge: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',               label: 'Savings Trend' },
+  post_income_spending: { icon: Zap,           dot: 'bg-amber-500',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',       label: 'Behavior'      },
+  month_projection_on_track: { icon: Target,   dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400', label: 'On Track'       },
+  month_projection_at_risk:  { icon: AlertTriangle, dot: 'bg-red-500', badge: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',              label: 'At Risk'        },
   milestone:            { icon: Star,          dot: 'bg-yellow-500',  badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400',   label: 'Milestone'     },
 };
 

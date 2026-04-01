@@ -119,6 +119,7 @@ export interface Account {
   userId: string;
   name: string;
   type: AccountType;
+  expensePaymentMethod?: PaymentMethod;
   initialBalance: number;
   color?: string;
   icon?: string;
@@ -166,15 +167,21 @@ export interface TimelineEvent {
   eventType:
     | 'started_tracking'
     | 'subscription_detected'
+    | 'income_logged'
     | 'spending_spike'
     | 'highest_savings'
     | 'budget_exceeded'
     | 'milestone'
     | 'spending_improvement'
+    | 'budget_recovery'
     | 'savings_streak'
     | 'savings_milestone'
     | 'best_savings_rate'
-    | 'low_spend_month';
+    | 'low_spend_month'
+    | 'savings_rate_trend'
+    | 'post_income_spending'
+    | 'month_projection_on_track'
+    | 'month_projection_at_risk';
   description: string;
   date: string;
   metadata: Record<string, unknown>;
@@ -294,6 +301,7 @@ export interface DashboardData {
   calendarTransactions: Transaction[];
   calendarRange: DashboardCalendarRange;
   currentMonthTransactions: Transaction[];
+  upcomingRecurringTransactions: Transaction[];
   recentTransactions: Transaction[];
   insights: Insight[];
   berdeMemory: BerdeMemory;

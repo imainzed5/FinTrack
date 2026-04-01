@@ -179,6 +179,52 @@ function categorySum(txs: Transaction[]): Record<string, number> {
   return sums;
 }
 
+function safeParseDateValue(value?: string): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = parseISO(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  const fallback = new Date(value);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function buildUpcomingRecurringTransactions(
+  transactions: Transaction[],
+  now: Date = new Date(),
+): Transaction[] {
+  const start = startOfDay(now);
+  const end = endOfDay(addDays(start, 14));
+
+  return [...transactions]
+    .filter((transaction) => Boolean(transaction.recurring))
+    .filter((transaction) => !transaction.recurringOriginId)
+    .filter((transaction) => !isOperationalTransaction(transaction))
+    .filter((transaction) => {
+      const dueDate = safeParseDateValue(transaction.recurring?.nextRunDate);
+      const endDate = safeParseDateValue(transaction.recurring?.endDate);
+      if (!dueDate) {
+        return false;
+      }
+
+      if (endDate && startOfDay(dueDate).getTime() > endOfDay(endDate).getTime()) {
+        return false;
+      }
+
+      const dueDay = startOfDay(dueDate);
+      return dueDay.getTime() >= start.getTime() && dueDay.getTime() <= end.getTime();
+    })
+    .sort((left, right) => {
+      const leftTime = safeParseDateValue(left.recurring?.nextRunDate)?.getTime() ?? 0;
+      const rightTime = safeParseDateValue(right.recurring?.nextRunDate)?.getTime() ?? 0;
+      return leftTime - rightTime;
+    });
+}
+
 // Spending Spike Detection
 export function detectSpendingSpikes(
   transactions: Transaction[],
@@ -1211,7 +1257,7 @@ export function generatePostIncomeBehavior(
 
   const postIncomeSpend = roundMoney(
     expenseTransactions
-      .filter((tx) => windowDates.has(tx.date))
+      .filter((tx) => windowDates.has(tx.date.slice(0, 10)))
       .reduce((sum, tx) => sum + tx.amount, 0)
   );
   const postIncomeDailyAvg = roundMoney(postIncomeSpend / windowDays);
@@ -1619,6 +1665,8 @@ export function buildDashboardData(
     .filter((transaction) => !isOperationalTransaction(transaction))
     .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
+  const upcomingRecurringTransactions = buildUpcomingRecurringTransactions(transactions, now);
+
   const recentTransactions = currentMonthTransactions
     .slice(0, 5);
 
@@ -1648,6 +1696,7 @@ export function buildDashboardData(
     calendarTransactions,
     calendarRange,
     currentMonthTransactions,
+    upcomingRecurringTransactions,
     recentTransactions,
     insights,
     berdeMemory,
@@ -1734,11 +1783,13 @@ export function computeMonthlySavingsHistory(
 export function generateTimelineEvents(
   transactions: Transaction[],
   subscriptions: Subscription[],
-  budgets: Budget[] = []
+  budgets: Budget[] = [],
+  now: Date = new Date(),
 ): TimelineEvent[] {
   const events: TimelineEvent[] = [];
-  const expenseTransactions = transactions.filter(isExpenseTransaction);
-  if (expenseTransactions.length === 0) return events;
+  const trackedTransactions = transactions.filter((transaction) => !isOperationalTransaction(transaction));
+  const expenseTransactions = trackedTransactions.filter(isExpenseTransaction);
+  if (trackedTransactions.length === 0) return events;
 
   const peso = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const monthLabel = (ym: string) => {
@@ -1747,16 +1798,21 @@ export function generateTimelineEvents(
   };
 
   // ── 1. Started tracking ──────────────────────────────────────────────────
-  const sorted = [...expenseTransactions].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+  const sorted = [...trackedTransactions].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
   const firstTx = sorted[0];
-  const firstTxLabel = firstTx.description || firstTx.notes || firstTx.category;
+  const firstTxLabel = firstTx.description || firstTx.notes || firstTx.merchant || firstTx.category;
+  const firstTxKind = firstTx.type === 'income'
+    ? 'income'
+    : firstTx.type === 'savings'
+      ? 'savings move'
+      : 'expense';
   events.push({
     id: uuidv4(),
     eventType: 'started_tracking',
-    description: 'Started expense tracking',
+    description: 'Started tracking your finances',
     date: firstTx.date,
-    metadata: { totalTransactions: expenseTransactions.length },
-    context: `Your financial journey began with a ₱${peso(firstTx.amount)} expense on ${format(parseISO(firstTx.date), 'MMMM d, yyyy')}${firstTxLabel ? ` — "${firstTxLabel}"` : ''}. You have recorded ${expenseTransactions.length} transaction${expenseTransactions.length !== 1 ? 's' : ''} since then.`,
+    metadata: { totalTransactions: trackedTransactions.length },
+    context: `Your financial journey began with a ₱${peso(firstTx.amount)} ${firstTxKind} on ${format(parseISO(firstTx.date), 'MMMM d, yyyy')}${firstTxLabel ? ` — "${firstTxLabel}"` : ''}. You have recorded ${trackedTransactions.length} transaction${trackedTransactions.length !== 1 ? 's' : ''} since then.`,
     advice: 'Consistent tracking is the foundation of financial awareness. Keep it up!',
     severity: 'positive',
   });
@@ -1798,6 +1854,152 @@ export function generateTimelineEvents(
     return { month, spent, saved, budget, txs, cats: categorySum(txs) };
   });
 
+  const currentMonth = format(now, 'yyyy-MM');
+  const currentMonthTransactions = trackedTransactions.filter((transaction) =>
+    transaction.date.startsWith(currentMonth)
+  );
+  const currentMonthExpenseTransactions = currentMonthTransactions.filter(isExpenseTransaction);
+  const currentMonthIncomeTransactions = currentMonthTransactions.filter(isIncomeTransaction);
+  const currentMonthSpent = roundMoney(sumTransactions(currentMonthExpenseTransactions));
+  const currentMonthIncome = roundMoney(sumTransactions(currentMonthIncomeTransactions));
+  const currentDaysElapsed = Math.max(1, now.getDate());
+  const currentDaysInMonth = endOfMonth(now).getDate();
+  const projectedSpent = roundMoney(
+    currentMonthSpent > 0
+      ? (currentMonthSpent / currentDaysElapsed) * currentDaysInMonth
+      : 0,
+  );
+  const overallBudget = budgets.find(
+    (budget) => budget.category === 'Overall' && budget.month === currentMonth && !budget.subCategory
+  );
+  const currentMonthBudget = overallBudget
+    ? getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit
+    : 0;
+
+  if (currentMonthIncomeTransactions.length > 0) {
+    const latestIncome = [...currentMonthIncomeTransactions].sort(
+      (left, right) => parseISO(right.date).getTime() - parseISO(left.date).getTime()
+    )[0];
+    const currentNet = roundMoney(currentMonthIncome - currentMonthSpent);
+    const savingsRate = currentMonthIncome > 0
+      ? roundMoney(((currentMonthIncome - currentMonthSpent) / currentMonthIncome) * 100)
+      : 0;
+
+    events.push({
+      id: uuidv4(),
+      eventType: 'income_logged',
+      description: `Income logged in ${monthLabel(currentMonth)}`,
+      date: latestIncome.date,
+      metadata: {
+        month: currentMonth,
+        income: currentMonthIncome,
+        expense: currentMonthSpent,
+        savingsRate,
+      },
+      context: `You recorded ₱${peso(currentMonthIncome)} of income in ${monthLabel(currentMonth)} across ${currentMonthIncomeTransactions.length} entr${currentMonthIncomeTransactions.length === 1 ? 'y' : 'ies'}. Current spending is ₱${peso(currentMonthSpent)}, leaving ${currentNet >= 0 ? `₱${peso(currentNet)} available` : `a ₱${peso(Math.abs(currentNet))} shortfall`}.`,
+      advice: currentNet >= 0
+        ? 'Protect part of that inflow early so the month keeps its momentum.'
+        : 'Spending is already outpacing what came in this month. Review the largest categories before it compounds.',
+      link: `/transactions?month=${currentMonth}`,
+      severity: currentNet >= 0 ? 'positive' : 'warning',
+      amount: currentMonthIncome,
+    });
+  }
+
+  if (currentDaysElapsed >= 4 && currentMonthExpenseTransactions.length >= 3) {
+    if (currentMonthBudget > 0) {
+      const projectedGap = roundMoney(currentMonthBudget - projectedSpent);
+      const projectedOverage = Math.max(0, roundMoney(projectedSpent - currentMonthBudget));
+      const paceRatio = projectedSpent / currentMonthBudget;
+
+      if (paceRatio <= 0.92) {
+        events.push({
+          id: uuidv4(),
+          eventType: 'month_projection_on_track',
+          description: `${monthLabel(currentMonth)} is pacing safely`,
+          date: now.toISOString(),
+          metadata: {
+            month: currentMonth,
+            basis: 'budget',
+            budget: currentMonthBudget,
+            spent: currentMonthSpent,
+            projectedSpent,
+          },
+          context: `With ₱${peso(currentMonthSpent)} spent so far, you are pacing toward about ₱${peso(projectedSpent)} by month end against a ₱${peso(currentMonthBudget)} budget. That leaves roughly ₱${peso(Math.max(0, projectedGap))} of breathing room if the current pace holds.`,
+          advice: 'Keep protecting the categories that are staying disciplined. Small slips now can erase the cushion quickly.',
+          link: `/transactions?month=${currentMonth}`,
+          severity: 'positive',
+          amount: Math.max(0, projectedGap),
+        });
+      } else if (paceRatio >= 1.08) {
+        events.push({
+          id: uuidv4(),
+          eventType: 'month_projection_at_risk',
+          description: `${monthLabel(currentMonth)} is pacing over budget`,
+          date: now.toISOString(),
+          metadata: {
+            month: currentMonth,
+            basis: 'budget',
+            budget: currentMonthBudget,
+            spent: currentMonthSpent,
+            projectedSpent,
+            projectedOverage,
+          },
+          context: `At your current pace, ${monthLabel(currentMonth)} is trending toward about ₱${peso(projectedSpent)} in spend against a ₱${peso(currentMonthBudget)} budget. That points to a projected overage of roughly ₱${peso(projectedOverage)} unless the pace slows down.`,
+          advice: 'Check the categories driving the pace now. Catching one or two leaks this week is easier than fixing a full-month overspend later.',
+          link: `/transactions?month=${currentMonth}`,
+          severity: paceRatio >= 1.2 ? 'critical' : 'warning',
+          amount: projectedOverage,
+        });
+      }
+    } else if (currentMonthIncome > 0) {
+      const projectedGap = roundMoney(currentMonthIncome - projectedSpent);
+      const projectedShortfall = Math.max(0, roundMoney(projectedSpent - currentMonthIncome));
+      const paceRatio = projectedSpent / currentMonthIncome;
+
+      if (paceRatio <= 0.9) {
+        events.push({
+          id: uuidv4(),
+          eventType: 'month_projection_on_track',
+          description: `${monthLabel(currentMonth)} is pacing within current income`,
+          date: now.toISOString(),
+          metadata: {
+            month: currentMonth,
+            basis: 'income',
+            income: currentMonthIncome,
+            spent: currentMonthSpent,
+            projectedSpent,
+          },
+          context: `Based on your current pace, this month is trending toward about ₱${peso(projectedSpent)} in spend against ₱${peso(currentMonthIncome)} of income already logged. That keeps roughly ₱${peso(Math.max(0, projectedGap))} uncommitted if the pace holds.`,
+          advice: 'Use the buffer deliberately. Locking in part of it now is safer than waiting for the last week of the month.',
+          link: `/transactions?month=${currentMonth}`,
+          severity: 'positive',
+          amount: Math.max(0, projectedGap),
+        });
+      } else if (paceRatio >= 1.05) {
+        events.push({
+          id: uuidv4(),
+          eventType: 'month_projection_at_risk',
+          description: `${monthLabel(currentMonth)} is pacing beyond current income`,
+          date: now.toISOString(),
+          metadata: {
+            month: currentMonth,
+            basis: 'income',
+            income: currentMonthIncome,
+            spent: currentMonthSpent,
+            projectedSpent,
+            projectedShortfall,
+          },
+          context: `This month is currently pacing toward about ₱${peso(projectedSpent)} in spend against ₱${peso(currentMonthIncome)} of income already logged. If nothing changes, that implies a shortfall of roughly ₱${peso(projectedShortfall)}.`,
+          advice: 'Without an overall budget, the safest move is to slow the highest categories until income catches up.',
+          link: `/transactions?month=${currentMonth}`,
+          severity: paceRatio >= 1.15 ? 'critical' : 'warning',
+          amount: projectedShortfall,
+        });
+      }
+    }
+  }
+
   // ── 3. Spending spikes (all months, not just last 6) ─────────────────────
   for (let i = 1; i < monthly.length; i++) {
     const curr = monthly[i];
@@ -1826,6 +2028,38 @@ export function generateTimelineEvents(
         }
       }
     }
+  }
+
+  // ── 5b. Budget recovery after an over-budget month ──────────────────────
+  for (let i = 1; i < monthly.length; i++) {
+    const curr = monthly[i];
+    const prev = monthly[i - 1];
+    if (curr.month >= currentMonth) continue;
+    if (prev.budget <= 0 || curr.budget <= 0) continue;
+    if (prev.spent <= prev.budget || curr.spent > curr.budget || curr.txs.length === 0) continue;
+
+    const previousOverage = prev.spent - prev.budget;
+    const currentBuffer = curr.budget - curr.spent;
+    const spendDrop = Math.max(0, prev.spent - curr.spent);
+
+    events.push({
+      id: uuidv4(),
+      eventType: 'budget_recovery',
+      description: `Recovered budget control in ${monthLabel(curr.month)}`,
+      date: `${curr.month}-18`,
+      metadata: {
+        month: curr.month,
+        previousMonth: prev.month,
+        previousOverage,
+        currentBuffer,
+        spendDrop,
+      },
+      context: `After going ₱${peso(previousOverage)} over budget in ${monthLabel(prev.month)}, you brought spending down by ₱${peso(spendDrop)} and finished ${monthLabel(curr.month)} with about ₱${peso(currentBuffer)} still intact.` ,
+      advice: 'Recovery months are worth studying. Identify what changed and turn it into a repeatable rule for the next cycle.',
+      link: `/transactions?month=${curr.month}`,
+      severity: 'positive',
+      amount: spendDrop,
+    });
   }
 
   // ── 4. Budget exceeded ───────────────────────────────────────────────────
@@ -1913,6 +2147,66 @@ export function generateTimelineEvents(
     }
   }
 
+  // ── 7b. Savings rate trend across completed cash-flow months ────────────
+  const completedCashFlowMonths = computeMonthlySavingsHistory(trackedTransactions, budgets, subMonths(now, 1))
+    .map((item) => {
+      const monthTransactions = trackedTransactions.filter((transaction) =>
+        transaction.date.startsWith(item.month)
+      );
+      const income = roundMoney(
+        monthTransactions
+          .filter(isIncomeTransaction)
+          .reduce((sum, transaction) => sum + transaction.amount, 0)
+      );
+      const expenses = roundMoney(
+        monthTransactions
+          .filter(isExpenseTransaction)
+          .reduce((sum, transaction) => sum + transaction.amount, 0)
+      );
+      const txCount = monthTransactions.length;
+
+      return {
+        month: item.month,
+        income,
+        expenses,
+        txCount,
+        rate: income > 0 ? ((income - expenses) / income) * 100 : null,
+      };
+    })
+    .filter((item) => item.income > 0 && item.txCount >= 3 && item.rate !== null);
+
+  const recentCashFlowTrend = completedCashFlowMonths.slice(-3);
+  if (recentCashFlowTrend.length === 3) {
+    const first = recentCashFlowTrend[0];
+    const latest = recentCashFlowTrend[recentCashFlowTrend.length - 1];
+    const change = (latest.rate ?? 0) - (first.rate ?? 0);
+
+    if (Math.abs(change) >= 5) {
+      const improving = change > 0;
+      events.push({
+        id: uuidv4(),
+        eventType: 'savings_rate_trend',
+        description: improving
+          ? 'Savings rate is improving'
+          : 'Savings rate is slipping',
+        date: `${latest.month}-20`,
+        metadata: {
+          fromMonth: first.month,
+          toMonth: latest.month,
+          fromRate: first.rate,
+          toRate: latest.rate,
+          change,
+        },
+        context: `Your savings rate moved from ${(first.rate ?? 0).toFixed(0)}% in ${monthLabel(first.month)} to ${(latest.rate ?? 0).toFixed(0)}% in ${monthLabel(latest.month)}. That is a ${Math.abs(change).toFixed(0)}-point ${improving ? 'improvement' : 'drop'} across the last three completed cash-flow months.`,
+        advice: improving
+          ? 'Momentum like this is worth protecting. Keep the same income-to-spending discipline before lifestyle drift catches up.'
+          : 'A slipping savings rate is usually easier to fix at the category level than with one big cut. Start with the fastest-growing spend bucket.',
+        link: `/transactions?month=${latest.month}`,
+        severity: improving ? 'positive' : 'warning',
+      });
+    }
+  }
+
   // ── 8. Savings milestones (cumulative) ───────────────────────────────────
   const MILESTONES = [5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
   let cumulative = 0;
@@ -1961,6 +2255,47 @@ export function generateTimelineEvents(
         : 'Keep the streak alive! Automating your savings transfer each month makes it effortless.',
       severity: 'positive',
     });
+  }
+
+  // ── 9b. Post-income spending behavior ───────────────────────────────────
+  if (currentMonthIncomeTransactions.length > 0 && currentMonthExpenseTransactions.length >= 6) {
+    const postIncomeInsights = generatePostIncomeBehavior(trackedTransactions, now);
+    for (const insight of postIncomeInsights) {
+      const payload = insight.dataPayload as {
+        postIncomeDailyAvg?: number;
+        dailyAvg?: number;
+        multiplier?: number;
+      } | undefined;
+      const postIncomeDailyAvg = payload?.postIncomeDailyAvg ?? 0;
+      const dailyAvg = payload?.dailyAvg ?? 0;
+      const multiplier = payload?.multiplier ?? 0;
+
+      if (postIncomeDailyAvg <= 0 || dailyAvg <= 0 || multiplier <= 1) {
+        continue;
+      }
+
+      const latestIncome = [...currentMonthIncomeTransactions].sort(
+        (left, right) => parseISO(right.date).getTime() - parseISO(left.date).getTime()
+      )[0];
+
+      events.push({
+        id: uuidv4(),
+        eventType: 'post_income_spending',
+        description: 'Spending jumps after income days',
+        date: latestIncome.date,
+        metadata: {
+          month: currentMonth,
+          postIncomeDailyAvg,
+          dailyAvg,
+          multiplier,
+        },
+        context: `In the few days after money comes in, you are spending about ₱${peso(postIncomeDailyAvg)} per day versus your usual ₱${peso(dailyAvg)}. That is roughly ${((multiplier - 1) * 100).toFixed(0)}% higher than your normal daily pace.`,
+        advice: 'Try pre-deciding the first transfer, bill payment, or spending cap for payday week so the extra liquidity does not disappear on autopilot.',
+        link: `/transactions?month=${currentMonth}`,
+        severity: 'warning',
+        amount: roundMoney(postIncomeDailyAvg - dailyAvg),
+      });
+    }
   }
 
   // ── 10. Low-spend month (30%+ below average) ─────────────────────────────
