@@ -101,6 +101,7 @@ export function toAccount(row: AccountRow): Account {
     userId: row.user_id,
     name: row.name,
     type: normalizeAccountType(row.type),
+    expensePaymentMethod: row.expense_payment_method ?? undefined,
     initialBalance: toNumber(row.initial_balance),
     color: row.color ?? undefined,
     icon: row.icon ?? undefined,

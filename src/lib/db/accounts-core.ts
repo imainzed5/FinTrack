@@ -55,6 +55,7 @@ export async function getDefaultAccountId(
       user_id: userId,
       name: 'Cash',
       type: 'Cash',
+      expense_payment_method: 'Cash',
       initial_balance: 0,
       is_system_cash_wallet: true,
       is_archived: false,

@@ -2,12 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { ACCOUNT_TYPES, type AccountType, type AccountWithBalance } from '@/lib/types';
+import {
+  ACCOUNT_TYPES,
+  PAYMENT_METHODS,
+  type AccountType,
+  type AccountWithBalance,
+  type PaymentMethod,
+} from '@/lib/types';
+import { resolveDefaultExpensePaymentMethodForAccountType } from '@/lib/accounts-utils';
 import { createAccount, updateAccount } from '@/lib/local-store';
 
 interface AccountFormValues {
   name: string;
   type: AccountType;
+  expensePaymentMethod: PaymentMethod;
   initialBalance: string;
   color: string;
   icon: string;
@@ -24,6 +32,7 @@ interface AccountFormDialogProps {
 const INITIAL_VALUES: AccountFormValues = {
   name: '',
   type: 'Cash',
+  expensePaymentMethod: 'Cash',
   initialBalance: '0',
   color: '',
   icon: '',
@@ -48,6 +57,8 @@ export default function AccountFormDialog({
       return {
         name: account.name,
         type: account.type,
+        expensePaymentMethod:
+          account.expensePaymentMethod ?? resolveDefaultExpensePaymentMethodForAccountType(account.type),
         initialBalance: String(account.initialBalance),
         color: account.color || '',
         icon: account.icon || '',
@@ -93,6 +104,7 @@ export default function AccountFormDialog({
         await createAccount({
           name: values.name.trim(),
           type: values.type,
+          expensePaymentMethod: values.expensePaymentMethod,
           initialBalance: Number.parseFloat(values.initialBalance || '0') || 0,
           color: values.color.trim() || null,
           icon: values.icon.trim() || null,
@@ -101,6 +113,7 @@ export default function AccountFormDialog({
         await updateAccount(account.id, {
           name: values.name.trim(),
           type: values.type,
+          expensePaymentMethod: values.expensePaymentMethod,
           initialBalance: Number.parseFloat(values.initialBalance || '0') || 0,
           color: values.color.trim() || null,
           icon: values.icon.trim() || null,
@@ -171,7 +184,14 @@ export default function AccountFormDialog({
               <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Type</label>
               <select
                 value={values.type}
-                onChange={(event) => setValues((current) => ({ ...current, type: event.target.value as AccountType }))}
+                onChange={(event) => {
+                  const nextType = event.target.value as AccountType;
+                  setValues((current) => ({
+                    ...current,
+                    type: nextType,
+                    expensePaymentMethod: resolveDefaultExpensePaymentMethodForAccountType(nextType),
+                  }));
+                }}
                 className="mt-1 h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-950"
               >
                 {ACCOUNT_TYPES.map((accountType) => (
@@ -180,6 +200,27 @@ export default function AccountFormDialog({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Expense payment method</label>
+              <select
+                value={values.expensePaymentMethod}
+                onChange={(event) => setValues((current) => ({
+                  ...current,
+                  expensePaymentMethod: event.target.value as PaymentMethod,
+                }))}
+                className="mt-1 h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-950"
+              >
+                {PAYMENT_METHODS.map((paymentMethod) => (
+                  <option key={paymentMethod} value={paymentMethod}>
+                    {paymentMethod}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                Used to auto-fill expenses deducted from this account.
+              </p>
             </div>
 
             <div>

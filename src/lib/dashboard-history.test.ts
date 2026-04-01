@@ -128,3 +128,37 @@ test('buildDashboardData keeps current-month overview math while exposing calend
     900,
   );
 });
+
+test('buildDashboardData exposes upcoming recurring templates even when they are outside recent current-month activity', () => {
+  const transactions = [
+    createTransaction({ id: 'apr-1', date: '2026-04-01T08:00:00.000Z', amount: 100 }),
+    createTransaction({ id: 'apr-2', date: '2026-04-01T09:00:00.000Z', amount: 120, category: 'Health' }),
+    createTransaction({ id: 'apr-3', date: '2026-04-01T10:00:00.000Z', amount: 140, category: 'Shopping' }),
+    createTransaction({ id: 'apr-4', date: '2026-04-01T11:00:00.000Z', amount: 160, category: 'Utilities' }),
+    createTransaction({ id: 'apr-5', date: '2026-04-01T12:00:00.000Z', amount: 180, category: 'Transportation' }),
+    createTransaction({ id: 'apr-6', date: '2026-04-01T13:00:00.000Z', amount: 200, category: 'Entertainment' }),
+    createTransaction({
+      id: 'rent-template',
+      date: '2026-03-01T08:00:00.000Z',
+      amount: 750,
+      category: 'Utilities',
+      recurring: {
+        frequency: 'monthly',
+        interval: 1,
+        nextRunDate: '2026-04-12T08:00:00.000Z',
+      },
+    }),
+  ];
+  const budgets = [createBudget({ id: 'budget-apr', month: '2026-04', monthlyLimit: 5000 })];
+
+  const dashboard = buildDashboardData(transactions, budgets, FIXED_NOW);
+
+  assert.equal(
+    dashboard.recentTransactions.some((transaction) => transaction.id === 'rent-template'),
+    false,
+  );
+  assert.deepEqual(
+    dashboard.upcomingRecurringTransactions.map((transaction) => transaction.id),
+    ['rent-template'],
+  );
+});

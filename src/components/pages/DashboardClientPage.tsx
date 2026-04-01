@@ -51,6 +51,7 @@ const EMPTY_DASHBOARD_DATA: DashboardData = {
     maxMonth: EMPTY_MONTH_KEY,
   },
   currentMonthTransactions: [],
+  upcomingRecurringTransactions: [],
   recentTransactions: [],
   insights: [],
   berdeMemory: {
@@ -180,9 +181,7 @@ export default function DashboardClientPage() {
       date: point.date,
     }));
 
-  const upcoming = data.recentTransactions.filter((transaction) =>
-    Boolean(transaction.recurring)
-  );
+  const upcoming = data.upcomingRecurringTransactions;
 
   const latestTransactionName = (() => {
     const transaction = data.recentTransactions[0];

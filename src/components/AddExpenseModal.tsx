@@ -7,15 +7,16 @@ import { ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import {
   CATEGORIES,
   INCOME_CATEGORIES,
-  PAYMENT_METHODS,
   type TransactionInput,
   type TransactionType,
+  type PaymentMethod,
   type IncomeCategory,
   type Category,
-  type PaymentMethod,
+  type AccountType,
   type RecurringFrequency,
   type TransactionSplitInput,
 } from '@/lib/types';
+import { resolvePaymentMethodForAccount } from '@/lib/accounts-utils';
 import { createTransaction, getAccounts } from '@/lib/local-store';
 
 interface AddExpenseModalProps {
@@ -38,7 +39,8 @@ interface SplitDraft {
 interface AccountOption {
   id: string;
   name: string;
-  type: string;
+  type: AccountType;
+  expensePaymentMethod?: PaymentMethod;
 }
 
 function parseTags(input: string): string[] {
@@ -127,7 +129,6 @@ export default function AddExpenseModal({
   const [subCategory, setSubCategory] = useState('');
   const [description, setDescription] = useState('');
   const [merchant, setMerchant] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [attachmentBase64, setAttachmentBase64] = useState<string | undefined>(undefined);
@@ -158,6 +159,14 @@ export default function AddExpenseModal({
   const showMoreOptions = showOptional;
   const isRecurring = isIncomeEntry ? incomeRecurringMonthly : recurringEnabled;
   const requiresAccountSelection = accounts.length > 0;
+  const selectedAccount = useMemo(
+    () => accounts.find((account) => account.id === selectedAccountId) ?? null,
+    [accounts, selectedAccountId],
+  );
+  const resolvedPaymentMethod = useMemo(
+    () => resolvePaymentMethodForAccount(selectedAccount, isIncomeEntry ? 'income' : 'expense'),
+    [isIncomeEntry, selectedAccount],
+  );
   const modalMaxHeight = viewportHeight ? Math.max(360, viewportHeight - 12) : undefined;
   const fieldBaseClass = 'rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 text-base text-zinc-700 dark:text-zinc-300 placeholder-zinc-300 dark:placeholder-zinc-600 outline-none focus:border-[#1D9E75] sm:px-2.5 sm:text-xs';
   const singleLineFieldClass = `h-11 sm:h-8 ${fieldBaseClass}`;
@@ -303,7 +312,6 @@ export default function AddExpenseModal({
     setSubCategory('');
     setDescription('');
     setMerchant('');
-    setPaymentMethod('Bank Transfer');
     setNotes('');
     setTagsInput('');
     setAttachmentBase64(undefined);
@@ -487,7 +495,7 @@ export default function AddExpenseModal({
       merchant: merchant.trim() || undefined,
       description: descriptionValue,
       date: normalizedDate,
-      paymentMethod: paymentMethod,
+      paymentMethod: resolvedPaymentMethod,
       notes: notes.trim() || undefined,
       tags: isIncomeEntry ? [] : tags,
       attachmentBase64: isIncomeEntry ? undefined : attachmentBase64,
@@ -659,6 +667,9 @@ export default function AddExpenseModal({
                   {isIncomeEntry
                     ? 'Income will increase this account balance.'
                     : 'Expense will reduce this account balance.'}
+                </p>
+                <p className="text-[10px] text-zinc-400">
+                  Payment method will follow this account profile: <span className="font-medium text-zinc-500 dark:text-zinc-300">{resolvedPaymentMethod}</span>
                 </p>
               </div>
             )}
@@ -890,13 +901,13 @@ export default function AddExpenseModal({
                 <div className="px-3.5 pb-3 flex flex-col gap-2.5 border-t border-zinc-100 dark:border-zinc-700 pt-2.5 animate-fade-in">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-zinc-400">Payment method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className={singleLineFieldClass}
-                  >
-                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <div className={`${singleLineFieldClass} flex items-center justify-between`}>
+                    <span>{resolvedPaymentMethod}</span>
+                    <span className="text-[10px] text-zinc-400">Auto</span>
+                  </div>
+                  <p className="text-[10px] text-zinc-400">
+                    Moneda uses the selected account profile to keep the balance source and payment method aligned.
+                  </p>
                 </div>
 
                 <div className="flex flex-col gap-1">
