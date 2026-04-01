@@ -250,6 +250,33 @@ export interface BudgetThresholdAlert {
   message: string;
 }
 
+export type DashboardTrendDirection = 'up' | 'down' | 'flat' | 'none';
+
+export type BerdePreviousMonthStatus = 'strong' | 'steady' | 'overspent' | 'none';
+
+export interface BerdeMemory {
+  hasHistory: boolean;
+  isNewMonthWindow: boolean;
+  trackedMonthCount: number;
+  lifetimeTransactionCount: number;
+  previousMonth: string | null;
+  previousMonthSpent: number;
+  previousMonthSaved: number;
+  previousMonthSavingsRate: number;
+  previousMonthTransactionCount: number;
+  previousMonthStatus: BerdePreviousMonthStatus;
+  rolling30DaySpend: number;
+  rolling90DayAverageSpend: number;
+  spendTrend: DashboardTrendDirection;
+  savingsTrend: DashboardTrendDirection;
+  savingsStreakMonths: number;
+}
+
+export interface DashboardCalendarRange {
+  minMonth: string;
+  maxMonth: string;
+}
+
 export interface DashboardData {
   totalSpentThisMonth: number;
   totalSpentLastMonth: number;
@@ -264,9 +291,12 @@ export interface DashboardData {
   weeklySpending: { week: string; amount: number }[];
   dailySpending: { day: string; amount: number }[];
   calendarSpending: { date: string; amount: number }[];
+  calendarTransactions: Transaction[];
+  calendarRange: DashboardCalendarRange;
   currentMonthTransactions: Transaction[];
   recentTransactions: Transaction[];
   insights: Insight[];
+  berdeMemory: BerdeMemory;
 }
 
 export interface MonthlySavings {

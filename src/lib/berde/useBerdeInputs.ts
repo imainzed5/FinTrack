@@ -48,19 +48,21 @@ export function useBerdeInputs(
     const budgetUsedPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
     const savingsRate = data.savingsRate;
+    const hasCurrentMonthActivity = transactions.length > 0 || totalSpent > 0;
 
     const savingsGoalHit =
       sessionSavingsGoalHit ||
-      savingsRate >= 20 ||
-      data.insights.some(
+      (hasCurrentMonthActivity &&
+        data.insights.some(
         (insight) => insight.insightType === 'saving' && /goal|target/i.test(insight.message),
-      );
+        ));
 
     const savingsMilestoneHit =
       sessionSavingsMilestoneHit ||
-      data.insights.some(
+      (hasCurrentMonthActivity &&
+        data.insights.some(
         (insight) => insight.insightType === 'saving' && /milestone|streak|record/i.test(insight.message),
-      );
+        ));
 
     const categoryOverspent = data.budgetAlerts.some(
       (alert) => alert.threshold === 100 || alert.percentage >= 100,
@@ -103,7 +105,7 @@ export function useBerdeInputs(
 
     const sameMerchantCount = Math.max(0, ...Object.values(merchantCounts));
     const impulseLogged = transactions[0]?.category === 'Miscellaneous';
-    const isFirstTransaction = transactions.length === 1;
+    const isFirstTransaction = data.berdeMemory.lifetimeTransactionCount === 1;
 
     return {
       savingsRate,
@@ -119,6 +121,12 @@ export function useBerdeInputs(
       foodSpendPercent,
       sameMerchantCount,
       impulseLogged,
+      hasHistory: data.berdeMemory.hasHistory,
+      isNewMonthWindow: data.berdeMemory.isNewMonthWindow,
+      previousMonthStatus: data.berdeMemory.previousMonthStatus,
+      spendTrend: data.berdeMemory.spendTrend,
+      savingsTrend: data.berdeMemory.savingsTrend,
+      savingsStreakMonths: data.berdeMemory.savingsStreakMonths,
     };
   }, [data, transactions, daysUntilPayday, sessionSavingsGoalHit, sessionSavingsMilestoneHit]);
 }

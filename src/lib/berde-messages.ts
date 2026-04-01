@@ -1,5 +1,10 @@
-import type { BerdeState } from '@/lib/berde/berde.types';
-import type { BudgetStatus, Insight, Transaction } from '@/lib/types';
+import type { BerdeContext, BerdeState } from '@/lib/berde/berde.types';
+import type {
+  BerdeMemory,
+  BudgetStatus,
+  Insight,
+  Transaction,
+} from '@/lib/types';
 import { getTodayDateKeyInManila } from '@/lib/utils';
 
 export type BerdeMood = 'good' | 'sarcastic' | 'hype' | 'warning' | 'dry';
@@ -49,6 +54,19 @@ interface BerdeSignalData {
   dueDate: string;
   dueAmount: number;
   dueCategory: string;
+  currentMonthLabel: string;
+  hasHistory: boolean;
+  isNewMonthWindow: boolean;
+  previousMonthLabel: string;
+  previousMonthSpent: number;
+  previousMonthSaved: number;
+  previousMonthSavingsRate: number;
+  previousMonthStatus: BerdeMemory['previousMonthStatus'];
+  spendTrend: BerdeMemory['spendTrend'];
+  savingsTrend: BerdeMemory['savingsTrend'];
+  savingsStreakMonths: number;
+  rolling30DaySpend: number;
+  rolling90DayAverageSpend: number;
 }
 
 const pools = {
@@ -56,44 +74,29 @@ const pools = {
     mood: 'hype' as BerdeMood,
     messages: [
       {
-        message: "Payday energy. Let's not blow it all at once.",
-        boldPhrase: 'Berde believes in you. Mostly.',
+        message: 'Fresh month energy is here.',
+        boldPhrase: 'Set the pace before the month sets it for you.',
         dataLine: 'New month, fresh budget',
       },
       {
-        message: 'First transaction of the month logged.',
-        boldPhrase: 'The journey of a thousand pesos begins.',
-        dataLine: 'Transaction recorded',
+        message: 'The month is still listening.',
+        boldPhrase: 'Good habits are cheapest to start early.',
+        dataLine: 'Early-month reset window',
       },
       {
-        message: 'Savings milestone hit.',
-        boldPhrase: "I don't say this often but - well done.",
-        dataLine: 'P{saved} saved this month',
+        message: 'Strong start energy.',
+        boldPhrase: 'Calm choices now make the rest easier.',
+        dataLine: 'Budget is still wide open',
       },
       {
-        message: "You're on a roll this month.",
-        boldPhrase: "Whatever you're doing, keep doing it.",
-        dataLine: '{rate}% savings rate',
+        message: 'Momentum is available.',
+        boldPhrase: 'Use it before the month gets noisy.',
+        dataLine: 'Good time to set the tone',
       },
       {
-        message: 'Good financial energy today.',
-        boldPhrase: 'Berde is cautiously excited.',
-        dataLine: 'Spending pace: healthy',
-      },
-      {
-        message: "Sweldo day. Let's make it count this time.",
-        boldPhrase: 'Berde is cautiously optimistic about your choices.',
-        dataLine: 'Fresh budget loaded',
-      },
-      {
-        message: "You logged your first transaction. That's the hardest part.",
-        boldPhrase: 'Most people never start. You did.',
-        dataLine: 'Transaction recorded',
-      },
-      {
-        message: 'A savings milestone. For real this time.',
-        boldPhrase: "Berde is genuinely proud. Don't make it weird.",
-        dataLine: '₱{saved} saved this month',
+        message: 'Fresh runway, fewer excuses.',
+        boldPhrase: 'Berde would prefer we keep it that way.',
+        dataLine: 'Month still in setup mode',
       },
     ],
   },
@@ -232,7 +235,7 @@ const pools = {
       },
     ],
   },
-  savings_good: {
+  savings_goal_hit: {
     mood: 'good' as BerdeMood,
     messages: [
       {
@@ -277,6 +280,51 @@ const pools = {
       },
     ],
   },
+  savings_milestone_hit: {
+    mood: 'hype' as BerdeMood,
+    messages: [
+      {
+        message: 'Savings milestone hit.',
+        boldPhrase: "I don't say this often but - well done.",
+        dataLine: '₱{saved} saved this month',
+      },
+      {
+        message: 'A real milestone, not fake progress.',
+        boldPhrase: 'Berde noticed. That means it counts.',
+        dataLine: '{rate}% savings rate this month',
+      },
+      {
+        message: 'You unlocked a real financial win.',
+        boldPhrase: 'Keep that energy disciplined.',
+        dataLine: '₱{saved} left in the budget',
+      },
+    ],
+  },
+  proud_general: {
+    mood: 'good' as BerdeMood,
+    messages: [
+      {
+        message: 'Budget control looks steady.',
+        boldPhrase: 'Berde approves of the lack of chaos.',
+        dataLine: '₱{spent} spent - ₱{remaining} remaining',
+      },
+      {
+        message: 'Things are under control this month.',
+        boldPhrase: 'Quietly good is still good.',
+        dataLine: '{pctUsed}% of budget used',
+      },
+      {
+        message: 'Low drama. Solid pace.',
+        boldPhrase: 'Keep this version of the month alive.',
+        dataLine: 'Spending pace looks stable',
+      },
+      {
+        message: 'The numbers are behaving.',
+        boldPhrase: 'Berde would like this to continue.',
+        dataLine: 'Budget remains under control',
+      },
+    ],
+  },
   savings_bad: {
     mood: 'dry' as BerdeMood,
     messages: [
@@ -304,6 +352,96 @@ const pools = {
         message: 'Spending exceeded budget.',
         boldPhrase: 'Berde has entered concerned mode.',
         dataLine: 'P{spent} spent vs P{limit} planned',
+      },
+    ],
+  },
+  motivational_general: {
+    mood: 'good' as BerdeMood,
+    messages: [
+      {
+        message: 'Fresh month, steady hands.',
+        boldPhrase: 'You do not need perfect. You need consistent.',
+        dataLine: 'Budget pace is still recoverable',
+      },
+      {
+        message: 'Small corrections now beat stress later.',
+        boldPhrase: 'Berde is aiming for calm, not chaos.',
+        dataLine: 'Still early enough to reset the pace',
+      },
+      {
+        message: 'This month can still go differently.',
+        boldPhrase: 'Start slower. Let the numbers catch up.',
+        dataLine: 'Fresh runway - use it well',
+      },
+    ],
+  },
+  carryover_proud: {
+    mood: 'good' as BerdeMood,
+    messages: [
+      {
+        message: '{currentMonthLabel} is fresh, but {previousMonthLabel} ended strong.',
+        boldPhrase: 'Carry that discipline forward.',
+        dataLine: '{previousMonthLabel}: {prevRate}% savings rate',
+      },
+      {
+        message: 'You closed {previousMonthLabel} under control.',
+        boldPhrase: 'No need to start from scratch. Just continue.',
+        dataLine: 'Saved ₱{prevSaved} last month',
+      },
+      {
+        message: 'Last month went better than usual.',
+        boldPhrase: 'This month does not need to forget that.',
+        dataLine: '{streakMonths}-month savings streak',
+      },
+    ],
+  },
+  carryover_reset: {
+    mood: 'hype' as BerdeMood,
+    messages: [
+      {
+        message: '{currentMonthLabel} is a reset window after a hot {previousMonthLabel}.',
+        boldPhrase: 'Reset early and this one stays salvageable.',
+        dataLine: '{previousMonthLabel} spend: ₱{prevSpent}',
+      },
+      {
+        message: 'You do not need to repeat {previousMonthLabel}.',
+        boldPhrase: 'New month, cleaner pace.',
+        dataLine: '30-day spend is still above your usual pace',
+      },
+      {
+        message: 'Clean slate. Useful memory.',
+        boldPhrase: 'Last month got messy. This one can cool off.',
+        dataLine: '{previousMonthLabel}: {prevRate}% savings rate',
+      },
+    ],
+  },
+  trend_improving: {
+    mood: 'good' as BerdeMood,
+    messages: [
+      {
+        message: 'Your last 30 days are lighter than your 90-day pace.',
+        boldPhrase: 'That is actual improvement, not wishful thinking.',
+        dataLine: '30-day spend: ₱{rolling30} vs 90-day avg ₱{rolling90Avg}',
+      },
+      {
+        message: 'Recent spending is cooling off.',
+        boldPhrase: 'Keep this version of you around.',
+        dataLine: '30-day spend is below your 90-day average',
+      },
+    ],
+  },
+  trend_slipping: {
+    mood: 'warning' as BerdeMood,
+    messages: [
+      {
+        message: 'Your recent 30-day spend is above your usual 90-day pace.',
+        boldPhrase: 'Worth catching early.',
+        dataLine: '30-day spend: ₱{rolling30} vs 90-day avg ₱{rolling90Avg}',
+      },
+      {
+        message: 'Spending is drifting upward again.',
+        boldPhrase: 'Nothing broken yet. Good time to tighten up.',
+        dataLine: 'Recent pace is running hotter than your longer trend',
       },
     ],
   },
@@ -457,6 +595,66 @@ const pools = {
       },
     ],
   },
+  first_transaction_logged: {
+    mood: 'hype' as BerdeMood,
+    messages: [
+      {
+        message: 'You logged your first transaction.',
+        boldPhrase: 'Most people never get this far. You did.',
+        dataLine: 'Transaction recorded',
+      },
+      {
+        message: 'First transaction of the month logged.',
+        boldPhrase: 'Now the month has a paper trail.',
+        dataLine: 'Tracking is officially underway',
+      },
+      {
+        message: 'The first receipt is in.',
+        boldPhrase: 'That is how awareness starts.',
+        dataLine: 'Tracking momentum started today',
+      },
+    ],
+  },
+  month_start_empty: {
+    mood: 'dry' as BerdeMood,
+    messages: [
+      {
+        message: '{currentMonthLabel} is still quiet.',
+        boldPhrase: 'That is a clean start, not a finished story.',
+        dataLine: 'No transactions recorded this month yet',
+      },
+      {
+        message: 'Nothing recorded in {currentMonthLabel} yet.',
+        boldPhrase: 'Berde is waiting for real signals before talking big.',
+        dataLine: 'Still studying this month',
+      },
+      {
+        message: 'No spend logged in {currentMonthLabel} yet.',
+        boldPhrase: 'Good. Let the next move be intentional.',
+        dataLine: 'Fresh month, no spend yet',
+      },
+    ],
+  },
+  payday_today: {
+    mood: 'hype' as BerdeMood,
+    messages: [
+      {
+        message: 'Payday landed.',
+        boldPhrase: 'Track first. Spend second.',
+        dataLine: 'Fresh budget loaded',
+      },
+      {
+        message: 'Today hits different. It is payday.',
+        boldPhrase: 'Let us not waste the advantage.',
+        dataLine: 'Budget runway just got longer',
+      },
+      {
+        message: 'Payday energy is on the table.',
+        boldPhrase: 'Berde prefers discipline over excitement here.',
+        dataLine: 'Fresh cash flow day',
+      },
+    ],
+  },
 } satisfies Record<string, BerdePool>;
 
 const subtitlePools: Record<BerdeMood, string[]> = {
@@ -567,6 +765,62 @@ function parseDate(value: string): Date {
   return parsed;
 }
 
+function formatMonthLabel(month: string | null): string {
+  if (!month) {
+    return 'last month';
+  }
+
+  const parsed = parseDate(`${month}-01T00:00:00.000Z`);
+  if (parsed.getTime() === 0) {
+    return month;
+  }
+
+  return parsed.toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
+function formatCurrentMonthLabel(date: Date): string {
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
+function deriveFallbackTrigger(
+  state: BerdeState,
+  data: {
+    transactions: Transaction[];
+    berdeMemory: BerdeMemory;
+  },
+): BerdeContext['trigger'] {
+  if (data.transactions.length === 0) {
+    if (data.berdeMemory.hasHistory && data.berdeMemory.previousMonthStatus === 'strong') {
+      return 'month_start_carryover';
+    }
+    if (data.berdeMemory.hasHistory && data.berdeMemory.previousMonthStatus === 'overspent') {
+      return 'month_start_reset';
+    }
+    return 'month_start_empty';
+  }
+
+  switch (state) {
+    case 'celebratory':
+      return 'savings_goal';
+    case 'excited':
+      return 'savings_milestone';
+    case 'hype':
+      return 'first_transaction_logged';
+    case 'worried':
+      return 'budget_high_usage';
+    case 'motivational':
+      return 'budget_recoverable';
+    case 'proud':
+      return data.berdeMemory.hasHistory ? 'carryover_momentum' : 'budget_under_control';
+    case 'sarcastic':
+      return 'repeat_merchant';
+    case 'helper':
+    case 'neutral':
+    default:
+      return 'no_strong_signal';
+  }
+}
+
 function resolveMoodFromInsight(insight: Insight): BerdeMood {
   if (insight.severity === 'critical') {
     return 'warning';
@@ -583,15 +837,16 @@ function resolveMoodFromInsight(insight: Insight): BerdeMood {
 function buildSignalData(data: {
   budgetStatuses: BudgetStatus[];
   transactions: Transaction[];
+  berdeMemory: BerdeMemory;
 }): BerdeSignalData {
-  const { budgetStatuses, transactions } = data;
+  const { budgetStatuses, transactions, berdeMemory } = data;
   const now = new Date();
   const todayKey = getTodayDateKeyInManila();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysElapsed = Math.max(1, now.getDate());
   const daysLeft = Math.max(0, daysInMonth - daysElapsed);
 
-  const expenseTransactions = transactions.filter((transaction) => transaction.type !== 'income');
+  const expenseTransactions = transactions.filter((transaction) => transaction.type === 'expense');
   const overall =
     budgetStatuses.find((budget) => budget.category === 'Overall' && !budget.subCategory) ??
     budgetStatuses.find((budget) => budget.category === 'Overall');
@@ -704,6 +959,19 @@ function buildSignalData(data: {
     dueDate: todayKey,
     dueAmount: dueTodayBill?.amount ?? 0,
     dueCategory: dueTodayBill?.category ?? 'Miscellaneous',
+    currentMonthLabel: formatCurrentMonthLabel(now),
+    hasHistory: berdeMemory.hasHistory,
+    isNewMonthWindow: berdeMemory.isNewMonthWindow,
+    previousMonthLabel: formatMonthLabel(berdeMemory.previousMonth),
+    previousMonthSpent: berdeMemory.previousMonthSpent,
+    previousMonthSaved: berdeMemory.previousMonthSaved,
+    previousMonthSavingsRate: berdeMemory.previousMonthSavingsRate,
+    previousMonthStatus: berdeMemory.previousMonthStatus,
+    spendTrend: berdeMemory.spendTrend,
+    savingsTrend: berdeMemory.savingsTrend,
+    savingsStreakMonths: berdeMemory.savingsStreakMonths,
+    rolling30DaySpend: berdeMemory.rolling30DaySpend,
+    rolling90DayAverageSpend: berdeMemory.rolling90DayAverageSpend,
   };
 }
 
@@ -730,6 +998,14 @@ function toTemplateData(signalData: BerdeSignalData): Record<string, unknown> {
     billName: signalData.billName,
     date: signalData.dueDate,
     days: signalData.highSpendStreakDays,
+    currentMonthLabel: signalData.currentMonthLabel,
+    previousMonthLabel: signalData.previousMonthLabel,
+    prevSpent: signalData.previousMonthSpent,
+    prevSaved: signalData.previousMonthSaved,
+    prevRate: signalData.previousMonthSavingsRate,
+    streakMonths: signalData.savingsStreakMonths,
+    rolling30: signalData.rolling30DaySpend,
+    rolling90Avg: signalData.rolling90DayAverageSpend,
   };
 }
 
@@ -750,32 +1026,94 @@ function toEngineInsight(insight: Insight): BerdeInsight {
   };
 }
 
-function getPrimaryInsight(mood: BerdeMood, signalData: BerdeSignalData): BerdeInsight {
+function getPrimaryInsight(context: BerdeContext, signalData: BerdeSignalData): BerdeInsight {
   const data = toTemplateData(signalData);
 
-  switch (mood) {
+  switch (context.trigger) {
+    case 'savings_milestone':
+      return pickRandom(pools.savings_milestone_hit, data, 'savings_milestone_hit');
+    case 'savings_goal':
+      return pickRandom(pools.savings_goal_hit, data, 'savings_goal_hit');
+    case 'first_transaction_logged':
+      return pickRandom(pools.first_transaction_logged, data, 'first_transaction_logged');
+    case 'payday_today':
+      return pickRandom(pools.payday_today, data, 'payday_today');
+    case 'month_start_carryover':
+    case 'carryover_momentum':
+      return pickRandom(pools.carryover_proud, data, 'carryover_proud');
+    case 'month_start_reset':
+    case 'fresh_month_recovery':
+      return pickRandom(pools.carryover_reset, data, 'carryover_reset');
+    case 'month_start_empty':
+      return pickRandom(pools.month_start_empty, data, 'month_start_empty');
+    case 'budget_under_control':
+    case 'savings_rate_high':
+    case 'low_spend_streak':
+      return pickRandom(pools.proud_general, data, 'proud_general');
+    case 'budget_recoverable':
+      return pickRandom(pools.motivational_general, data, 'motivational_general');
+    case 'budget_high_usage':
+    case 'category_overspent':
+    case 'high_spend_streak':
+    case 'payday_far':
+      return pickRandom(pools.warning_general, data, 'warning_general');
+    case 'food_dominant':
+    case 'repeat_merchant':
+    case 'impulse_purchase':
+      return pickRandom(pools.sarcastic_general, data, 'sarcastic_general');
+    case 'no_strong_signal':
+      return pickRandom(pools.neutral_general, data, 'neutral_general');
+    default:
+      break;
+  }
+
+  switch (context.state) {
+    case 'celebratory':
+    case 'excited':
     case 'hype':
       return pickRandom(pools.hype_general, data, 'hype_general');
-    case 'warning':
+    case 'worried':
       return pickRandom(pools.warning_general, data, 'warning_general');
-    case 'good':
-      return pickRandom(pools.savings_good, data, 'savings_good');
+    case 'proud':
+      return pickRandom(pools.proud_general, data, 'proud_general');
+    case 'motivational':
+      return pickRandom(pools.motivational_general, data, 'motivational_general');
     case 'sarcastic':
       return pickRandom(pools.sarcastic_general, data, 'sarcastic_general');
-    case 'dry':
+    case 'helper':
+    case 'neutral':
     default:
       return pickRandom(pools.neutral_general, data, 'neutral_general');
   }
 }
 
 function getSupportingInsights(input: {
+  context: BerdeContext;
   signalData: BerdeSignalData;
   insights: Insight[];
   primaryType: string;
 }): BerdeInsight[] {
-  const { signalData, insights, primaryType } = input;
+  const { context, signalData, insights, primaryType } = input;
   const data = toTemplateData(signalData);
   const supporting: BerdeInsight[] = [];
+
+  if (signalData.hasHistory && signalData.isNewMonthWindow) {
+    if (signalData.previousMonthStatus === 'strong' || signalData.savingsStreakMonths >= 2) {
+      supporting.push(pickRandom(pools.carryover_proud, data, 'carryover_proud'));
+    }
+
+    if (signalData.previousMonthStatus === 'overspent') {
+      supporting.push(pickRandom(pools.carryover_reset, data, 'carryover_reset'));
+    }
+  }
+
+  if (signalData.spendTrend === 'down') {
+    supporting.push(pickRandom(pools.trend_improving, data, 'trend_improving'));
+  }
+
+  if (signalData.spendTrend === 'up') {
+    supporting.push(pickRandom(pools.trend_slipping, data, 'trend_slipping'));
+  }
 
   if (signalData.limit > 0) {
     supporting.push(
@@ -817,14 +1155,19 @@ function getSupportingInsights(input: {
     );
   }
 
-  if (signalData.limit > 0) {
+  if (signalData.over > 0) {
     supporting.push(
-      pickRandom(
-        signalData.over > 0 ? pools.savings_bad : pools.savings_good,
-        data,
-        signalData.over > 0 ? 'savings_bad' : 'savings_good',
-      ),
+      pickRandom(pools.savings_bad, data, 'savings_bad'),
     );
+  }
+
+  if (
+    context.trigger !== 'month_start_empty' &&
+    signalData.transactionCount > 0 &&
+    signalData.rate >= 40 &&
+    signalData.over === 0
+  ) {
+    supporting.push(pickRandom(pools.proud_general, data, 'proud_general'));
   }
 
   supporting.push(...insights.slice(0, 2).map(toEngineInsight));
@@ -844,10 +1187,25 @@ function getSupportingInsights(input: {
 }
 
 function hasEnoughSignalForBerdeThoughts(input: {
+  context: BerdeContext;
   signalData: BerdeSignalData;
   insights: Insight[];
 }): boolean {
-  const { signalData, insights } = input;
+  const { context, signalData, insights } = input;
+
+  if (
+    context.trigger === 'month_start_empty' ||
+    context.trigger === 'first_transaction_logged' ||
+    context.trigger === 'savings_goal' ||
+    context.trigger === 'savings_milestone' ||
+    context.trigger === 'payday_today'
+  ) {
+    return true;
+  }
+
+  if (signalData.hasHistory && signalData.isNewMonthWindow) {
+    return true;
+  }
 
   if (signalData.transactionCount >= 3) {
     return true;
@@ -895,31 +1253,34 @@ export function getShortBerdeMessageForState(
 ): string {
   const pool =
     state === 'proud'
-      ? pools.savings_good.messages
+      ? pools.proud_general.messages
       : pools.neutral_general.messages;
   const index = getStableIndex(`${state}:${seed}`, pool.length);
   return pool[index]?.message ?? 'Berde is keeping an eye on things.';
 }
 
-export function getBerdeInsightsForMood(
-  mood: BerdeMood,
+export function getBerdeInsightsForContext(
+  context: BerdeContext,
   data: {
     budgetStatuses: BudgetStatus[];
     transactions: Transaction[];
     insights: Insight[];
+    berdeMemory: BerdeMemory;
   },
 ): BerdeInsight[] {
   const signalData = buildSignalData({
     budgetStatuses: data.budgetStatuses,
     transactions: data.transactions,
+    berdeMemory: data.berdeMemory,
   });
 
-  if (!hasEnoughSignalForBerdeThoughts({ signalData, insights: data.insights })) {
+  if (!hasEnoughSignalForBerdeThoughts({ context, signalData, insights: data.insights })) {
     return [];
   }
 
-  const primary = getPrimaryInsight(mood, signalData);
+  const primary = getPrimaryInsight(context, signalData);
   const supporting = getSupportingInsights({
+    context,
     signalData,
     insights: data.insights,
     primaryType: primary.type,
@@ -939,4 +1300,24 @@ export function getBerdeInsightsForMood(
       type: 'baseline',
     },
   ];
+}
+
+export function getBerdeInsightsForState(
+  state: BerdeState,
+  data: {
+    budgetStatuses: BudgetStatus[];
+    transactions: Transaction[];
+    insights: Insight[];
+    berdeMemory: BerdeMemory;
+  },
+): BerdeInsight[] {
+  return getBerdeInsightsForContext(
+    {
+      state,
+      trigger: deriveFallbackTrigger(state, data),
+      quote: '',
+      triggerReason: 'Fallback dashboard trigger from stale client module',
+    },
+    data,
+  );
 }
