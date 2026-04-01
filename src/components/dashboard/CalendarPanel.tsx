@@ -32,7 +32,8 @@ interface CalendarPanelProps {
   isOpen: boolean;
   onClose: () => void;
   calendarSpending: DashboardData['calendarSpending'];
-  currentMonthTransactions: Transaction[];
+  calendarTransactions: DashboardData['calendarTransactions'];
+  calendarRange: DashboardData['calendarRange'];
 }
 
 type CategoryTone = {
@@ -107,6 +108,11 @@ function toDateKey(value: string): string {
 function parseDateSafely(value: string): Date | null {
   const parsed = parseISO(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseMonthKeySafely(value: string, fallback: Date): Date {
+  const parsed = parseISO(`${value}-01T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
 
 function getCategoryTone(category: Transaction['category']): CategoryTone {
@@ -595,7 +601,8 @@ export default function CalendarPanel({
   isOpen,
   onClose,
   calendarSpending,
-  currentMonthTransactions,
+  calendarTransactions,
+  calendarRange,
 }: CalendarPanelProps) {
   const router = useRouter();
   const panelRef = useRef<HTMLElement>(null);
@@ -658,8 +665,8 @@ export default function CalendarPanel({
   const selectedMonth = format(viewedMonth, 'yyyy-MM');
   const currentMonthKey = format(now, 'yyyy-MM');
 
-  const maxMonth = startOfMonth(now);
-  const minMonth = startOfMonth(addMonths(maxMonth, -12));
+  const maxMonth = startOfMonth(parseMonthKeySafely(calendarRange.maxMonth, now));
+  const minMonth = startOfMonth(parseMonthKeySafely(calendarRange.minMonth, now));
   const viewedMonthStart = startOfMonth(viewedMonth);
 
   const canGoPrev = viewedMonthStart.getTime() > minMonth.getTime();
@@ -723,10 +730,7 @@ export default function CalendarPanel({
   const currentNoSpendStreak = runningNoSpendStreak;
 
   const selectedDayTransactions = selectedDay
-    ? currentMonthTransactions.filter(
-        (transaction) =>
-          transaction.type !== 'income' && toDateKey(transaction.date) === selectedDay
-      )
+    ? calendarTransactions.filter((transaction) => toDateKey(transaction.date) === selectedDay)
     : [];
 
   const selectedDayTotal = selectedDayTransactions.reduce(

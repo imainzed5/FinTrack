@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.25.0
+### Current version: v0.26.0
 
 
 ---
 
 ## Version Roadmap
+v0.26.0 — 2026-04-02
+  - feat(dashboard): Add shared dashboard history in `src/lib/insights-engine.ts` and `src/lib/types.ts` so Berde and the calendar panel can use previous-month continuity plus multi-month calendar data without breaking current-month budget math.
+  - feat(calendar): Update `src/components/dashboard/CalendarPanel.tsx` and `src/components/pages/DashboardClientPage.tsx` so the dashboard calendar can browse actual past-month spend data and selected-day transactions instead of reusing only current-month data.
+  - feat(berde): Make dashboard Berde messaging trigger-aware in `src/lib/berde/berde.logic.ts`, `src/lib/berde/useBerdeInputs.ts`, `src/lib/berde/berde.types.ts`, and `src/lib/berde-messages.ts`, preventing false claims like “first transaction logged” on empty month-start dashboards while adding carry-over month context.
+  - test(dashboard): Add regression coverage in `src/lib/dashboard-history.test.ts` and `src/lib/berde-dashboard.test.ts` for past-month calendar history, month-start Berde continuity, and false-positive message prevention.
+  - verification: `npm test` and `npm run lint` passed after the dashboard history and smarter Berde messaging update.
+
 v0.25.0 — 2026-04-01
   - feat(accounts): Add account-structure insights with a dedicated drawer in `src/components/accounts/AccountsClientPage.tsx`, backed by the new `src/lib/accounts-insights.ts` module and coverage in `src/lib/accounts-insights.test.ts`.
   - feat(transactions): Add desktop transaction preview support in `src/components/TransactionList.tsx`, `src/app/transactions/page.tsx`, and `src/components/pages/TransactionsClientPage.tsx` so previews are available beyond the mobile sheet flow.

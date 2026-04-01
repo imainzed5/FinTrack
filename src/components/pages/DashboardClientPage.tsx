@@ -19,7 +19,7 @@ import UpcomingCard from '@/components/dashboard/UpcomingCard';
 import FloatingAddButton from '@/components/FloatingAddButton';
 import { resolveBerdeState } from '@/lib/berde/berde.logic';
 import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
-import { getBerdeInsightsForMood, mapStateToMood } from '../../lib/berde-messages';
+import { getBerdeInsightsForContext } from '../../lib/berde-messages';
 import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { getDashboardData, getSavingsGoalsSummary } from '@/lib/local-store';
 import { getTodayDateKeyInManila } from '@/lib/utils';
@@ -28,6 +28,8 @@ import { DashboardSkeleton } from '@/components/SkeletonLoaders';
 import type { DashboardData, SavingsGoalsSummary } from '@/lib/types';
 
 type DailySpendingPoint = DashboardData['dailySpending'][number] & { date?: string };
+
+const EMPTY_MONTH_KEY = format(new Date(), 'yyyy-MM');
 
 const EMPTY_DASHBOARD_DATA: DashboardData = {
   totalSpentThisMonth: 0,
@@ -43,9 +45,31 @@ const EMPTY_DASHBOARD_DATA: DashboardData = {
   weeklySpending: [],
   dailySpending: [],
   calendarSpending: [],
+  calendarTransactions: [],
+  calendarRange: {
+    minMonth: EMPTY_MONTH_KEY,
+    maxMonth: EMPTY_MONTH_KEY,
+  },
   currentMonthTransactions: [],
   recentTransactions: [],
   insights: [],
+  berdeMemory: {
+    hasHistory: false,
+    isNewMonthWindow: false,
+    trackedMonthCount: 0,
+    lifetimeTransactionCount: 0,
+    previousMonth: null,
+    previousMonthSpent: 0,
+    previousMonthSaved: 0,
+    previousMonthSavingsRate: 0,
+    previousMonthTransactionCount: 0,
+    previousMonthStatus: 'none',
+    rolling30DaySpend: 0,
+    rolling90DayAverageSpend: 0,
+    spendTrend: 'none',
+    savingsTrend: 'none',
+    savingsStreakMonths: 0,
+  },
 };
 
 function deriveFirstName(value: string): string {
@@ -193,13 +217,13 @@ export default function DashboardClientPage() {
       : ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills'];
   }, [data.recentTransactions]);
 
-  const berdeInputs = useBerdeInputs(data, data.recentTransactions, daysUntilPayday);
+  const berdeInputs = useBerdeInputs(data, data.currentMonthTransactions, daysUntilPayday);
   const berdeContext = resolveBerdeState(berdeInputs, userId);
-  const mood = mapStateToMood(berdeContext.state);
-  const berdeInsights = getBerdeInsightsForMood(mood, {
+  const berdeInsights = getBerdeInsightsForContext(berdeContext, {
     budgetStatuses: data.budgetStatuses,
-    transactions: data.recentTransactions,
+    transactions: data.currentMonthTransactions,
     insights: data.insights,
+    berdeMemory: data.berdeMemory,
   });
   const hasBerdeThoughts = berdeInsights.length > 0;
   const primaryBerdeInsight = berdeInsights[0] ?? {
@@ -440,7 +464,8 @@ export default function DashboardClientPage() {
             isOpen={calendarOpen}
             onClose={() => setCalendarOpen(false)}
             calendarSpending={data.calendarSpending}
-            currentMonthTransactions={data.currentMonthTransactions}
+            calendarTransactions={data.calendarTransactions}
+            calendarRange={data.calendarRange}
           />
         </div>
       </div>

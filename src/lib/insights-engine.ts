@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   startOfMonth,
   endOfMonth,
+  startOfDay,
+  endOfDay,
   subMonths,
   subDays,
   subWeeks,
@@ -24,9 +26,13 @@ import type {
   BudgetStatus,
   BudgetThresholdAlert,
   Category,
+  BerdeMemory,
   DashboardData,
 } from './types';
-import { isOperationalTransaction } from './transaction-classification';
+import {
+  isOperationalTransaction,
+  isSpendAnalyticsTransaction,
+} from './transaction-classification';
 
 const BUDGET_ALERT_THRESHOLDS = [50, 80, 100] as const;
 
@@ -1332,6 +1338,188 @@ export function generateSubscriptionInsights(subscriptions: Subscription[]): Ins
   }));
 }
 
+function getRatioTrendDirection(
+  currentValue: number,
+  baselineValue: number,
+  threshold = 0.1,
+): BerdeMemory['spendTrend'] {
+  if (!Number.isFinite(currentValue) || !Number.isFinite(baselineValue) || baselineValue <= 0) {
+    return 'none';
+  }
+
+  const ratioDelta = (currentValue - baselineValue) / baselineValue;
+  if (ratioDelta >= threshold) {
+    return 'up';
+  }
+  if (ratioDelta <= -threshold) {
+    return 'down';
+  }
+
+  return 'flat';
+}
+
+function getPointTrendDirection(
+  currentValue: number,
+  baselineValue: number,
+  threshold = 5,
+): BerdeMemory['savingsTrend'] {
+  if (!Number.isFinite(currentValue) || !Number.isFinite(baselineValue)) {
+    return 'none';
+  }
+
+  const pointDelta = currentValue - baselineValue;
+  if (pointDelta >= threshold) {
+    return 'up';
+  }
+  if (pointDelta <= -threshold) {
+    return 'down';
+  }
+
+  return 'flat';
+}
+
+export function buildBerdeMemory(
+  transactions: Transaction[],
+  budgets: Budget[],
+  now: Date = new Date(),
+): BerdeMemory {
+  const currentMonth = format(now, 'yyyy-MM');
+  const previousMonthDate = subMonths(now, 1);
+  const previousMonth = format(previousMonthDate, 'yyyy-MM');
+  const priorMonth = format(subMonths(previousMonthDate, 1), 'yyyy-MM');
+
+  const trackedTransactions = transactions.filter(
+    (transaction) => !isOperationalTransaction(transaction),
+  );
+  const currentMonthTrackedTransactions = trackedTransactions.filter((transaction) =>
+    transaction.date.startsWith(currentMonth),
+  );
+  const previousMonthTrackedTransactions = trackedTransactions.filter((transaction) =>
+    transaction.date.startsWith(previousMonth),
+  );
+
+  const trackedMonthCount = new Set(
+    trackedTransactions.map((transaction) => transaction.date.slice(0, 7)),
+  ).size;
+
+  const monthlySavingsHistory = computeMonthlySavingsHistory(transactions, budgets, now);
+  const previousMonthSummary =
+    monthlySavingsHistory.find((month) => month.month === previousMonth) ?? null;
+  const priorMonthSummary = monthlySavingsHistory.find((month) => month.month === priorMonth) ?? null;
+  const completedMonths = monthlySavingsHistory.filter((month) => month.month < currentMonth);
+
+  let savingsStreakMonths = 0;
+  for (let index = completedMonths.length - 1; index >= 0; index -= 1) {
+    if (completedMonths[index].saved <= 0) {
+      break;
+    }
+    savingsStreakMonths += 1;
+  }
+
+  const previousMonthSpent = previousMonthSummary?.spent ?? 0;
+  const previousMonthSaved = previousMonthSummary?.saved ?? 0;
+  const previousMonthSavingsRate = previousMonthSummary?.savingsRate ?? 0;
+  const previousMonthBudget = previousMonthSummary?.budget ?? 0;
+  const previousMonthTransactionCount = previousMonthTrackedTransactions.length;
+
+  let previousMonthStatus: BerdeMemory['previousMonthStatus'] = 'none';
+  if (previousMonthTransactionCount > 0 || previousMonthBudget > 0) {
+    if (previousMonthBudget > 0 && previousMonthSpent > previousMonthBudget) {
+      previousMonthStatus = 'overspent';
+    } else if (previousMonthSaved > 0 || previousMonthSavingsRate >= 20) {
+      previousMonthStatus = 'strong';
+    } else {
+      previousMonthStatus = 'steady';
+    }
+  }
+
+  const last30Start = startOfDay(subDays(now, 29));
+  const last90Start = startOfDay(subDays(now, 89));
+  const endOfToday = endOfDay(now);
+
+  const spendAnalyticsTransactions = transactions.filter(isSpendAnalyticsTransaction);
+  const rolling30DaySpend = sumTransactions(
+    spendAnalyticsTransactions.filter((transaction) => {
+      const date = parseISO(transaction.date);
+      return isWithinInterval(date, { start: last30Start, end: endOfToday });
+    }),
+  );
+
+  const rolling90DaySpend = sumTransactions(
+    spendAnalyticsTransactions.filter((transaction) => {
+      const date = parseISO(transaction.date);
+      return isWithinInterval(date, { start: last90Start, end: endOfToday });
+    }),
+  );
+
+  const rolling90DayAverageSpend = rolling90DaySpend / 3;
+
+  return {
+    hasHistory:
+      previousMonthTransactionCount > 0 ||
+      trackedTransactions.length > currentMonthTrackedTransactions.length,
+    isNewMonthWindow: now.getDate() <= 3,
+    trackedMonthCount,
+    lifetimeTransactionCount: trackedTransactions.length,
+    previousMonth,
+    previousMonthSpent,
+    previousMonthSaved,
+    previousMonthSavingsRate,
+    previousMonthTransactionCount,
+    previousMonthStatus,
+    rolling30DaySpend,
+    rolling90DayAverageSpend,
+    spendTrend: getRatioTrendDirection(rolling30DaySpend, rolling90DayAverageSpend),
+    savingsTrend:
+      previousMonthSummary && priorMonthSummary
+        ? getPointTrendDirection(previousMonthSavingsRate, priorMonthSummary.savingsRate)
+        : 'none',
+    savingsStreakMonths,
+  };
+}
+
+export function buildCalendarHistory(
+  transactions: Transaction[],
+  now: Date = new Date(),
+): Pick<DashboardData, 'calendarSpending' | 'calendarTransactions' | 'calendarRange'> {
+  const calendarTransactions = [...transactions]
+    .filter(isSpendAnalyticsTransaction)
+    .sort((left, right) => parseISO(right.date).getTime() - parseISO(left.date).getTime());
+
+  const currentMonth = format(now, 'yyyy-MM');
+  const minMonth = calendarTransactions.reduce((earliest, transaction) => {
+    const month = transaction.date.slice(0, 7);
+    return month < earliest ? month : earliest;
+  }, currentMonth);
+
+  const calendarRange = {
+    minMonth,
+    maxMonth: currentMonth,
+  };
+
+  const totalsByDate = calendarTransactions.reduce<Map<string, number>>((totals, transaction) => {
+    const dateKey = transaction.date.slice(0, 10);
+    totals.set(dateKey, (totals.get(dateKey) ?? 0) + transaction.amount);
+    return totals;
+  }, new Map());
+
+  const historyStart = startOfMonth(parseISO(`${calendarRange.minMonth}-01`));
+  const historyEnd = endOfMonth(now);
+  const calendarSpending = eachDayOfInterval({ start: historyStart, end: historyEnd }).map((day) => {
+    const dateKey = format(day, 'yyyy-MM-dd');
+    return {
+      date: dateKey,
+      amount: roundMoney(totalsByDate.get(dateKey) ?? 0),
+    };
+  });
+
+  return {
+    calendarSpending,
+    calendarTransactions,
+    calendarRange,
+  };
+}
+
 // Build Dashboard Data
 export function buildDashboardData(
   transactions: Transaction[],
@@ -1427,30 +1615,19 @@ export function buildDashboardData(
     };
   });
 
-  const currentMonthDays = eachDayOfInterval({
-    start: monthStart,
-    end: monthEnd,
-  });
-
-  const calendarSpending = currentMonthDays.map((day) => {
-    const dateStr = format(day, 'yyyy-MM-dd');
-    const dayTotal = currentMonthExpenseTxs
-      .filter((transaction) => transaction.date.startsWith(dateStr))
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-    return {
-      date: dateStr,
-      amount: dayTotal,
-    };
-  });
-
-  const recentTransactions = [...currentMonthTxs]
+  const currentMonthTransactions = [...currentMonthTxs]
     .filter((transaction) => !isOperationalTransaction(transaction))
-    .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+    .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+
+  const recentTransactions = currentMonthTransactions
     .slice(0, 5);
 
-  const currentMonthTransactions = [...currentMonthTxs]
-    .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+  const { calendarSpending, calendarTransactions, calendarRange } = buildCalendarHistory(
+    transactions,
+    now,
+  );
+
+  const berdeMemory = buildBerdeMemory(transactions, budgets, now);
 
   const insights = generateInsights(transactions, budgets, now);
 
@@ -1468,9 +1645,12 @@ export function buildDashboardData(
     weeklySpending,
     dailySpending,
     calendarSpending,
+    calendarTransactions,
+    calendarRange,
     currentMonthTransactions,
     recentTransactions,
     insights,
+    berdeMemory,
   };
 }
 
@@ -1505,7 +1685,8 @@ export function mergeTriggeredBudgetThresholds(
 // Compute monthly savings history — covers every month from earliest data to today
 export function computeMonthlySavingsHistory(
   transactions: Transaction[],
-  budgets: Budget[]
+  budgets: Budget[],
+  now: Date = new Date(),
 ): import('./types').MonthlySavings[] {
   // Determine earliest month from any transaction or Overall budget
   const seedMonths: string[] = [];
@@ -1514,7 +1695,7 @@ export function computeMonthlySavingsHistory(
   if (seedMonths.length === 0) return [];
 
   const startMonth = seedMonths.sort()[0];
-  const currentMonth = format(new Date(), 'yyyy-MM');
+  const currentMonth = format(now, 'yyyy-MM');
 
   // Generate every calendar month from startMonth to currentMonth (inclusive)
   const months: string[] = [];
