@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.28.1
+### Current version: v0.28.2
 
 
 ---
 
 ## Version Roadmap
+v0.28.2 - 2026-04-06
+  - fix(berde): Align the Berde debt parser, preview, and save path so natural debt drafts like `Ana utang 500` and `utang kay Ana` complete correctly, stop looping on missing person details, and save without requiring a filler reason.
+  - fix(berde): Clean up debt review cards in `src/components/pages/BerdeChatClientPage.tsx` by removing low-value debt scaffolding and suppressing fake debt reasons like echoed `Ana utang`.
+  - fix(debts): Make debt reason optional across `src/lib/types.ts`, `src/lib/local-store.ts`, and `src/components/AddDebtModal.tsx` so Berde-created and manually edited debts stay type-safe and savable without a note.
+  - test(berde): Add regression coverage in `src/lib/berde/chat-parser.test.ts` for Taglish debt creation, debt direction replies, optional debt notes, and multi-match settlement selection.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the Berde debt save and parser refinement patch.
+
 v0.28.1 - 2026-04-05
   - fix(berde): Stop debt follow-up loops in `src/lib/berde/chat-parser.ts` by treating missing-person and missing-debt replies as field-level answers instead of re-parsing them as fresh debt commands.
   - test(berde): Add debt follow-up regression coverage in `src/lib/berde/chat-parser.test.ts` for missing-person debt creation and debt-selection settlement flows.

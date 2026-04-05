@@ -1696,7 +1696,7 @@ export async function createDebt(input: DebtInput): Promise<Debt> {
     direction: input.direction,
     personName: input.personName,
     amount: roundMoney(input.amount),
-    reason: input.reason,
+    reason: normalizeText(input.reason),
     date: normalizeDateOnly(input.date) ?? nowIso.split('T')[0],
     status: 'active',
     createdAt: nowIso,

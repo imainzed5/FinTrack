@@ -371,7 +371,7 @@ export interface Debt {
   direction: DebtDirection;
   personName: string;
   amount: number;
-  reason: string;
+  reason?: string;
   date: string; // YYYY-MM-DD
   status: DebtStatus;
   settledAt?: string;
@@ -383,7 +383,7 @@ export interface DebtInput {
   direction: DebtDirection;
   personName: string;
   amount: number;
-  reason: string;
+  reason?: string;
   date?: string;
 }
 

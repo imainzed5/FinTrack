@@ -74,8 +74,10 @@ export interface BerdeDebtAction extends BerdeActionBase {
   debtMode?: 'create' | 'settle';
   settlementType?: 'full' | 'partial';
   debtId?: string;
+  debtCandidateIds?: string[];
   personName?: string;
   direction?: DebtDirection;
+  directionSource?: 'explicit' | 'inferred';
   amount?: number;
   remainingAmount?: number;
   reason?: string;
@@ -99,6 +101,7 @@ export interface BerdeChatIntent {
   confidenceLabel: BerdeChatConfidenceLabel;
   missingFields: BerdeActionMissingField[];
   expectedField?: BerdeActionMissingField;
+  ambiguityReason?: string;
   quickReplies?: string[];
   batch?: BerdeParsedActionBatch;
 }

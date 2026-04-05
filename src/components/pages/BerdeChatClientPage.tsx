@@ -77,6 +77,22 @@ type PreviewState =
 
 type LegacyPreviewStatus = 'pending' | 'logged' | 'cancelled';
 
+type ReceiptMeta = {
+  actionKind:
+    | 'expense'
+    | 'income'
+    | 'transfer'
+    | 'savings_deposit'
+    | 'savings_withdrawal'
+    | 'debt_create'
+    | 'debt_payment'
+    | 'debt_settlement';
+  amount?: number;
+  label: string;
+  date: string;
+  batchId?: string;
+};
+
 type BerdeChatMessage =
   | {
       id: string;
@@ -101,6 +117,7 @@ type BerdeChatMessage =
       role: 'berde';
       kind: 'receipt';
       text: string;
+      receiptMeta?: ReceiptMeta;
       quickReplies?: string[];
     };
 
@@ -139,11 +156,35 @@ function migrateStoredMessage(rawMessage: unknown): BerdeChatMessage | null {
   }
 
   if (message.kind === 'receipt') {
+    const rawReceiptMeta =
+      message.receiptMeta && typeof message.receiptMeta === 'object'
+        ? (message.receiptMeta as Record<string, unknown>)
+        : null;
+
     return {
       id: message.id,
       role: 'berde',
       kind: 'receipt',
       text: message.text,
+      receiptMeta: rawReceiptMeta
+          ? {
+              actionKind:
+                rawReceiptMeta.actionKind === 'expense' ||
+                rawReceiptMeta.actionKind === 'income' ||
+                rawReceiptMeta.actionKind === 'transfer' ||
+                rawReceiptMeta.actionKind === 'savings_deposit' ||
+                rawReceiptMeta.actionKind === 'savings_withdrawal' ||
+                rawReceiptMeta.actionKind === 'debt_create' ||
+                rawReceiptMeta.actionKind === 'debt_payment' ||
+                rawReceiptMeta.actionKind === 'debt_settlement'
+                  ? rawReceiptMeta.actionKind
+                  : 'expense',
+              amount: typeof rawReceiptMeta.amount === 'number' ? rawReceiptMeta.amount : undefined,
+              label: typeof rawReceiptMeta.label === 'string' ? rawReceiptMeta.label : message.text,
+              date: typeof rawReceiptMeta.date === 'string' ? rawReceiptMeta.date : new Date().toISOString(),
+              batchId: typeof rawReceiptMeta.batchId === 'string' ? rawReceiptMeta.batchId : undefined,
+            }
+          : undefined,
       quickReplies: Array.isArray(message.quickReplies)
         ? message.quickReplies.filter((reply): reply is string => typeof reply === 'string')
         : undefined,
@@ -316,9 +357,12 @@ function getActionHeadline(action: BerdeParsedAction): string {
     case 'savings':
       return `${formatCurrency(action.amount ?? 0)} ${action.savingsType === 'withdrawal' ? 'withdrawal' : 'deposit'}`;
     case 'debt':
-      return action.debtMode === 'settle'
-        ? `Settle ${action.personName || 'debt'}`
-        : `${formatCurrency(action.amount ?? 0)} debt`;
+      if (action.debtMode === 'settle') {
+        return action.settlementType === 'partial'
+          ? `${formatCurrency(action.amount ?? 0)} debt payment`
+          : `Settle ${action.personName || 'debt'}`;
+      }
+      return `${formatCurrency(action.amount ?? 0)} debt`;
   }
 }
 
@@ -551,14 +595,38 @@ function getActionMeta(action: BerdeParsedAction): Array<{ label: string; value:
           { label: 'Date', value: format(new Date(action.date), 'MMM d, yyyy') },
         ];
   }
-  return [
+  const debtMeta = [
     { label: 'Person', value: action.personName || 'Pending' },
     { label: 'Amount', value: typeof action.amount === 'number' ? formatCurrency(action.amount) : 'Pending' },
-    { label: 'Direction', value: action.debtMode === 'settle' ? 'Settle active debt' : action.direction === 'owed' ? 'They owe you' : action.direction === 'owing' ? 'You owe them' : 'Pending' },
-    { label: 'Reason', value: action.reason || 'Pending' },
+    { label: 'Direction', value: action.direction === 'owed' ? 'They owe you' : action.direction === 'owing' ? 'You owe them' : 'Pending' },
   ];
+
+  if (action.reason && normalizeForDebtReason(action.reason, action.personName)) {
+    debtMeta.push({ label: 'Reason', value: action.reason });
+  }
+
+  return debtMeta;
 }
 
+function normalizeForDebtReason(reason: string, personName?: string): boolean {
+  const normalizedReason = reason.trim().toLowerCase();
+  if (!normalizedReason || normalizedReason === 'chat entry') {
+    return false;
+  }
+
+  if (personName && normalizedReason === personName.trim().toLowerCase()) {
+    return false;
+  }
+
+  if (personName && normalizedReason === `${personName.trim().toLowerCase()} utang`) {
+    return false;
+  }
+
+  return true;
+}
+
+// Legacy receipt copy is kept for session-state migration safety.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getReceiptText(action: BerdeParsedAction): string {
   const formattedDate = format(new Date(action.date), 'MMM d');
 
@@ -584,13 +652,124 @@ function getReceiptText(action: BerdeParsedAction): string {
 }
 
 function buildReceiptMessages(batch: BerdeParsedActionBatch): Extract<BerdeChatMessage, { kind: 'receipt' }>[] {
+  return buildSmartReceiptMessages(batch);
+}
+
+function getSmartReceiptText(action: BerdeParsedAction): string {
+  const formattedDate = format(new Date(action.date), 'MMM d');
+
+  switch (action.kind) {
+    case 'transaction':
+      return `✓ ${formatCurrency(action.amount ?? 0)} ${action.entryType === 'income' ? 'income' : 'expense'} · ${
+        action.entryType === 'income' ? (action.incomeCategory || 'Other Income') : (action.category || 'Miscellaneous')
+      } · ${formattedDate}`;
+    case 'transfer':
+      return `✓ ${formatCurrency(action.amount ?? 0)} transfer · ${
+        action.fromAccountName || 'One account'
+      } to ${action.toAccountName || 'another account'} · ${formattedDate}`;
+    case 'savings':
+      return `✓ ${formatCurrency(action.amount ?? 0)} ${
+        action.savingsType === 'withdrawal' ? 'withdrawal' : 'saved'
+      } · ${action.goalName || 'Savings'} · ${formattedDate}`;
+    case 'debt':
+      if (action.debtMode === 'settle') {
+        if (action.settlementType === 'partial') {
+          return `✓ ${formatCurrency(action.amount ?? 0)} debt payment · ${action.personName || 'Debt'} · ${formattedDate}`;
+        }
+        return `✓ Debt settled · ${action.personName || 'Debt'} · ${formattedDate}`;
+      }
+      return `✓ ${formatCurrency(action.amount ?? 0)} debt logged · ${action.personName || 'Debt'} · ${formattedDate}`;
+  }
+}
+
+function buildReceiptMeta(action: BerdeParsedAction, batchId: string): ReceiptMeta {
+  switch (action.kind) {
+    case 'transaction':
+      return {
+        actionKind: action.entryType === 'income' ? 'income' : 'expense',
+        amount: action.amount,
+        label: action.entryType === 'income' ? (action.incomeCategory || 'Other Income') : (action.category || 'Miscellaneous'),
+        date: action.date,
+        batchId,
+      };
+    case 'transfer':
+      return {
+        actionKind: 'transfer',
+        amount: action.amount,
+        label: `${action.fromAccountName || 'One account'} to ${action.toAccountName || 'another account'}`,
+        date: action.date,
+        batchId,
+      };
+    case 'savings':
+      return {
+        actionKind: action.savingsType === 'withdrawal' ? 'savings_withdrawal' : 'savings_deposit',
+        amount: action.amount,
+        label: action.goalName || 'Savings',
+        date: action.date,
+        batchId,
+      };
+    case 'debt':
+      return {
+        actionKind:
+          action.debtMode === 'settle'
+            ? action.settlementType === 'partial'
+              ? 'debt_payment'
+              : 'debt_settlement'
+            : 'debt_create',
+        amount: action.amount,
+        label: action.personName || 'Debt',
+        date: action.date,
+        batchId,
+      };
+  }
+}
+
+function buildSmartReceiptMessages(batch: BerdeParsedActionBatch): Extract<BerdeChatMessage, { kind: 'receipt' }>[] {
+  const batchId = createMessageId('receipt-batch');
   return batch.actions.map((action, index) => ({
     id: createMessageId('receipt'),
     role: 'berde',
     kind: 'receipt',
-    text: getReceiptText(action),
+    text: getSmartReceiptText(action),
+    receiptMeta: buildReceiptMeta(action, batchId),
     quickReplies: index === batch.actions.length - 1 ? [...POST_SAVE_FOLLOW_UP_CHIPS] : [],
   }));
+}
+
+function getSessionSummary(messages: BerdeChatMessage[]) {
+  const receipts = messages.filter((message): message is Extract<BerdeChatMessage, { kind: 'receipt' }> => message.kind === 'receipt');
+  if (receipts.length === 0) {
+    return null;
+  }
+
+  let expenseTotal = 0;
+  let incomeTotal = 0;
+  let debtMoves = 0;
+
+  for (const receipt of receipts) {
+    if (!receipt.receiptMeta) {
+      continue;
+    }
+
+    if (receipt.receiptMeta.actionKind === 'expense') {
+      expenseTotal += receipt.receiptMeta.amount ?? 0;
+    } else if (receipt.receiptMeta.actionKind === 'income') {
+      incomeTotal += receipt.receiptMeta.amount ?? 0;
+    } else if (
+      receipt.receiptMeta.actionKind === 'debt_create'
+      || receipt.receiptMeta.actionKind === 'debt_payment'
+      || receipt.receiptMeta.actionKind === 'debt_settlement'
+    ) {
+      debtMoves += 1;
+    }
+  }
+
+  return {
+    count: receipts.length,
+    expenseTotal,
+    incomeTotal,
+    debtMoves,
+  };
 }
 
 function ReceiptBubble(props: {
@@ -693,6 +872,17 @@ function BatchPreviewCard(props: {
                   <p className="text-base font-medium leading-tight text-zinc-900">
                     {getActionHeadline(action)}
                   </p>
+                ) : message.batch.actions.length === 1 ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <div>
+                      <p className="text-base font-semibold text-zinc-900">
+                        {action.kind === 'debt' ? (action.debtMode === 'settle' ? getActionKindLabel(action) : 'Debt') : getActionKindLabel(action)}
+                      </p>
+                    </div>
+                    <p className="text-base font-medium leading-tight text-zinc-900">
+                      {getActionHeadline(action)}
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div>
@@ -864,6 +1054,8 @@ export default function BerdeChatClientPage() {
     };
   }, [activeIntent]);
 
+  const sessionSummary = useMemo(() => getSessionSummary(messages), [messages]);
+
   const pushParserResponse = (parserResult: ReturnType<typeof parseBerdeChatInput>) => {
     setMessages((current) => {
       const nextMessages = clearInteractiveState(current);
@@ -1019,7 +1211,7 @@ export default function BerdeChatClientPage() {
       return;
     }
 
-    if (!action.direction || !action.personName || typeof action.amount !== 'number' || !action.reason) {
+    if (!action.direction || !action.personName || typeof action.amount !== 'number') {
       throw new Error('Debt action is incomplete.');
     }
     await createDebt({
@@ -1288,6 +1480,23 @@ export default function BerdeChatClientPage() {
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-[#dfe7e3] bg-[rgba(255,255,255,0.78)] shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur-sm lg:rounded-[32px]">
           <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
             <div className="flex flex-col">
+              {sessionSummary ? (
+                <div className="mb-4 rounded-[20px] border border-[#d7eadf] bg-[#f7fffb] px-4 py-3 text-sm text-zinc-700 shadow-[0_10px_22px_rgba(15,23,42,0.05)]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-[#bfe7d9] bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0F6E56]">
+                      This session
+                    </span>
+                    <span className="text-sm font-medium text-zinc-900">
+                      {sessionSummary.count} logged item{sessionSummary.count === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600">
+                    <span>Expenses: {formatCurrency(sessionSummary.expenseTotal)}</span>
+                    <span>Income: {formatCurrency(sessionSummary.incomeTotal)}</span>
+                    <span>Debt moves: {sessionSummary.debtMoves}</span>
+                  </div>
+                </div>
+              ) : null}
               {messages.length === 0 ? (
                 <div className="flex min-h-[9.5rem] flex-col items-start justify-center rounded-[20px] border border-dashed border-[#cfe7dd] bg-[linear-gradient(180deg,#f8fffb_0%,#ffffff_100%)] px-4 py-4 text-left md:min-h-[18rem] md:items-center md:rounded-[24px] md:px-5 md:py-8 md:text-center lg:min-h-[22rem] lg:rounded-[28px] lg:px-6 lg:py-10">
                   <div className="rounded-2xl bg-[#0F6E56] p-2 shadow-[0_14px_28px_rgba(15,110,86,0.12)]">
@@ -1322,9 +1531,16 @@ export default function BerdeChatClientPage() {
                 const nextMessage = messages[index + 1];
                 const showAssistantSprite =
                   message.role === 'berde' && nextMessage?.role !== 'berde';
+                const isGroupedReceipt =
+                  message.kind === 'receipt'
+                  && previousMessage?.kind === 'receipt'
+                  && Boolean(message.receiptMeta?.batchId)
+                  && message.receiptMeta?.batchId === previousMessage.receiptMeta?.batchId;
                 const rowSpacingClass =
                   index === 0
                     ? ''
+                    : isGroupedReceipt
+                      ? 'mt-2'
                     : previousMessage?.role === 'berde' && message.role === 'berde'
                       ? 'mt-2'
                       : 'mt-5';

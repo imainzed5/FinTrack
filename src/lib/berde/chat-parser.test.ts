@@ -78,12 +78,13 @@ function parse(
   options: {
     pendingBatch?: BerdeParsedActionBatch | null;
     pendingIntent?: BerdeChatIntent | null;
+    customDebts?: Debt[];
   } = {},
 ) {
   return parseBerdeChatInput(message, {
     accounts,
     savingsGoals,
-    debts,
+    debts: options.customDebts ?? debts,
     now: baseNow,
     pendingBatch: options.pendingBatch ?? null,
     pendingIntent: options.pendingIntent ?? null,
@@ -181,6 +182,69 @@ test('parses debt creation messages', () => {
   assert.equal(action.amount, 500);
 });
 
+test('parses utang kay phrasing as owing debt', () => {
+  const result = parse('utang kay Ana 500 pamasahe');
+
+  assert.equal(result.intent.kind, 'action_batch');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.debtMode, 'create');
+  assert.equal(action.direction, 'owing');
+  assert.equal(action.personName, 'Ana');
+  assert.equal(action.amount, 500);
+  assert.equal(action.reason, 'Pamasahe');
+});
+
+test('utang kay with no amount asks for amount, not person', () => {
+  const result = parse('utang kay Ana');
+
+  assert.equal(result.intent.kind, 'ambiguous');
+  assert.equal(result.intent.expectedField, 'amount');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.personName, 'Ana');
+  assert.equal(action.direction, 'owing');
+});
+
+test('parses may utang sakin phrasing as owed debt', () => {
+  const result = parse('Ana may utang sakin 500 lunch');
+
+  assert.equal(result.intent.kind, 'action_batch');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.debtMode, 'create');
+  assert.equal(action.direction, 'owed');
+  assert.equal(action.personName, 'Ana');
+  assert.equal(action.amount, 500);
+});
+
+test('may utang sakin with no amount asks for amount, not person', () => {
+  const result = parse('Ana may utang sakin');
+
+  assert.equal(result.intent.kind, 'ambiguous');
+  assert.equal(result.intent.expectedField, 'amount');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.personName, 'Ana');
+  assert.equal(action.direction, 'owed');
+});
+
+test('ambiguous utang phrasing asks for direction instead of guessing', () => {
+  const result = parse('Ana utang 500');
+
+  assert.equal(result.intent.kind, 'ambiguous');
+  assert.equal(result.intent.expectedField, 'direction');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.personName, 'Ana');
+  assert.equal(action.amount, 500);
+});
+
 test('debt creation follow-up fills the missing person without looping', () => {
   const initial = parse('borrowed 500 mamons');
   assert.equal(initial.intent.kind, 'ambiguous');
@@ -199,6 +263,41 @@ test('debt creation follow-up fills the missing person without looping', () => {
   assert.equal(action.direction, 'owing');
   assert.equal(action.personName, 'Aketon');
   assert.equal(action.amount, 500);
+});
+
+test('debt creation follow-up resolves a direction reply like may utang ako', () => {
+  const initial = parse('Ana utang 500');
+  assert.equal(initial.intent.kind, 'ambiguous');
+  assert.equal(initial.intent.expectedField, 'direction');
+
+  const followUp = parse('may utang ako', {
+    pendingBatch: initial.intent.batch,
+    pendingIntent: initial.intent,
+  });
+
+  assert.equal(followUp.intent.kind, 'action_batch');
+  const action = followUp.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.direction, 'owing');
+  assert.equal(followUp.intent.expectedField, undefined);
+});
+
+test('debt direction follow-up accepts me as they owe me', () => {
+  const initial = parse('Ana utang 500');
+  assert.equal(initial.intent.kind, 'ambiguous');
+  assert.equal(initial.intent.expectedField, 'direction');
+
+  const followUp = parse('me', {
+    pendingBatch: initial.intent.batch,
+    pendingIntent: initial.intent,
+  });
+
+  assert.equal(followUp.intent.kind, 'action_batch');
+  const action = followUp.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.direction, 'owed');
 });
 
 test('parses debt settlement against an active debt', () => {
@@ -227,6 +326,19 @@ test('parses partial debt settlement against an active debt', () => {
   assert.equal(action.remainingAmount, 300);
 });
 
+test('parses nagbayad si phrasing as partial debt settlement', () => {
+  const result = parse('nagbayad si John ng 200');
+
+  assert.equal(result.intent.kind, 'action_batch');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.debtMode, 'settle');
+  assert.equal(action.debtId, 'debt-john');
+  assert.equal(action.settlementType, 'partial');
+  assert.equal(action.amount, 200);
+});
+
 test('debt settlement follow-up keeps the settlement flow when choosing a debt', () => {
   const initial = parse('paid me back 200');
   assert.equal(initial.intent.kind, 'ambiguous');
@@ -247,6 +359,65 @@ test('debt settlement follow-up keeps the settlement flow when choosing a debt',
   assert.equal(action.amount, 200);
   assert.equal(action.settlementType, 'partial');
   assert.equal(action.remainingAmount, 300);
+});
+
+test('debt settlement with multiple matches asks for the exact debt', () => {
+  const customDebts: Debt[] = [
+    ...debts,
+    {
+      id: 'debt-john-2',
+      userId: 'user-1',
+      direction: 'owed',
+      personName: 'John',
+      amount: 250,
+      reason: 'Fare',
+      date: '2026-04-01',
+      status: 'active',
+      createdAt: baseNow.toISOString(),
+      updatedAt: baseNow.toISOString(),
+    },
+  ];
+
+  const result = parse('John paid me back 100', { customDebts });
+
+  assert.equal(result.intent.kind, 'ambiguous');
+  assert.equal(result.intent.expectedField, 'debt');
+  assert.ok(result.intent.quickReplies?.some((reply) => /John/.test(reply)));
+});
+
+test('resolves debt selection from a decorated quick reply label', () => {
+  const customDebts: Debt[] = [
+    ...debts,
+    {
+      id: 'debt-john-2',
+      userId: 'user-1',
+      direction: 'owed',
+      personName: 'John',
+      amount: 250,
+      reason: 'Fare',
+      date: '2026-04-01',
+      status: 'active',
+      createdAt: baseNow.toISOString(),
+      updatedAt: baseNow.toISOString(),
+    },
+  ];
+
+  const initial = parse('John paid me back 100', { customDebts });
+  assert.equal(initial.intent.kind, 'ambiguous');
+  assert.equal(initial.intent.expectedField, 'debt');
+
+  const followUp = parse('John · Fare · Apr 1', {
+    pendingBatch: initial.intent.batch,
+    pendingIntent: initial.intent,
+    customDebts,
+  });
+
+  assert.equal(followUp.intent.kind, 'action_batch');
+  const action = followUp.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'debt');
+  assert.equal(action.debtId, 'debt-john-2');
+  assert.equal(action.amount, 100);
 });
 
 test('gym 500 followed by expense resolves type and asks for category', () => {
@@ -344,6 +515,17 @@ test('resolves weekday phrasing like last tuesday', () => {
   assert.equal(action.kind, 'transaction');
   assert.equal(action.category, 'Food');
   assert.equal(action.amount, 500);
+  assert.equal(action.date.startsWith('2026-03-31'), true);
+});
+
+test('resolves Filipino weekday phrasing', () => {
+  const result = parse('spent 120 pamasahe nung martes');
+
+  assert.equal(result.intent.kind, 'action_batch');
+  const action = result.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'transaction');
+  assert.equal(action.category, 'Transportation');
   assert.equal(action.date.startsWith('2026-03-31'), true);
 });
 

@@ -51,6 +51,7 @@ const EXPENSE_VERBS = [
   'gumastos',
   'kumain',
   'binili',
+  'bayad',
 ] as const;
 
 const INCOME_VERBS = [
@@ -61,6 +62,9 @@ const INCOME_VERBS = [
   'allowance',
   'sweldo',
   'sahod',
+  'raket',
+  'sideline',
+  'padala',
 ] as const;
 
 const TYPE_REPLY_ALIASES: Record<TransactionEntryType, string[]> = {
@@ -84,12 +88,20 @@ const CONNECTORS = /\s*(?:,|;|\n| then | tapos | plus | & )\s*/i;
 
 const WEEKDAY_INDEX: Record<string, number> = {
   sunday: 0,
+  linggo: 0,
   monday: 1,
+  lunes: 1,
   tuesday: 2,
+  martes: 2,
   wednesday: 3,
+  miyerkules: 3,
+  mierkules: 3,
   thursday: 4,
+  huwebes: 4,
   friday: 5,
+  biyernes: 5,
   saturday: 6,
+  sabado: 6,
 };
 
 const CATEGORY_ALIASES: Array<AliasEntry<Category>> = [
@@ -122,6 +134,7 @@ const CATEGORY_ALIASES: Array<AliasEntry<Category>> = [
       'grab',
       'fare',
       'pamasahe',
+      'pamasahe ko',
       'transpo',
       'transport',
       'transportation',
@@ -138,7 +151,7 @@ const CATEGORY_ALIASES: Array<AliasEntry<Category>> = [
   },
   {
     value: 'Utilities',
-    aliases: ['bill', 'bills', 'wifi', 'internet', 'electricity', 'water', 'utilities', 'rent', 'load', 'mobile load', 'data'],
+    aliases: ['bill', 'bills', 'wifi', 'internet', 'electricity', 'water', 'utilities', 'rent', 'upa', 'load', 'mobile load', 'data', 'kuryente', 'tubig'],
   },
   {
     value: 'Shopping',
@@ -150,7 +163,7 @@ const CATEGORY_ALIASES: Array<AliasEntry<Category>> = [
   },
   {
     value: 'Health',
-    aliases: ['medicine', 'meds', 'watsons', 'clinic', 'doctor', 'health', 'hospital', 'pharmacy'],
+    aliases: ['medicine', 'meds', 'watsons', 'clinic', 'doctor', 'health', 'hospital', 'pharmacy', 'gamot'],
   },
   {
     value: 'Education',
@@ -164,12 +177,12 @@ const CATEGORY_ALIASES: Array<AliasEntry<Category>> = [
 
 const INCOME_CATEGORY_ALIASES: Array<AliasEntry<IncomeCategory>> = [
   { value: 'Salary', aliases: ['salary', 'paycheck', 'sweldo', 'sahod'] },
-  { value: 'Freelance', aliases: ['freelance', 'client work'] },
-  { value: 'Side Job', aliases: ['sideline', 'side job', 'side hustle'] },
+  { value: 'Freelance', aliases: ['freelance', 'client work', 'raket', 'client', 'bayad ni client'] },
+  { value: 'Side Job', aliases: ['sideline', 'side job', 'side hustle', 'raket extra'] },
   { value: 'Part-time', aliases: ['part time', 'part-time'] },
   { value: 'Bonus', aliases: ['bonus', 'incentive'] },
-  { value: 'Refund', aliases: ['refund', 'reimbursement'] },
-  { value: 'Gift', aliases: ['gift', 'allowance', 'baon'] },
+  { value: 'Refund', aliases: ['refund', 'reimbursement', 'binalik'] },
+  { value: 'Gift', aliases: ['gift', 'allowance', 'baon', 'padala'] },
   { value: 'Other Income', aliases: ['income'] },
 ];
 
@@ -231,6 +244,25 @@ const STOP_WORDS = new Set([
   'paid',
   'back',
   'me',
+  'lang',
+  'mga',
+  'around',
+  'about',
+  'roughly',
+  'approximately',
+  'halos',
+  'approx',
+  'may',
+  'utang',
+  'kay',
+  'ki',
+  'si',
+  'ni',
+  'sakin',
+  'akin',
+  'sa',
+  'akin',
+  'ng',
 ]);
 
 const STARTER_QUICK_REPLIES = ['Log expense', 'Log income', 'Move money', 'Track utang'] as const;
@@ -245,6 +277,16 @@ function escapeRegExp(value: string): string {
 
 function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
+}
+
+function normalizeChatMessage(value: string): string {
+  return normalizeWhitespace(
+    value
+      .replace(/\bsa akin\b/gi, ' sakin ')
+      .replace(/\bnoong\b/gi, ' nung ')
+      .replace(/\bsa'kin\b/gi, ' sakin ')
+      .replace(/\bnakabayad\b/gi, ' nagbayad '),
+  );
 }
 
 function normalizeForReply(value: string): string {
@@ -279,23 +321,26 @@ function resolvePreviousWeekday(baseDate: Date, targetWeekday: number): string {
 }
 
 function extractAmount(message: string): { amount?: number; stripped: string } {
+  const normalizedMessage = normalizeWhitespace(
+    message.replace(/\b(?:mga|around|about|roughly|approximately|approx|halos)\b/gi, ' '),
+  );
   const amountPattern =
-    /(?:^|[\s(])(?:\u20b1|php|p)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)(\s*k)?(?=$|[\s,!.?])/i;
-  const match = message.match(amountPattern);
+    /(?:^|[\s(])(?:\u20b1|php|p)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)(\s*k)?(?:\s*lang)?(?=$|[\s,!.?])/i;
+  const match = normalizedMessage.match(amountPattern);
 
   if (!match) {
-    return { stripped: message };
+    return { stripped: normalizedMessage };
   }
 
   const numericRaw = match[1]?.replace(/,/g, '');
   const parsed = numericRaw ? Number.parseFloat(numericRaw) : Number.NaN;
   if (!Number.isFinite(parsed)) {
-    return { stripped: message };
+    return { stripped: normalizedMessage };
   }
 
   return {
     amount: Number((parsed * (match[2] ? 1000 : 1)).toFixed(2)),
-    stripped: normalizeWhitespace(message.replace(match[0], ' ')),
+    stripped: normalizeWhitespace(normalizedMessage.replace(match[0], ' ')),
   };
 }
 
@@ -312,6 +357,21 @@ function extractDate(message: string, now: Date): { date?: string; stripped: str
     return { date: buildDateIso(now, -1), stripped };
   }
 
+  if (/\bkagabi\b/i.test(stripped)) {
+    stripped = normalizeWhitespace(stripped.replace(/\bkagabi\b/gi, ' '));
+    return { date: buildDateIso(now, -1), stripped };
+  }
+
+  if (/\b(?:nung|isang)\s+araw\b/i.test(stripped) || /\bnoong isang araw\b/i.test(stripped)) {
+    stripped = normalizeWhitespace(
+      stripped
+        .replace(/\bnung isang araw\b/gi, ' ')
+        .replace(/\bnoong isang araw\b/gi, ' ')
+        .replace(/\bisang araw\b/gi, ' '),
+    );
+    return { date: buildDateIso(now, -2), stripped };
+  }
+
   if (/\btoday\b/i.test(stripped) || /\bthis morning\b/i.test(stripped) || /\bkanina\b/i.test(stripped)) {
     stripped = normalizeWhitespace(
       stripped
@@ -322,7 +382,9 @@ function extractDate(message: string, now: Date): { date?: string; stripped: str
     return { date: buildDateIso(now, 0), stripped };
   }
 
-  const weekdayMatch = stripped.match(/\b(?:last|noong|nung)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+  const weekdayMatch = stripped.match(
+    /\b(?:last|noong|nung)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|linggo|lunes|martes|miyerkules|mierkules|huwebes|biyernes|sabado)\b/i,
+  );
   if (weekdayMatch?.[1]) {
     stripped = normalizeWhitespace(stripped.replace(weekdayMatch[0], ' '));
     return { date: resolvePreviousWeekday(now, WEEKDAY_INDEX[weekdayMatch[1].toLowerCase()]), stripped };
@@ -629,7 +691,8 @@ function parseTransferAction(
   existing?: Extract<BerdeParsedAction, { kind: 'transfer' }>,
 ): Extract<BerdeParsedAction, { kind: 'transfer' }> | null {
   const normalized = normalizeForReply(message);
-  const transferLike = /\b(transfer|move|send)\b/i.test(normalized) || /\bfrom\b.*\bto\b/i.test(normalized);
+  const transferLike =
+    /\b(transfer|move|send|lipat|nilipat)\b/i.test(normalized) || /\bfrom\b.*\bto\b/i.test(normalized);
   if (!transferLike && !existing) {
     return null;
   }
@@ -677,9 +740,9 @@ function parseSavingsAction(
 ): Extract<BerdeParsedAction, { kind: 'savings' }> | null {
   const normalized = normalizeForReply(message);
   const savingsLike =
-    /\b(save|saved|deposit|add)\b/i.test(normalized) ||
-    /\b(withdraw|take out|pull out)\b/i.test(normalized) ||
-    /\bsavings\b/i.test(normalized);
+    /\b(save|saved|deposit|add|hulog|dagdag)\b/i.test(normalized) ||
+    /\b(withdraw|take out|pull out|kuha)\b/i.test(normalized) ||
+    /\b(savings|ipon)\b/i.test(normalized);
   if (!savingsLike && !existing) {
     return null;
   }
@@ -688,9 +751,9 @@ function parseSavingsAction(
   const { amount, stripped: withoutAmount } = extractAmount(message);
   const { date, stripped: withoutDate } = extractDate(withoutAmount, now);
   const { goal, stripped: withoutGoal } = extractGoalMention(withoutDate, context.savingsGoals ?? []);
-  const savingsType = /\b(withdraw|take out|pull out)\b/i.test(normalized)
+  const savingsType = /\b(withdraw|take out|pull out|kuha)\b/i.test(normalized)
     ? 'withdrawal'
-    : /\b(save|saved|deposit|add)\b/i.test(normalized)
+    : /\b(save|saved|deposit|add|hulog|dagdag)\b/i.test(normalized)
       ? 'deposit'
       : existing?.savingsType;
 
@@ -707,42 +770,13 @@ function parseSavingsAction(
   };
 }
 
-function findDebtByPerson(personName: string | undefined, debts: Debt[]): Debt | undefined {
+function findDebtCandidatesByPerson(personName: string | undefined, debts: Debt[]): Debt[] {
   if (!personName) {
-    return undefined;
+    return [];
   }
 
   const normalized = normalizeForReply(personName);
-  return debts.find((debt) => normalizeForReply(debt.personName) === normalized);
-}
-
-function extractPersonFromDebtMessage(message: string): string | undefined {
-  const lentMatch = message.match(/\b(?:lent|loaned)\s+([a-z][a-z\s'.-]+?)\s*(?:\d|$)/i);
-  if (lentMatch?.[1]) {
-    return toTitleCase(normalizeWhitespace(lentMatch[1]));
-  }
-
-  const borrowedMatch = message.match(/\bborrowed\s+\d+(?:\.\d+)?(?:\s*k)?\s+from\s+([a-z][a-z\s'.-]+)$/i);
-  if (borrowedMatch?.[1]) {
-    return toTitleCase(normalizeWhitespace(borrowedMatch[1]));
-  }
-
-  const paidBackMatch = message.match(/\b([a-z][a-z\s'.-]+?)\s+paid me back\b/i);
-  if (paidBackMatch?.[1]) {
-    return toTitleCase(normalizeWhitespace(paidBackMatch[1]));
-  }
-
-  const paidBackWithoutMeMatch = message.match(/\b([a-z][a-z\s'.-]+?)\s+paid back\b/i);
-  if (paidBackWithoutMeMatch?.[1]) {
-    return toTitleCase(normalizeWhitespace(paidBackWithoutMeMatch[1]));
-  }
-
-  const settleMatch = message.match(/\bsettle(?:d)?\s+(?:debt\s+with\s+)?([a-z][a-z\s'.-]+)$/i);
-  if (settleMatch?.[1]) {
-    return toTitleCase(normalizeWhitespace(settleMatch[1]));
-  }
-
-  return undefined;
+  return debts.filter((debt) => normalizeForReply(debt.personName) === normalized);
 }
 
 function extractPersonFromDebtReply(message: string): string | undefined {
@@ -752,7 +786,7 @@ function extractPersonFromDebtReply(message: string): string | undefined {
   }
 
   const cleaned = normalized
-    .replace(/^(?:si|kay|from)\s+/i, '')
+    .replace(/^(?:si|kay|ki|ni|from|to)\s+/i, '')
     .replace(/[?.!,]+$/g, '')
     .trim();
 
@@ -772,25 +806,194 @@ function extractPersonFromDebtReply(message: string): string | undefined {
   return toTitleCase(cleaned);
 }
 
+function inferDebtMode(
+  message: string,
+  debts: Debt[],
+  existing?: Extract<BerdeParsedAction, { kind: 'debt' }>,
+): 'create' | 'settle' | undefined {
+  const normalized = normalizeForReply(message);
+  if (
+    /\b(paid me back|paid back|settle|settled|nagbayad|bayad utang|debt payment)\b/i.test(normalized)
+    || /\bpaid\b/i.test(normalized)
+  ) {
+    return 'settle';
+  }
+
+  if (
+    /\b(lent|loaned|borrowed|utang|pinahiram|may utang|i owe)\b/i.test(normalized)
+    || debts.some((debt) => new RegExp(`(^|\\W)${escapeRegExp(normalizeForReply(debt.personName))}(?=$|\\W)`, 'i').test(normalized))
+  ) {
+    return 'create';
+  }
+
+  return existing?.debtMode;
+}
+
+function inferDebtDirection(
+  message: string,
+  existing?: Extract<BerdeParsedAction, { kind: 'debt' }>,
+): { direction?: DebtDirection; source?: 'explicit' | 'inferred' } {
+  const normalized = normalizeForReply(message);
+
+  if (
+    /\b(they owe me|siya may utang sakin|siya may utang sa akin)\b/i.test(normalized)
+    || /\b(?:[a-z][a-z\s'.-]+)\s+may utang sakin\b/i.test(normalized)
+    || /\b(?:[a-z][a-z\s'.-]+)\s+may utang sa akin\b/i.test(normalized)
+    || /\bmay utang(?:\s+si)?\s+[a-z][a-z\s'.-]+\s+(?:sakin|sa akin)\b/i.test(normalized)
+    || /\b(lent|loaned|pinahiram)\b/i.test(normalized)
+  ) {
+    return { direction: 'owed', source: 'explicit' };
+  }
+
+  if (
+    /\b(i owe|i owe them|may utang ako|utang ko|borrowed|umutang)\b/i.test(normalized)
+    || /\butang\s+(?:kay|ki)\b/i.test(normalized)
+    || /\bnagbayad ako kay\b/i.test(normalized)
+  ) {
+    return { direction: 'owing', source: 'explicit' };
+  }
+
+  if (/\bmay utang\b/i.test(normalized) || /\butang\b/i.test(normalized)) {
+    return { direction: undefined, source: 'inferred' };
+  }
+
+  return {
+    direction: existing?.direction,
+    source: existing?.directionSource,
+  };
+}
+
+function extractPersonFromDebtMessage(message: string, mode?: 'create' | 'settle'): string | undefined {
+  const patterns = [
+    /\b(?:lent|loaned)\s+([a-z][a-z\s'.-]+?)\s*(?:\d|$)/i,
+    /\b(?:borrowed|i owe|utang)\s+(?:kay|ki|from)\s+([a-z][a-z\s'.-]+?)(?=(?:\s+(?:ng\s+)?(?:\u20b1|php|p)?\s*\d)|$|\s+(?:for|dahil|para)\b)/i,
+    /\b(?:borrowed)\s+\d+(?:\.\d+)?(?:\s*k)?\s+from\s+([a-z][a-z\s'.-]+)$/i,
+    /\b(?:may utang ako|umutang ako)\s+(?:kay|ki)\s+([a-z][a-z\s'.-]+?)(?=(?:\s+(?:ng\s+)?(?:\u20b1|php|p)?\s*\d)|$|\s+(?:for|dahil|para)\b)/i,
+    /\b(?:pinahiram(?: ko)?)\s+(?:si\s+)?([a-z][a-z\s'.-]+?)(?=(?:\s+(?:ng\s+)?(?:\u20b1|php|p)?\s*\d)|$|\s+(?:for|dahil|para)\b)/i,
+    /\b(?:si\s+)?([a-z][a-z\s'.-]+?)\s+may utang\s+(?:sakin|sa akin)\b/i,
+    /\bmay utang\s+(?:si\s+)?([a-z][a-z\s'.-]+?)\s+(?:sakin|sa akin)\b/i,
+    /\b([a-z][a-z\s'.-]+?)\s+paid me back\b/i,
+    /\b([a-z][a-z\s'.-]+?)\s+paid back\b/i,
+    /\bnagbayad\s+(?:si\s+)?([a-z][a-z\s'.-]+?)(?=(?:\s+(?:ng\s+)?(?:\u20b1|php|p)?\s*\d)|$)/i,
+    /\b(?:si\s+)?([a-z][a-z\s'.-]+?)\s+nagbayad\b/i,
+    /\b(?:paid me back|bayad utang|settle(?:d)?(?: debt)?(?: with)?)\s+(?:kay|ki|with)?\s*([a-z][a-z\s'.-]+)$/i,
+    /\bnagbayad ako\s+(?:kay|ki)\s+([a-z][a-z\s'.-]+)$/i,
+    /\bbinayaran ako ni\s+([a-z][a-z\s'.-]+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return toTitleCase(normalizeWhitespace(match[1]));
+    }
+  }
+
+  if (mode === 'create') {
+    const kayMatch = message.match(/\butang\s+(?:kay|ki)\s+([a-z][a-z\s'.-]+)$/i);
+    if (kayMatch?.[1]) {
+      return toTitleCase(normalizeWhitespace(kayMatch[1]));
+    }
+
+    const mayUtangMatch = message.match(/\b([a-z][a-z\s'.-]+?)\s+may utang\s+(?:sakin|sa akin)$/i);
+    if (mayUtangMatch?.[1]) {
+      return toTitleCase(normalizeWhitespace(mayUtangMatch[1]));
+    }
+
+    const ambiguousCreateMatch = message.match(/\b([a-z][a-z\s'.-]+?)\s+utang\s+(?:(?:\u20b1|php|p)?\s*\d|\w)/i);
+    if (ambiguousCreateMatch?.[1]) {
+      return toTitleCase(normalizeWhitespace(ambiguousCreateMatch[1]));
+    }
+  }
+
+  if (mode === 'settle') {
+    const paidMatch = message.match(/\b([a-z][a-z\s'.-]+?)\s+paid\b/i);
+    if (paidMatch?.[1]) {
+      return toTitleCase(normalizeWhitespace(paidMatch[1]));
+    }
+  }
+
+  return undefined;
+}
+
+function inferDebtReason(message: string, personName?: string): string | undefined {
+  let normalized = normalizeWhitespace(
+    message
+      .replace(/\b(?:lent|loaned|borrowed|utang|pinahiram|may utang|paid me back|paid back|settle|settled|nagbayad|bayad utang|i owe)\b/gi, ' ')
+      .replace(/\b(?:ako|ko|si|ni|kay|ki|from|to|with|sakin|sa akin|me|them)\b/gi, ' ')
+      .replace(/\b(?:for|dahil sa|dahil|para sa|para)\b/gi, ' ')
+      .replace(/\b(?:lang|mga|around|about|roughly|approximately|approx|halos)\b/gi, ' '),
+  );
+
+  if (personName) {
+    normalized = normalizeWhitespace(normalized.replace(new RegExp(`(^|\\W)${escapeRegExp(personName)}(?=$|\\W)`, 'i'), ' '));
+  }
+
+  return extractDescription(normalized);
+}
+
+function isMeaningfulDebtReason(reason: string | undefined, personName?: string): boolean {
+  if (!reason) {
+    return false;
+  }
+
+  const normalizedReason = normalizeForReply(reason);
+  if (!normalizedReason || normalizedReason === 'chat entry') {
+    return false;
+  }
+
+  if (personName && normalizedReason === normalizeForReply(personName)) {
+    return false;
+  }
+
+  if (normalizedReason.includes('utang') && (!personName || normalizedReason === `${normalizeForReply(personName)} utang`)) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildDebtChoiceLabel(debt: Debt): string {
+  const dateLabel = new Date(debt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${debt.personName} · ${debt.reason || 'No note'} · ${dateLabel}`;
+}
+
+function findDebtByReplyValue(message: string, debts: Debt[]): Debt | undefined {
+  const normalizedMessage = normalizeForReply(message);
+  const labelMatch = debts.find((debt) => normalizeForReply(buildDebtChoiceLabel(debt)) === normalizedMessage);
+  if (labelMatch) {
+    return labelMatch;
+  }
+
+  const personName = extractPersonFromDebtReply(message);
+  if (!personName) {
+    return undefined;
+  }
+
+  return debts.find((debt) => normalizeForReply(debt.personName) === normalizeForReply(personName));
+}
+
 function parseDebtAction(
   message: string,
   context: BerdeChatParserContext,
   existing?: Extract<BerdeParsedAction, { kind: 'debt' }>,
 ): Extract<BerdeParsedAction, { kind: 'debt' }> | null {
   const normalized = normalizeForReply(message);
-  const debtLike = /\b(lent|loaned|borrowed|utang|paid me back|settle|settled)\b/i.test(normalized);
+  const debts = (context.debts ?? []).filter((debt) => debt.status === 'active');
+  const debtLike = /\b(lent|loaned|borrowed|utang|paid me back|settle|settled|pinahiram|may utang|nagbayad|paid)\b/i.test(normalized);
   if (!debtLike && !existing) {
     return null;
   }
 
   const now = context.now ?? new Date();
   const { amount } = extractAmount(message);
-  const personName = extractPersonFromDebtMessage(message) ?? existing?.personName;
-  const debts = (context.debts ?? []).filter((debt) => debt.status === 'active');
-  const matchingDebt = findDebtByPerson(personName, debts);
+  const debtMode = inferDebtMode(message, debts, existing);
+  const personName = extractPersonFromDebtMessage(message, debtMode) ?? existing?.personName;
+  const debtCandidates = findDebtCandidatesByPerson(personName, debts);
+  const matchingDebt = debtCandidates[0];
+  const inferredDirection = inferDebtDirection(message, existing);
 
-  if (/\bpaid me back\b/i.test(normalized) || /\b(?:settle|settled)\b/i.test(normalized)) {
-    if (amount && matchingDebt) {
+  if (debtMode === 'settle') {
+    if (amount && matchingDebt && debtCandidates.length === 1) {
       if (amount < matchingDebt.amount - 0.009) {
         return {
           id: existing?.id ?? createActionId('debt'),
@@ -798,6 +1001,7 @@ function parseDebtAction(
           debtMode: 'settle',
           settlementType: 'partial',
           debtId: matchingDebt.id,
+          debtCandidateIds: [matchingDebt.id],
           personName,
           amount,
           remainingAmount: Number((matchingDebt.amount - amount).toFixed(2)),
@@ -814,6 +1018,7 @@ function parseDebtAction(
           kind: 'debt',
           debtMode: 'settle',
           settlementType: 'partial',
+          debtCandidateIds: debtCandidates.map((debt) => debt.id),
           personName,
           amount,
           remainingAmount: undefined,
@@ -831,6 +1036,7 @@ function parseDebtAction(
         kind: 'debt',
         debtMode: 'settle',
         settlementType: 'partial',
+        debtCandidateIds: debtCandidates.map((debt) => debt.id),
         personName,
         amount,
         reason: matchingDebt.reason ?? existing?.reason,
@@ -844,31 +1050,33 @@ function parseDebtAction(
       kind: 'debt',
       debtMode: 'settle',
       settlementType: amount ? 'partial' : 'full',
-      debtId: matchingDebt?.id ?? existing?.debtId,
+      debtId: debtCandidates.length === 1 ? matchingDebt?.id ?? existing?.debtId : existing?.debtId,
+      debtCandidateIds: debtCandidates.length > 0 ? debtCandidates.map((debt) => debt.id) : existing?.debtCandidateIds,
       personName,
       amount: amount ?? matchingDebt?.amount ?? existing?.amount,
       reason: matchingDebt?.reason ?? existing?.reason,
       direction: matchingDebt?.direction ?? existing?.direction,
+      remainingAmount:
+        amount && matchingDebt && amount < matchingDebt.amount - 0.009
+          ? Number((matchingDebt.amount - amount).toFixed(2))
+          : existing?.remainingAmount,
       date: buildDateIso(now, 0),
       sourceText: existing ? `${existing.sourceText} ${message}`.trim() : message,
     };
   }
-
-  const direction: DebtDirection | undefined =
-    /\b(lent|loaned)\b/i.test(normalized)
-      ? 'owed'
-      : /\b(borrowed|utang)\b/i.test(normalized)
-        ? 'owing'
-        : existing?.direction;
 
   return {
     id: existing?.id ?? createActionId('debt'),
     kind: 'debt',
     debtMode: 'create',
     personName,
-    direction,
+    direction: inferredDirection.direction,
+    directionSource: inferredDirection.source,
     amount: amount ?? existing?.amount,
-    reason: extractDescription(message) ?? existing?.reason ?? 'Chat entry',
+    reason: (() => {
+      const candidateReason = inferDebtReason(message, personName) ?? existing?.reason;
+      return isMeaningfulDebtReason(candidateReason, personName) ? candidateReason : undefined;
+    })(),
     date: buildDateIso(now, 0),
     sourceText: existing ? `${existing.sourceText} ${message}`.trim() : message,
   };
@@ -939,16 +1147,16 @@ function createUnsupportedResponse(message: string): BerdeChatResponse {
 function parseFreshAction(message: string, context: BerdeChatParserContext): BerdeParsedAction | null {
   const normalized = normalizeForReply(message);
 
-  if (/\b(transfer|move|send)\b/i.test(normalized) || /\bfrom\b.*\bto\b/i.test(normalized)) {
+  if (/\b(transfer|move|send|lipat|nilipat)\b/i.test(normalized) || /\bfrom\b.*\bto\b/i.test(normalized)) {
     return parseTransferAction(message, context);
   }
-  if (/\b(save|saved|deposit|add|withdraw|take out|pull out|savings)\b/i.test(normalized)) {
+  if (/\b(save|saved|deposit|add|withdraw|take out|pull out|savings|hulog|dagdag|ipon|kuha)\b/i.test(normalized)) {
     const savingsAction = parseSavingsAction(message, context);
     if (savingsAction) {
       return savingsAction;
     }
   }
-  if (/\b(lent|loaned|borrowed|utang|paid me back|settle|settled)\b/i.test(normalized)) {
+  if (/\b(lent|loaned|borrowed|utang|paid me back|settle|settled|pinahiram|may utang|nagbayad|paid)\b/i.test(normalized)) {
     const debtAction = parseDebtAction(message, context);
     if (debtAction) {
       return debtAction;
@@ -1024,9 +1232,6 @@ function getMissingFieldsForAction(action: BerdeParsedAction): BerdeActionMissin
       if (typeof action.amount !== 'number') {
         missing.push('amount');
       }
-      if (!action.reason) {
-        missing.push('reason');
-      }
       return missing;
     }
   }
@@ -1063,10 +1268,10 @@ function getQuickReplies(field?: BerdeActionMissingField, context?: BerdeChatPar
     return ['Expense', 'Income'];
   }
   if (field === 'category') {
-    return ['Food', 'Transportation', 'Shopping', 'Health', 'Miscellaneous'];
+    return ['Food', 'Transportation', 'Utilities', 'Health', 'Miscellaneous'];
   }
   if (field === 'incomeCategory') {
-    return ['Salary', 'Freelance', 'Bonus', 'Gift', 'Other Income'];
+    return ['Salary', 'Freelance', 'Side Job', 'Gift', 'Other Income'];
   }
   if (field === 'fromAccount' || field === 'toAccount') {
     return (context?.accounts ?? [])
@@ -1090,7 +1295,10 @@ function getQuickReplies(field?: BerdeActionMissingField, context?: BerdeChatPar
     return (context?.debts ?? [])
       .filter((debt) => debt.status === 'active')
       .slice(0, 4)
-      .map((debt) => debt.personName);
+      .map((debt) => buildDebtChoiceLabel(debt));
+  }
+  if (field === 'amount') {
+    return ['100', '250', '500', '1000'];
   }
   return [];
 }
@@ -1126,9 +1334,9 @@ function getFollowUpPrompt(
   if (field === 'goal') return `${prefix}, which savings goal should I use?`;
   if (field === 'savingsType') return `${prefix}, is this a deposit or a withdrawal?`;
   if (field === 'direction') return `${prefix}, do they owe you or do you owe them?`;
-  if (field === 'person') return `${prefix}, who is this debt entry for?`;
-  if (field === 'reason') return `${prefix}, what is the reason for it?`;
-  if (field === 'debt') return `${prefix}, which existing debt should I settle?`;
+  if (field === 'person') return `${prefix}, sino ang person sa utang na ito?`;
+  if (field === 'reason') return `${prefix}, para saan ito kung gusto mong lagyan ng note?`;
+  if (field === 'debt') return `${prefix}, aling active utang ang gagalaw dito?`;
   return `${prefix}, how much should I log?`;
 }
 
@@ -1210,19 +1418,139 @@ function interpretDirectConfirmation(message: string, context: BerdeChatParserCo
   };
 }
 
+function resolveAmountReply(message: string): number | undefined {
+  return extractAmount(message).amount;
+}
+
+function resolveDateReply(message: string, now: Date): string | undefined {
+  return extractDate(message, now).date;
+}
+
+function resolveCategoryReply(message: string): Category | undefined {
+  return findAliasMatch(message, CATEGORY_ALIASES).value;
+}
+
+function resolveIncomeCategoryReply(message: string): IncomeCategory | undefined {
+  return findAliasMatch(message, INCOME_CATEGORY_ALIASES).value;
+}
+
+function resolveAccountReply(message: string, accounts: Account[]): Account | undefined {
+  return extractAccountMention(message, accounts).account;
+}
+
+function resolveGoalReply(message: string, goals: SavingsGoal[]): SavingsGoal | undefined {
+  return extractGoalMention(message, goals).goal;
+}
+
+function resolveDebtDirectionReply(message: string): DebtDirection | undefined {
+  const normalized = normalizeForReply(message);
+  if (
+    normalized === 'they owe me'
+    || normalized === 'me'
+    || normalized === 'mine'
+    || normalized === 'siya may utang sakin'
+    || normalized === 'may utang siya sakin'
+    || normalized === 'sila may utang sakin'
+    || normalized === 'ako'
+    || normalized === 'sakin'
+  ) {
+    return 'owed';
+  }
+  if (
+    normalized === 'i owe them'
+    || normalized === 'may utang ako'
+    || normalized === 'utang ko'
+    || normalized === 'ako may utang'
+  ) {
+    return 'owing';
+  }
+  return undefined;
+}
+
 function mergeFollowUpIntoAction(
   action: BerdeParsedAction,
   message: string,
   context: BerdeChatParserContext,
   expectedField?: BerdeActionMissingField,
 ): BerdeParsedAction {
+  const now = context.now ?? new Date();
+
   if (action.kind === 'transaction') {
+    if (expectedField === 'amount') {
+      const amount = resolveAmountReply(message);
+      if (typeof amount === 'number') {
+        return { ...action, amount, sourceText: `${action.sourceText} ${message}`.trim() };
+      }
+    }
+    if (expectedField === 'category') {
+      const category = resolveCategoryReply(message);
+      if (category) {
+        return { ...action, category, sourceText: `${action.sourceText} ${message}`.trim() };
+      }
+    }
+    if (expectedField === 'incomeCategory') {
+      const incomeCategory = resolveIncomeCategoryReply(message);
+      if (incomeCategory) {
+        return { ...action, incomeCategory, sourceText: `${action.sourceText} ${message}`.trim() };
+      }
+    }
+    if (expectedField === 'type') {
+      const entryType = detectTransactionType(message);
+      if (entryType) {
+        return { ...action, entryType, sourceText: `${action.sourceText} ${message}`.trim() };
+      }
+    }
     return mergeTransactionAction(action, message, context) ?? action;
   }
   if (action.kind === 'transfer') {
+    if (expectedField === 'amount') {
+      const amount = resolveAmountReply(message);
+      if (typeof amount === 'number') {
+        return { ...action, amount, sourceText: `${action.sourceText} ${message}`.trim() };
+      }
+    }
+    if (expectedField === 'fromAccount') {
+      const account = resolveAccountReply(message, context.accounts);
+      if (account) {
+        return {
+          ...action,
+          fromAccountId: account.id,
+          fromAccountName: account.name,
+          sourceText: `${action.sourceText} ${message}`.trim(),
+        };
+      }
+    }
+    if (expectedField === 'toAccount') {
+      const account = resolveAccountReply(message, context.accounts);
+      if (account) {
+        return {
+          ...action,
+          toAccountId: account.id,
+          toAccountName: account.name,
+          sourceText: `${action.sourceText} ${message}`.trim(),
+        };
+      }
+    }
     return parseTransferAction(message, context, action) ?? action;
   }
   if (action.kind === 'savings') {
+    if (expectedField === 'amount') {
+      const amount = resolveAmountReply(message);
+      if (typeof amount === 'number') {
+        return { ...action, amount, sourceText: `${action.sourceText} ${message}`.trim() };
+      }
+    }
+    if (expectedField === 'goal') {
+      const goal = resolveGoalReply(message, context.savingsGoals ?? []);
+      if (goal) {
+        return {
+          ...action,
+          goalId: goal.id,
+          goalName: goal.name,
+          sourceText: `${action.sourceText} ${message}`.trim(),
+        };
+      }
+    }
     const savingsAction = parseSavingsAction(message, context, action) ?? action;
     const normalized = normalizeForReply(message);
     if (savingsAction.kind === 'savings' && !savingsAction.savingsType) {
@@ -1232,8 +1560,6 @@ function mergeFollowUpIntoAction(
     return savingsAction;
   }
   if (action.kind === 'debt') {
-    const normalized = normalizeForReply(message);
-
     if (expectedField === 'person' && action.debtMode === 'create' && !action.personName) {
       const personName = extractPersonFromDebtReply(message);
       if (personName) {
@@ -1246,8 +1572,8 @@ function mergeFollowUpIntoAction(
     }
 
     if (expectedField === 'debt' && action.debtMode === 'settle' && !action.debtId) {
-      const personName = extractPersonFromDebtReply(message);
-      const matchingDebt = findDebtByPerson(personName, (context.debts ?? []).filter((debt) => debt.status === 'active'));
+      const activeDebts = (context.debts ?? []).filter((debt) => debt.status === 'active');
+      const matchingDebt = findDebtByReplyValue(message, activeDebts);
       if (matchingDebt) {
         const settlementAmount = typeof action.amount === 'number' ? action.amount : matchingDebt.amount;
         const isPartial = settlementAmount < matchingDebt.amount - 0.009;
@@ -1266,28 +1592,68 @@ function mergeFollowUpIntoAction(
     }
 
     if (action.debtMode === 'create' && !action.direction) {
-      if (normalized === 'they owe me') {
+      const direction = resolveDebtDirectionReply(message);
+      if (direction === 'owed') {
         return {
           ...action,
           direction: 'owed',
+          directionSource: 'explicit',
           sourceText: `${action.sourceText} ${message}`.trim(),
         };
       }
-      if (normalized === 'i owe them') {
+      if (direction === 'owing') {
         return {
           ...action,
           direction: 'owing',
+          directionSource: 'explicit',
           sourceText: `${action.sourceText} ${message}`.trim(),
         };
       }
+    }
+
+    if (expectedField === 'amount') {
+      const amount = resolveAmountReply(message);
+      if (typeof amount === 'number') {
+        return {
+          ...action,
+          amount,
+          remainingAmount:
+            action.debtMode === 'settle' && action.debtId
+              ? undefined
+              : action.remainingAmount,
+          sourceText: `${action.sourceText} ${message}`.trim(),
+        };
+      }
+    }
+
+    if (expectedField === 'reason' && action.debtMode === 'create') {
+      const reason = inferDebtReason(message, action.personName) ?? extractDescription(message);
+      if (reason) {
+        return {
+          ...action,
+          reason,
+          sourceText: `${action.sourceText} ${message}`.trim(),
+        };
+      }
+    }
+
+    const date = resolveDateReply(message, now);
+    if (date) {
+      return {
+        ...action,
+        date,
+        sourceText: `${action.sourceText} ${message}`.trim(),
+      };
     }
   }
 
   const debtAction = parseDebtAction(message, context, action) ?? action;
   if (debtAction.kind === 'debt' && debtAction.debtMode === 'create' && !debtAction.direction) {
-    const normalized = normalizeForReply(message);
-    if (normalized === 'they owe me') debtAction.direction = 'owed';
-    if (normalized === 'i owe them') debtAction.direction = 'owing';
+    const direction = resolveDebtDirectionReply(message);
+    if (direction) {
+      debtAction.direction = direction;
+      debtAction.directionSource = 'explicit';
+    }
   }
   return debtAction;
 }
@@ -1321,7 +1687,7 @@ export function parseBerdeChatInput(
   message: string,
   context: BerdeChatParserContext,
 ): BerdeChatResponse {
-  const sourceText = normalizeWhitespace(message);
+  const sourceText = normalizeChatMessage(message);
   const normalizedSource = normalizeForReply(sourceText);
   if (!sourceText) {
     return createUnsupportedResponse(sourceText);
