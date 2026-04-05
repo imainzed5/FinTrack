@@ -408,6 +408,8 @@ export default function DashboardClientPage() {
                 insight={primaryBerdeInsight}
                 quote={berdeContext.quote}
                 hasThoughts={hasBerdeThoughts}
+                footerHint="Tap to read Berde's thoughts and jump into chat"
+                ariaLabel="Open Berde insights drawer"
                 onClick={() => setBerdeOpen(true)}
               />
             </div>

@@ -9,6 +9,8 @@ interface BerdeCardProps {
   quote?: string;
   hasThoughts?: boolean;
   onClick: () => void;
+  footerHint?: string;
+  ariaLabel?: string;
 }
 
 function resolveSpriteState(mood: BerdeMood) {
@@ -19,7 +21,14 @@ function resolveSpriteState(mood: BerdeMood) {
   return 'neutral' as const;
 }
 
-export default function BerdeCard({ insight, quote, hasThoughts = true, onClick }: BerdeCardProps) {
+export default function BerdeCard({
+  insight,
+  quote,
+  hasThoughts = true,
+  onClick,
+  footerHint,
+  ariaLabel,
+}: BerdeCardProps) {
   const spriteState = resolveSpriteState(insight.mood);
 
   return (
@@ -28,7 +37,7 @@ export default function BerdeCard({ insight, quote, hasThoughts = true, onClick 
       onClick={onClick}
       className="relative w-full overflow-hidden rounded-[20px] border border-[#0b5b47] px-4 py-4 text-left md:rounded-2xl md:px-5"
       style={{ background: '#0F6E56' }}
-      aria-label="Open Berde insights drawer"
+      aria-label={ariaLabel || 'Open Berde'}
     >
       <div
         aria-hidden
@@ -84,7 +93,7 @@ export default function BerdeCard({ insight, quote, hasThoughts = true, onClick 
           >
             <Clock3 size={10} />
             <span>
-              {hasThoughts ? 'Berde has more to say - tap to read' : 'Still learning from this device'}
+              {footerHint || (hasThoughts ? 'Berde has more to say - tap to read' : 'Still learning from this device')}
             </span>
           </div>
         </div>

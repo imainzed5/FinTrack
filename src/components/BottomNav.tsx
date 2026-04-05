@@ -21,6 +21,10 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  if (pathname === '/berde') {
+    return null;
+  }
+
   return (
     <div className="bottom-nav fixed bottom-[calc(env(safe-area-inset-bottom)+0.8rem)] left-0 right-0 z-40 flex justify-center px-3 sm:hidden">
       <nav className="relative grid w-full max-w-[21.25rem] grid-cols-5 items-center rounded-[24px] border border-[#e6dccd] bg-[linear-gradient(180deg,rgba(255,251,245,0.97)_0%,rgba(248,242,232,0.96)_100%)] p-1 shadow-[0_12px_26px_rgba(36,31,22,0.11),0_2px_8px_rgba(36,31,22,0.06)] backdrop-blur-md dark:border-zinc-800 dark:bg-[linear-gradient(180deg,rgba(28,28,30,0.96)_0%,rgba(18,18,20,0.96)_100%)]">

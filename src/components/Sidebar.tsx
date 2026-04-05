@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Receipt,
   Lightbulb,
+  MessageCircleMore,
   LogOut,
   PiggyBank,
   Settings,
@@ -25,6 +26,12 @@ const navSections = [
       { href: '/transactions', label: 'Transactions', icon: Receipt },
       { href: '/debts', label: 'Debts & Splits', icon: Users },
       { href: '/insights', label: 'Insights', icon: Lightbulb },
+    ],
+  },
+  {
+    label: 'Chat',
+    items: [
+      { href: '/berde', label: 'Berde', icon: MessageCircleMore },
     ],
   },
   {
@@ -79,6 +86,7 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
     Record<SidebarSectionLabel, boolean>
   >({
     Overview: false,
+    Chat: false,
     Plan: false,
     Account: false,
   });

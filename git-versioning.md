@@ -79,12 +79,24 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.27.0
+### Current version: v0.28.1
 
 
 ---
 
 ## Version Roadmap
+v0.28.1 - 2026-04-05
+  - fix(berde): Stop debt follow-up loops in `src/lib/berde/chat-parser.ts` by treating missing-person and missing-debt replies as field-level answers instead of re-parsing them as fresh debt commands.
+  - test(berde): Add debt follow-up regression coverage in `src/lib/berde/chat-parser.test.ts` for missing-person debt creation and debt-selection settlement flows.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the Berde debt follow-up patch.
+
+v0.28.0 — 2026-04-05
+  - feat(berde): Add a dedicated `/berde` chat workspace with dashboard and drawer entry points, desktop sidebar placement, mobile chat-first layout, and session-persisted Berde conversation flow for quick natural-language logging.
+  - feat(berde): Add a rule-first batched parser in `src/lib/berde/chat-parser.ts` and `src/lib/berde/chat.types.ts` for expense/income logs, transfers, savings moves, and debt actions, including multi-entry parsing, Taglish/local phrasing support, and conservative follow-up handling.
+  - feat(berde): Add grouped preview cards, preview-first confirmation, smarter cancel handling, clearer save summaries, focused batch follow-up callouts, and responsive preview-card polish in `src/components/pages/BerdeChatClientPage.tsx`.
+  - test(berde): Add parser regression coverage in `src/lib/berde/chat-parser.test.ts` for multi-action batches, typed follow-ups, local separators, and item-specific follow-up behavior.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the Berde chat logging implementation and refinement pass.
+
 v0.27.0 — 2026-04-02
   - feat(dashboard): Fix the dashboard Upcoming card in `src/lib/insights-engine.ts`, `src/lib/types.ts`, and `src/components/pages/DashboardClientPage.tsx` by exposing a dedicated `upcomingRecurringTransactions` payload so recurring templates due within 14 days are no longer hidden by current-month recent-transaction slicing.
   - feat(timeline): Make the Financial Timeline smarter in `src/lib/insights-engine.ts`, `src/lib/types.ts`, `src/components/TimelineView.tsx`, and `src/lib/timeline-events.test.ts` with predictive pacing events, income-aware context, savings-rate trend events, post-income behavior detection, and budget-recovery milestones.
