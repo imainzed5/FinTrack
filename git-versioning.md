@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.28.2
+### Current version: v0.28.3
 
 
 ---
 
 ## Version Roadmap
+v0.28.3 - 2026-04-06
+  - fix(berde): Split the remaining Berde chat page container in `src/components/pages/BerdeChatClientPage.tsx` by extracting the message thread and composer UI into `src/components/berde-chat/BerdeChatThread.tsx` and `src/components/berde-chat/BerdeChatComposer.tsx`, keeping the page focused on state and orchestration.
+  - test(berde): Add render-based UI regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` and `src/components/berde-chat/BerdeChatComposer.test.tsx` for pending preview confirmation controls and missing-field follow-up composer states.
+  - fix(berde): Correct singular follow-up copy in `src/components/berde-chat/BerdeChatComposer.tsx` so focused-action guidance reads naturally when only one other parsed item remains.
+  - verification: `npx tsx --test src/lib/berde/chat-parser.test.ts src/components/berde-chat/BerdeChatThread.test.tsx src/components/berde-chat/BerdeChatComposer.test.tsx` and `npx eslint src/components/pages/BerdeChatClientPage.tsx src/components/berde-chat/*.tsx` passed after the final Berde chat UI split.
+
 v0.28.2 - 2026-04-06
   - fix(berde): Align the Berde debt parser, preview, and save path so natural debt drafts like `Ana utang 500` and `utang kay Ana` complete correctly, stop looping on missing person details, and save without requiring a filler reason.
   - fix(berde): Clean up debt review cards in `src/components/pages/BerdeChatClientPage.tsx` by removing low-value debt scaffolding and suppressing fake debt reasons like echoed `Ana utang`.

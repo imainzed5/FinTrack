@@ -53,6 +53,7 @@ const savingsGoals: SavingsGoal[] = [
     isPrivate: false,
     isPinned: true,
     status: 'active',
+    sortOrder: 0,
     createdAt: baseNow.toISOString(),
     updatedAt: baseNow.toISOString(),
   },
@@ -527,6 +528,45 @@ test('resolves Filipino weekday phrasing', () => {
   assert.equal(action.kind, 'transaction');
   assert.equal(action.category, 'Transportation');
   assert.equal(action.date.startsWith('2026-03-31'), true);
+});
+
+test('savings follow-up can fill the missing goal', () => {
+  const initial = parse('save 500');
+  assert.equal(initial.intent.kind, 'ambiguous');
+  assert.equal(initial.intent.expectedField, 'goal');
+
+  const followUp = parse('Emergency Fund', {
+    pendingBatch: initial.intent.batch,
+    pendingIntent: initial.intent,
+  });
+
+  assert.equal(followUp.intent.kind, 'action_batch');
+  const action = followUp.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'savings');
+  assert.equal(action.goalId, 'goal-emergency');
+  assert.equal(action.goalName, 'Emergency Fund');
+  assert.equal(action.amount, 500);
+  assert.equal(action.savingsType, 'deposit');
+});
+
+test('transfer follow-up can fill the missing destination account', () => {
+  const initial = parse('transfer 500 from gcash');
+  assert.equal(initial.intent.kind, 'ambiguous');
+  assert.equal(initial.intent.expectedField, 'toAccount');
+
+  const followUp = parse('cash', {
+    pendingBatch: initial.intent.batch,
+    pendingIntent: initial.intent,
+  });
+
+  assert.equal(followUp.intent.kind, 'action_batch');
+  const action = followUp.intent.batch?.actions[0];
+  assert.ok(action);
+  assert.equal(action.kind, 'transfer');
+  assert.equal(action.amount, 500);
+  assert.equal(action.fromAccountId, 'gcash-wallet');
+  assert.equal(action.toAccountId, 'cash-wallet');
 });
 
 test('returns unsupported for advice-style prompts', () => {
