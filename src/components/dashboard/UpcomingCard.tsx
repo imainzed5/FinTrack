@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/utils';
 
 interface UpcomingCardProps {
   transactions: Transaction[];
+  className?: string;
 }
 
 function safeParseDate(value: string): Date {
@@ -32,7 +33,7 @@ function resolveDueDate(transaction: Transaction): Date {
   return safeParseDate(transaction.date);
 }
 
-export default function UpcomingCard({ transactions }: UpcomingCardProps) {
+export default function UpcomingCard({ transactions, className }: UpcomingCardProps) {
   const today = new Date();
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const endOfWindow = addDays(startOfToday, 14);
@@ -50,7 +51,9 @@ export default function UpcomingCard({ transactions }: UpcomingCardProps) {
     .slice(0, 3);
 
   return (
-    <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+    <section
+      className={`flex h-full flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 ${className ?? ''}`}
+    >
       <div className="flex items-center justify-between">
         <h2 className="text-[14px] font-medium text-zinc-800">Upcoming</h2>
         <Link
@@ -61,7 +64,7 @@ export default function UpcomingCard({ transactions }: UpcomingCardProps) {
         </Link>
       </div>
 
-      <div className="mt-3 space-y-2.5">
+      <div className={`mt-3 ${upcoming.length === 0 ? 'flex flex-1 items-center justify-center' : 'space-y-2.5'}`}>
         {upcoming.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-4 text-center">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#E1F5EE]">

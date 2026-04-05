@@ -1574,11 +1574,14 @@ export function buildDashboardData(
 ): DashboardData {
   const currentMonthTxs = getMonthTransactions(transactions, now);
   const lastMonthTxs = getMonthTransactions(transactions, subMonths(now, 1));
+  const currentMonthIncomeTxs = currentMonthTxs.filter(isIncomeTransaction);
   const currentMonthExpenseTxs = currentMonthTxs.filter(isExpenseTransaction);
   const lastMonthExpenseTxs = lastMonthTxs.filter(isExpenseTransaction);
 
+  const totalIncomeThisMonth = sumTransactions(currentMonthIncomeTxs);
   const totalSpentThisMonth = sumTransactions(currentMonthExpenseTxs);
   const totalSpentLastMonth = sumTransactions(lastMonthExpenseTxs);
+  const netThisMonth = roundMoney(totalIncomeThisMonth - totalSpentThisMonth);
 
   const monthStr = format(now, 'yyyy-MM');
   const overallBudget = budgets.find(
@@ -1680,8 +1683,10 @@ export function buildDashboardData(
   const insights = generateInsights(transactions, budgets, now);
 
   return {
+    totalIncomeThisMonth,
     totalSpentThisMonth,
     totalSpentLastMonth,
+    netThisMonth,
     totalBalance: 0,
     remainingBudget,
     monthlyBudget,

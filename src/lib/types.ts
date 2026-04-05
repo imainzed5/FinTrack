@@ -285,8 +285,10 @@ export interface DashboardCalendarRange {
 }
 
 export interface DashboardData {
+  totalIncomeThisMonth: number;
   totalSpentThisMonth: number;
   totalSpentLastMonth: number;
+  netThisMonth: number;
   totalBalance: number;
   remainingBudget: number;
   monthlyBudget: number;

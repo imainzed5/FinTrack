@@ -1,14 +1,17 @@
 'use client';
 
-import { PiggyBank, Sun, Target, Wallet } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { ArrowLeftRight, PiggyBank, Sun, Target, Wallet } from 'lucide-react';
 import { formatCurrency, formatCurrencySigned } from '@/lib/utils';
 
 interface QuickStatTilesProps {
   totalBalance: number;
+  totalIncomeThisMonth: number;
   spentThisMonth: number;
   remaining: number;
   monthlyLimit: number;
   spentToday: number;
+  netThisMonth: number;
   savingsTotalSaved: number;
   savingsActiveGoalCount: number;
   savingsLoading: boolean;
@@ -23,18 +26,29 @@ interface QuickStatTilesProps {
 interface TileProps {
   label: string;
   value: string;
-  subLabel: string | React.ReactNode;
-  icon: React.ReactNode;
+  subLabel: string | ReactNode;
+  icon: ReactNode;
   onClick?: () => void;
   delay?: number;
+  className?: string;
+  valueClassName?: string;
 }
 
-function Tile({ label, value, subLabel, icon, onClick, delay }: TileProps) {
+function Tile({
+  label,
+  value,
+  subLabel,
+  icon,
+  onClick,
+  delay,
+  className,
+  valueClassName,
+}: TileProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3 animate-fade-up"
+      className={`relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3 animate-fade-up ${className ?? ''}`}
       style={{ animationDelay: `${delay ?? 0}ms` }}
       aria-label={label}
     >
@@ -44,17 +58,21 @@ function Tile({ label, value, subLabel, icon, onClick, delay }: TileProps) {
         </p>
         {icon}
       </div>
-      <p className="text-[20px] font-medium leading-tight text-zinc-900">{value}</p>
+      <p className={`text-[20px] font-medium leading-tight ${valueClassName ?? 'text-zinc-900'}`}>
+        {value}
+      </p>
       <p className="mt-1 truncate text-[11px] text-zinc-500">{subLabel}</p>
     </button>
   );
 }
 
 export default function QuickStatTiles({
+  totalIncomeThisMonth,
   spentThisMonth,
   remaining,
   monthlyLimit,
   spentToday,
+  netThisMonth,
   savingsTotalSaved,
   savingsActiveGoalCount,
   savingsLoading,
@@ -72,6 +90,9 @@ export default function QuickStatTiles({
     lastMonthSpent > 0
       ? `${monthChange > 0 ? '+' : ''}${Math.round(monthChange)}% vs last month`
       : 'No last month baseline yet';
+
+  const netValueClassName =
+    netThisMonth > 0 ? 'text-[#1D9E75]' : netThisMonth < 0 ? 'text-[#D85A30]' : 'text-zinc-900';
 
   return (
     <section className="grid grid-cols-2 gap-[10px] md:grid-cols-4">
@@ -119,6 +140,21 @@ export default function QuickStatTiles({
         icon={<PiggyBank size={16} color="#7F77DD" />}
         onClick={onSavingsGoalsTap}
         delay={90}
+        className="md:hidden"
+      />
+
+      <Tile
+        label="Net this month"
+        value={formatCurrencySigned(netThisMonth)}
+        subLabel={
+          <span className="flex flex-wrap items-center gap-1.5">
+            Income: {formatCurrency(totalIncomeThisMonth)}
+          </span>
+        }
+        icon={<ArrowLeftRight size={16} color={netThisMonth < 0 ? '#D85A30' : '#1D9E75'} />}
+        delay={90}
+        className="hidden md:block"
+        valueClassName={netValueClassName}
       />
     </section>
   );

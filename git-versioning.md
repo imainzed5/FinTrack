@@ -79,12 +79,20 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.28.3
+### Current version: v0.29.0
 
 
 ---
 
 ## Version Roadmap
+v0.29.0 - 2026-04-06
+  - feat(dashboard): Rework the desktop dashboard layout in `src/components/pages/DashboardClientPage.tsx` so the main content uses the available width beside the fixed sidebar, with a persistent right rail for recent activity and quick logging.
+  - feat(dashboard): Add shared dashboard net metrics in `src/lib/types.ts`, `src/lib/insights-engine.ts`, and `src/lib/dashboard-history.test.ts`, then surface the new desktop `Net this month` stat through `src/components/dashboard/QuickStatTiles.tsx`.
+  - feat(dashboard): Add dedicated desktop rail blocks in `src/components/dashboard/DesktopQuickActions.tsx` and `src/components/dashboard/SavingsGoalsRailCard.tsx`, plus tighter recent-transaction rail behavior in `src/components/dashboard/RecentTransactions.tsx`.
+  - feat(dashboard): Add a payday context strip and sparse-user next actions in `src/components/dashboard/PaydayCountdownCard.tsx` and `src/components/dashboard/DashboardNextActions.tsx`, wired to local user payday settings.
+  - fix(dashboard): Refine desktop hierarchy and density in `src/components/dashboard/MiniBarChart.tsx`, `src/components/dashboard/UpcomingCard.tsx`, and `src/components/dashboard/BerdeCard.tsx`, including a taller 7-day chart, better Berde readability, and reduced empty space in the right rail.
+  - verification: `npm run lint` completed with existing unrelated warnings in `src/lib/berde/chat-parser.ts`, and `npx tsx --test src/lib/dashboard-history.test.ts` passed after the dashboard desktop refinement batch.
+
 v0.28.3 - 2026-04-06
   - fix(berde): Split the remaining Berde chat page container in `src/components/pages/BerdeChatClientPage.tsx` by extracting the message thread and composer UI into `src/components/berde-chat/BerdeChatThread.tsx` and `src/components/berde-chat/BerdeChatComposer.tsx`, keeping the page focused on state and orchestration.
   - test(berde): Add render-based UI regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` and `src/components/berde-chat/BerdeChatComposer.test.tsx` for pending preview confirmation controls and missing-field follow-up composer states.

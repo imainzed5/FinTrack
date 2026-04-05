@@ -102,6 +102,14 @@ test('buildDashboardData keeps current-month overview math while exposing calend
     createTransaction({ id: 'mar-2', date: '2026-03-28T12:00:00.000Z', amount: 900, category: 'Shopping' }),
     createTransaction({ id: 'apr-1', date: '2026-04-01T08:00:00.000Z', amount: 150, category: 'Health' }),
     createTransaction({
+      id: 'apr-income-1',
+      date: '2026-04-01T09:30:00.000Z',
+      amount: 900,
+      type: 'income',
+      category: 'Miscellaneous',
+      incomeCategory: 'Freelance',
+    }),
+    createTransaction({
       id: 'adjustment-1',
       date: '2026-04-01T10:00:00.000Z',
       amount: 75,
@@ -116,12 +124,15 @@ test('buildDashboardData keeps current-month overview math while exposing calend
 
   const dashboard = buildDashboardData(transactions, budgets, FIXED_NOW);
 
+  assert.equal(dashboard.totalIncomeThisMonth, 900);
   assert.equal(dashboard.totalSpentThisMonth, 225);
   assert.equal(dashboard.totalSpentLastMonth, 2100);
+  assert.equal(dashboard.netThisMonth, 675);
   assert.equal(dashboard.calendarRange.minMonth, '2026-03');
   assert.equal(dashboard.calendarTransactions.length, 3);
-  assert.equal(dashboard.currentMonthTransactions.length, 1);
-  assert.equal(dashboard.currentMonthTransactions[0]?.id, 'apr-1');
+  assert.equal(dashboard.currentMonthTransactions.length, 2);
+  assert.equal(dashboard.currentMonthTransactions[0]?.id, 'apr-income-1');
+  assert.equal(dashboard.currentMonthTransactions[1]?.id, 'apr-1');
   assert.equal(dashboard.berdeMemory.previousMonthStatus, 'overspent');
   assert.equal(
     dashboard.calendarSpending.find((point) => point.date === '2026-03-28')?.amount,
