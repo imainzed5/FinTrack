@@ -1,6 +1,7 @@
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import BerdeSprite from '@/components/BerdeSprite';
 import {
+  getCompactReceiptLine,
   getActionHeadline,
   getActionKindLabel,
   getActionMeta,
@@ -43,6 +44,8 @@ export default function BatchPreviewCard(props: {
   const lowConfidenceNote = message.previewState.kind === 'pending'
     ? getLowConfidenceNote(message.confidenceLabel)
     : null;
+  const isLogged = message.previewState.kind === 'logged';
+  const shouldShowSummaryBadge = !isLogged && summaryBadge;
 
   return (
     <div className="flex items-start gap-2.5 sm:gap-3">
@@ -59,9 +62,9 @@ export default function BatchPreviewCard(props: {
             <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusClass}`}>
               {statusCopy}
             </span>
-            {summaryBadge ? (
+            {shouldShowSummaryBadge ? (
               <span className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
-                {summaryBadge}
+                {shouldShowSummaryBadge}
               </span>
             ) : null}
           </div>
@@ -70,53 +73,69 @@ export default function BatchPreviewCard(props: {
             <p className="mt-3 text-sm leading-6 text-zinc-700">{message.text}</p>
           ) : null}
 
-          <div className="mt-4 space-y-3">
-            {message.batch.actions.map((action, index) => (
-              <div key={action.id} className="rounded-2xl border border-white/90 bg-white px-3 py-3 sm:px-4">
-                {message.batch.actions.length === 1 && action.kind === 'transaction' ? (
-                  <p className="text-base font-medium leading-tight text-zinc-900">
-                    {getActionHeadline(action)}
-                  </p>
-                ) : message.batch.actions.length === 1 ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                    <div>
-                      <p className="text-base font-semibold text-zinc-900">
-                        {action.kind === 'debt' ? (action.debtMode === 'settle' ? getActionKindLabel(action) : 'Debt') : getActionKindLabel(action)}
-                      </p>
-                    </div>
+          {isLogged ? (
+            <div className="mt-4 rounded-2xl border border-white/90 bg-white px-3 py-3 sm:px-4">
+              <p className="text-sm font-semibold text-zinc-900">
+                Logged {message.batch.actions.length} item{message.batch.actions.length === 1 ? '' : 's'}
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-6 text-zinc-700">
+                {message.batch.actions.map((action) => (
+                  <li key={action.id} className="flex gap-2">
+                    <span className="mt-[3px] text-xs text-[#0F6E56]">•</span>
+                    <span>{getCompactReceiptLine(action)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {message.batch.actions.map((action, index) => (
+                <div key={action.id} className="rounded-2xl border border-white/90 bg-white px-3 py-3 sm:px-4">
+                  {message.batch.actions.length === 1 && action.kind === 'transaction' ? (
                     <p className="text-base font-medium leading-tight text-zinc-900">
                       {getActionHeadline(action)}
                     </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
-                        Action {index + 1}
-                      </p>
-                      <p className="mt-1 text-base font-semibold text-zinc-900">
-                        {getActionKindLabel(action)}
+                  ) : message.batch.actions.length === 1 ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                      <div>
+                        <p className="text-base font-semibold text-zinc-900">
+                          {action.kind === 'debt' ? (action.debtMode === 'settle' ? getActionKindLabel(action) : 'Debt') : getActionKindLabel(action)}
+                        </p>
+                      </div>
+                      <p className="text-base font-medium leading-tight text-zinc-900">
+                        {getActionHeadline(action)}
                       </p>
                     </div>
-                    <p className="text-base font-medium leading-tight text-zinc-900">
-                      {getActionHeadline(action)}
-                    </p>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
+                          Action {index + 1}
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-zinc-900">
+                          {getActionKindLabel(action)}
+                        </p>
+                      </div>
+                      <p className="text-base font-medium leading-tight text-zinc-900">
+                        {getActionHeadline(action)}
+                      </p>
+                    </div>
+                  )}
 
-                <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-3 text-sm text-zinc-600 min-[420px]:grid-cols-2 xl:grid-cols-3">
-                  {getActionMeta(action).map((entry) => (
-                    <div key={`${action.id}-${entry.label}`}>
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-400">
-                        {entry.label}
-                      </p>
-                      <p className="mt-1">{entry.value}</p>
-                    </div>
-                  ))}
+                  <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-3 text-sm text-zinc-600 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                    {getActionMeta(action).map((entry) => (
+                      <div key={`${action.id}-${entry.label}`}>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-400">
+                          {entry.label}
+                        </p>
+                        <p className="mt-1">{entry.value}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {message.previewState.kind === 'pending' ? (
             <div className="mt-4 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">

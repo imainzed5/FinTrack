@@ -16,8 +16,8 @@ import type {
 } from '@/lib/berde/chat.types';
 import { executeParsedAction, loadBerdeChatContextData } from '@/lib/berde/chat/executor';
 import {
-  buildReceiptMessages,
   getDraftVoiceLine,
+  getLoggedVoiceLine,
   getPreviewCardText,
   getSessionSummary,
 } from '@/lib/berde/chat/presenters';
@@ -237,19 +237,19 @@ export default function BerdeChatClientPage() {
       }
 
       setMessages((current): BerdeChatMessage[] => {
-        const clearedMessages = clearInteractiveState(current);
-        const nextMessages: BerdeChatMessage[] = [];
-
-        for (const message of clearedMessages) {
-          if (message.kind === 'preview' && message.id === messageId) {
-            nextMessages.push(...buildReceiptMessages(batch));
-            continue;
+        return clearInteractiveState(current).map((message): BerdeChatMessage => {
+          if (message.kind !== 'preview' || message.id !== messageId) {
+            return message;
           }
 
-          nextMessages.push(message);
-        }
-
-        return nextMessages;
+          const previewState: PreviewState = { kind: 'logged' };
+          return {
+            ...message,
+            previewState,
+            text: getLoggedVoiceLine(batch),
+            quickReplies: ['Add another', 'Log income', 'Move money'],
+          };
+        });
       });
       setActiveIntent(null);
 

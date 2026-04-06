@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.29.0
+### Current version: v0.29.1
 
 
 ---
 
 ## Version Roadmap
+v0.29.1 - 2026-04-06
+  - fix(berde): Compact the bulk-log success state in `src/components/berde-chat/BatchPreviewCard.tsx` so confirmed multi-action chat logs stay in a single logged card with receipt-style lines instead of expanding into full review panels.
+  - fix(berde): Keep session totals accurate for logged preview batches in `src/lib/berde/chat/presenters.ts` and add regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` for the compact logged layout.
+  - fix(berde): Preserve the dense multi-action parsing fix in `src/lib/berde/chat/segmenter.ts` and `src/lib/berde/chat-parser.test.ts` so bulk chat logging still splits repeated amount-description pairs correctly.
+  - verification: `npm test -- src/components/berde-chat/BerdeChatThread.test.tsx src/lib/berde/chat-parser.test.ts` passed after the compact logged-card polish.
+
 v0.29.0 - 2026-04-06
   - feat(dashboard): Rework the desktop dashboard layout in `src/components/pages/DashboardClientPage.tsx` so the main content uses the available width beside the fixed sidebar, with a persistent right rail for recent activity and quick logging.
   - feat(dashboard): Add shared dashboard net metrics in `src/lib/types.ts`, `src/lib/insights-engine.ts`, and `src/lib/dashboard-history.test.ts`, then surface the new desktop `Net this month` stat through `src/components/dashboard/QuickStatTiles.tsx`.

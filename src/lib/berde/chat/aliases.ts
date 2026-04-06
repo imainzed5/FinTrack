@@ -33,6 +33,10 @@ export const CATEGORY_ALIASES: Array<AliasEntry<Category>> = [
     aliases: [
       'mrt',
       'lrt',
+      'gas',
+      'gasoline',
+      'fuel',
+      'diesel',
       'grab',
       'fare',
       'pamasahe',

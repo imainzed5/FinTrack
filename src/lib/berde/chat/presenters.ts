@@ -69,6 +69,28 @@ export function getPreviewCardText(state: PreviewState): string {
   }
 }
 
+export function getLoggedVoiceLine(batch: BerdeParsedActionBatch): string {
+  if (batch.actions.length > 1) {
+    return `Logged ${batch.actions.length} items. Nasa history mo na sila.`;
+  }
+
+  const action = batch.actions[0];
+  switch (action.kind) {
+    case 'transaction':
+      return action.entryType === 'income'
+        ? 'Income logged. Nasa history mo na.'
+        : 'Expense logged. Nasa history mo na.';
+    case 'transfer':
+      return 'Transfer logged. Nasa history mo na.';
+    case 'savings':
+      return 'Savings move logged. Nasa history mo na.';
+    case 'debt':
+      return action.debtMode === 'settle'
+        ? 'Debt update logged. Nasa history mo na.'
+        : 'Debt entry logged. Nasa history mo na.';
+  }
+}
+
 function getAmountBand(amount?: number): 'small' | 'medium' | 'large' {
   if (typeof amount !== 'number') {
     return 'medium';
@@ -241,31 +263,35 @@ export function getActionMeta(action: BerdeParsedAction): Array<{ label: string;
   return debtMeta;
 }
 
-function getSmartReceiptText(action: BerdeParsedAction): string {
+export function getCompactReceiptLine(action: BerdeParsedAction): string {
   const formattedDate = format(new Date(action.date), 'MMM d');
 
   switch (action.kind) {
     case 'transaction':
-      return `✓ ${formatCurrency(action.amount ?? 0)} ${action.entryType === 'income' ? 'income' : 'expense'} · ${
+      return `${formatCurrency(action.amount ?? 0)} ${action.entryType === 'income' ? 'income' : 'expense'} · ${
         action.entryType === 'income' ? (action.incomeCategory || 'Other Income') : (action.category || 'Miscellaneous')
       } · ${formattedDate}`;
     case 'transfer':
-      return `✓ ${formatCurrency(action.amount ?? 0)} transfer · ${
+      return `${formatCurrency(action.amount ?? 0)} transfer · ${
         action.fromAccountName || 'One account'
       } to ${action.toAccountName || 'another account'} · ${formattedDate}`;
     case 'savings':
-      return `✓ ${formatCurrency(action.amount ?? 0)} ${
+      return `${formatCurrency(action.amount ?? 0)} ${
         action.savingsType === 'withdrawal' ? 'withdrawal' : 'saved'
       } · ${action.goalName || 'Savings'} · ${formattedDate}`;
     case 'debt':
       if (action.debtMode === 'settle') {
         if (action.settlementType === 'partial') {
-          return `✓ ${formatCurrency(action.amount ?? 0)} debt payment · ${action.personName || 'Debt'} · ${formattedDate}`;
+          return `${formatCurrency(action.amount ?? 0)} debt payment · ${action.personName || 'Debt'} · ${formattedDate}`;
         }
-        return `✓ Debt settled · ${action.personName || 'Debt'} · ${formattedDate}`;
+        return `Debt settled · ${action.personName || 'Debt'} · ${formattedDate}`;
       }
-      return `✓ ${formatCurrency(action.amount ?? 0)} debt logged · ${action.personName || 'Debt'} · ${formattedDate}`;
+      return `${formatCurrency(action.amount ?? 0)} debt logged · ${action.personName || 'Debt'} · ${formattedDate}`;
   }
+}
+
+function getSmartReceiptText(action: BerdeParsedAction): string {
+  return `✓ ${getCompactReceiptLine(action)}`;
 }
 
 function buildReceiptMeta(action: BerdeParsedAction, batchId: string): ReceiptMeta {
@@ -326,36 +352,75 @@ export function buildReceiptMessages(batch: BerdeParsedActionBatch): Extract<Ber
   return buildSmartReceiptMessages(batch);
 }
 
-export function getSessionSummary(messages: BerdeChatMessage[]) {
-  const receipts = messages.filter((message): message is Extract<BerdeChatMessage, { kind: 'receipt' }> => message.kind === 'receipt');
-  if (receipts.length === 0) {
-    return null;
+function getActionReceiptSummary(action: BerdeParsedAction) {
+  if (action.kind === 'transaction') {
+    return {
+      count: 1,
+      expenseTotal: action.entryType === 'expense' ? action.amount ?? 0 : 0,
+      incomeTotal: action.entryType === 'income' ? action.amount ?? 0 : 0,
+      debtMoves: 0,
+    };
   }
 
+  if (action.kind === 'debt') {
+    return {
+      count: 1,
+      expenseTotal: 0,
+      incomeTotal: 0,
+      debtMoves: 1,
+    };
+  }
+
+  return {
+    count: 1,
+    expenseTotal: 0,
+    incomeTotal: 0,
+    debtMoves: 0,
+  };
+}
+
+export function getSessionSummary(messages: BerdeChatMessage[]) {
+  let count = 0;
   let expenseTotal = 0;
   let incomeTotal = 0;
   let debtMoves = 0;
 
-  for (const receipt of receipts) {
-    if (!receipt.receiptMeta) {
+  for (const message of messages) {
+    if (message.kind === 'receipt' && message.receiptMeta) {
+      count += 1;
+
+      if (message.receiptMeta.actionKind === 'expense') {
+        expenseTotal += message.receiptMeta.amount ?? 0;
+      } else if (message.receiptMeta.actionKind === 'income') {
+        incomeTotal += message.receiptMeta.amount ?? 0;
+      } else if (
+        message.receiptMeta.actionKind === 'debt_create'
+        || message.receiptMeta.actionKind === 'debt_payment'
+        || message.receiptMeta.actionKind === 'debt_settlement'
+      ) {
+        debtMoves += 1;
+      }
+
       continue;
     }
 
-    if (receipt.receiptMeta.actionKind === 'expense') {
-      expenseTotal += receipt.receiptMeta.amount ?? 0;
-    } else if (receipt.receiptMeta.actionKind === 'income') {
-      incomeTotal += receipt.receiptMeta.amount ?? 0;
-    } else if (
-      receipt.receiptMeta.actionKind === 'debt_create'
-      || receipt.receiptMeta.actionKind === 'debt_payment'
-      || receipt.receiptMeta.actionKind === 'debt_settlement'
-    ) {
-      debtMoves += 1;
+    if (message.kind === 'preview' && message.previewState.kind === 'logged') {
+      for (const action of message.batch.actions) {
+        const summary = getActionReceiptSummary(action);
+        count += summary.count;
+        expenseTotal += summary.expenseTotal;
+        incomeTotal += summary.incomeTotal;
+        debtMoves += summary.debtMoves;
+      }
     }
   }
 
+  if (count === 0) {
+    return null;
+  }
+
   return {
-    count: receipts.length,
+    count,
     expenseTotal,
     incomeTotal,
     debtMoves,

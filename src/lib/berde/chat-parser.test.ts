@@ -122,6 +122,26 @@ test('parses 250 lunch and 100 mrt into two expense actions', () => {
   assert.equal(commute.category, 'Transportation');
 });
 
+test('parses dense amount-description pairs without explicit connectors', () => {
+  const result = parse('500 lunch jolibee 100 pamasahe 200 gas');
+
+  assert.equal(result.intent.kind, 'action_batch');
+  assert.equal(result.intent.batch?.actions.length, 3);
+
+  const [food, commute, fuel] = result.intent.batch?.actions ?? [];
+  assert.equal(food.kind, 'transaction');
+  assert.equal(food.amount, 500);
+  assert.equal(food.category, 'Food');
+
+  assert.equal(commute.kind, 'transaction');
+  assert.equal(commute.amount, 100);
+  assert.equal(commute.category, 'Transportation');
+
+  assert.equal(fuel.kind, 'transaction');
+  assert.equal(fuel.amount, 200);
+  assert.equal(fuel.category, 'Transportation');
+});
+
 test('parses local separators like tapos and plus in one batch', () => {
   const result = parse('kumain ako jollibee 500 last tuesday tapos nag mrt 80 after plus gcash 200 load');
 
