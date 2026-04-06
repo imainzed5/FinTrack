@@ -59,6 +59,11 @@ body.panel-open .bottom-nav {
   display: none;
 }
 
+body.panel-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 @media (max-width: 639px) {
   /* Keep mobile content and FAB above the nav + iOS home indicator area. */
   .mobile-nav-offset {

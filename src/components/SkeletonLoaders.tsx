@@ -6,7 +6,7 @@
 export function DashboardSkeleton() {
   return (
     <div className="dashboard-home min-h-screen">
-      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 md:py-6">
+      <div className="w-full px-4 py-5 sm:px-6 md:py-6 xl:px-8">
         <section>
           <header className="mb-6">
             <div className="mb-3 flex items-center gap-2 md:hidden">
@@ -56,72 +56,160 @@ export function DashboardSkeleton() {
             ))}
           </section>
 
-          <section className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-              <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
-                  <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
-                </div>
-                <div className="mt-4 flex h-[60px] items-end gap-1.5 md:h-[52px]">
-                  {Array.from({ length: 7 }).map((_, index) => (
-                    <div key={index} className="flex flex-1 items-end">
-                      <div
-                        className="w-full animate-pulse rounded-md bg-zinc-200"
-                        style={{ height: `${[42, 56, 34, 60, 48, 26, 52][index]}%` }}
-                      />
+          <section className="mt-4 md:flex md:items-start md:gap-6">
+            <div className="min-w-0 flex-1 space-y-4">
+              <div className="grid grid-cols-1 gap-4 min-[1180px]:grid-cols-2 min-[1180px]:items-stretch">
+                <article className="flex min-h-[220px] flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:min-h-[280px]">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
+                      <div className="h-3 w-44 animate-pulse rounded bg-zinc-200" />
                     </div>
-                  ))}
+                    <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
+                  </div>
+
+                  <div className="mt-5 flex flex-1 flex-col justify-end">
+                    <div className="flex h-[104px] flex-1 items-end gap-2 md:min-h-[180px]">
+                      {Array.from({ length: 7 }).map((_, index) => (
+                        <div key={index} className="flex h-full flex-1 items-end">
+                          <div
+                            className="w-full animate-pulse rounded-t-[10px] rounded-b-md bg-zinc-200"
+                            style={{ height: `${[10, 0, 0, 0, 10, 76, 0][index]}%` }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex gap-2">
+                      {Array.from({ length: 7 }).map((_, index) => (
+                        <div key={index} className="h-3 flex-1 animate-pulse rounded bg-zinc-200" />
+                      ))}
+                    </div>
+                  </div>
+                </article>
+
+                <article className="flex h-full min-h-[220px] flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:min-h-[280px]">
+                  <div className="flex items-center justify-between">
+                    <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
+                    <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
+                  </div>
+
+                  <div className="mt-3 flex flex-1 items-center justify-center">
+                    <div className="flex w-full max-w-[240px] flex-col items-center gap-3 py-4 text-center">
+                      <div className="h-10 w-10 animate-pulse rounded-xl bg-zinc-200" />
+                      <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
+                      <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <article className="hidden rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:block md:px-5 md:py-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="h-7 w-24 animate-pulse rounded-full bg-[#E1F5EE]" />
+                    <div className="mt-2 h-7 w-44 animate-pulse rounded bg-zinc-200" />
+                    <div className="mt-2 h-4 w-full max-w-xl animate-pulse rounded bg-zinc-200" />
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
+                    <div className="rounded-2xl bg-[#F7F5EE] px-4 py-3 sm:min-w-[170px]">
+                      <div className="h-3 w-24 animate-pulse rounded bg-zinc-200" />
+                      <div className="mt-2 h-5 w-28 animate-pulse rounded bg-zinc-200" />
+                    </div>
+                    <div className="rounded-2xl bg-[#F7F5EE] px-4 py-3 sm:min-w-[220px]">
+                      <div className="h-3 w-16 animate-pulse rounded bg-zinc-200" />
+                      <div className="mt-2 h-5 w-36 animate-pulse rounded bg-zinc-200" />
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2 flex gap-1.5">
-                  {Array.from({ length: 7 }).map((_, index) => (
-                    <div key={index} className="h-3 flex-1 animate-pulse rounded bg-zinc-200" />
-                  ))}
+
+                <div className="mt-3 flex flex-col gap-3 border-t border-[color:var(--color-border-tertiary,#e8dfd0)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="h-4 w-72 max-w-full animate-pulse rounded bg-zinc-200" />
+                  <div className="h-4 w-20 animate-pulse rounded bg-zinc-200" />
                 </div>
               </article>
 
-              <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+              <article className="md:hidden rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
                 <div className="flex items-center justify-between">
-                  <div className="h-4 w-20 animate-pulse rounded bg-zinc-200" />
+                  <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
                   <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
                 </div>
                 <div className="mt-3 space-y-3">
-                  {Array.from({ length: 3 }).map((_, index) => (
+                  {Array.from({ length: 5 }).map((_, index) => (
                     <div key={index} className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 flex-1 items-start gap-2.5">
                         <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-zinc-200" />
                         <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="h-3.5 w-28 animate-pulse rounded bg-zinc-200" />
-                          <div className="h-3 w-20 animate-pulse rounded bg-zinc-200" />
+                          <div className="h-3.5 w-32 animate-pulse rounded bg-zinc-200" />
+                          <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
                         </div>
                       </div>
-                      <div className="h-4 w-14 animate-pulse rounded bg-zinc-200" />
+                      <div className="h-4 w-16 animate-pulse rounded bg-zinc-200" />
                     </div>
                   ))}
                 </div>
               </article>
             </div>
 
-            <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
-              <div className="flex items-center justify-between">
-                <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
-                <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
-              </div>
-              <div className="mt-3 space-y-3">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 flex-1 items-start gap-2.5">
-                      <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-zinc-200" />
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <div className="h-3.5 w-32 animate-pulse rounded bg-zinc-200" />
-                        <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
-                      </div>
-                    </div>
-                    <div className="h-4 w-16 animate-pulse rounded bg-zinc-200" />
+            <aside className="hidden md:block md:w-[300px] md:flex-shrink-0">
+              <div className="md:sticky md:top-6 md:flex md:flex-col md:gap-3">
+                <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
+                    <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
                   </div>
-                ))}
+                  <div className="mt-3 space-y-3">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index} className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                          <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-zinc-200" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="h-3.5 w-28 animate-pulse rounded bg-zinc-200" />
+                            <div className="h-3 w-24 animate-pulse rounded bg-zinc-200" />
+                          </div>
+                        </div>
+                        <div className="h-4 w-14 animate-pulse rounded bg-zinc-200" />
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                  <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
+                  <div className="mt-2 h-3 w-36 animate-pulse rounded bg-zinc-200" />
+                  <div className="mt-4 grid gap-2.5">
+                    {Array.from({ length: 2 }).map((_, index) => (
+                      <div key={index} className="rounded-2xl border border-zinc-200 p-4">
+                        <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
+                        <div className="mt-2 h-3 w-28 animate-pulse rounded bg-zinc-200" />
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
+                      <div className="mt-2 h-3 w-20 animate-pulse rounded bg-zinc-200" />
+                    </div>
+                    <div className="h-3 w-12 animate-pulse rounded bg-zinc-200" />
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {Array.from({ length: 2 }).map((_, index) => (
+                      <div key={index} className="rounded-2xl border border-zinc-200 p-3">
+                        <div className="h-4 w-32 animate-pulse rounded bg-zinc-200" />
+                        <div className="mt-3 h-2 rounded-full bg-zinc-100">
+                          <div className="h-full w-1/2 animate-pulse rounded-full bg-zinc-200" />
+                        </div>
+                        <div className="mt-2 h-3 w-24 animate-pulse rounded bg-zinc-200" />
+                      </div>
+                    ))}
+                  </div>
+                </article>
               </div>
-            </article>
+            </aside>
           </section>
         </section>
       </div>

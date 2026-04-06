@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp,
+  Database,
   Shield,
   LayoutDashboard,
   Receipt,
@@ -48,6 +49,7 @@ const navSections = [
       { href: '/settings?section=accounts', label: 'Settings', icon: Settings },
       { href: '/settings?section=budgets', label: 'Budgets', icon: PiggyBank },
       { href: '/settings?section=security', label: 'Security', icon: Shield },
+      { href: '/settings?section=sync-data', label: 'Sync & Data', icon: Database },
       { href: '/settings?section=payday', label: 'Payday', icon: Wallet },
     ],
   },
