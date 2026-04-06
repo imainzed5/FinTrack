@@ -79,12 +79,51 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.27.0
+### Current version: v0.29.1
 
 
 ---
 
 ## Version Roadmap
+v0.29.1 - 2026-04-06
+  - fix(berde): Compact the bulk-log success state in `src/components/berde-chat/BatchPreviewCard.tsx` so confirmed multi-action chat logs stay in a single logged card with receipt-style lines instead of expanding into full review panels.
+  - fix(berde): Keep session totals accurate for logged preview batches in `src/lib/berde/chat/presenters.ts` and add regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` for the compact logged layout.
+  - fix(berde): Preserve the dense multi-action parsing fix in `src/lib/berde/chat/segmenter.ts` and `src/lib/berde/chat-parser.test.ts` so bulk chat logging still splits repeated amount-description pairs correctly.
+  - verification: `npm test -- src/components/berde-chat/BerdeChatThread.test.tsx src/lib/berde/chat-parser.test.ts` passed after the compact logged-card polish.
+
+v0.29.0 - 2026-04-06
+  - feat(dashboard): Rework the desktop dashboard layout in `src/components/pages/DashboardClientPage.tsx` so the main content uses the available width beside the fixed sidebar, with a persistent right rail for recent activity and quick logging.
+  - feat(dashboard): Add shared dashboard net metrics in `src/lib/types.ts`, `src/lib/insights-engine.ts`, and `src/lib/dashboard-history.test.ts`, then surface the new desktop `Net this month` stat through `src/components/dashboard/QuickStatTiles.tsx`.
+  - feat(dashboard): Add dedicated desktop rail blocks in `src/components/dashboard/DesktopQuickActions.tsx` and `src/components/dashboard/SavingsGoalsRailCard.tsx`, plus tighter recent-transaction rail behavior in `src/components/dashboard/RecentTransactions.tsx`.
+  - feat(dashboard): Add a payday context strip and sparse-user next actions in `src/components/dashboard/PaydayCountdownCard.tsx` and `src/components/dashboard/DashboardNextActions.tsx`, wired to local user payday settings.
+  - fix(dashboard): Refine desktop hierarchy and density in `src/components/dashboard/MiniBarChart.tsx`, `src/components/dashboard/UpcomingCard.tsx`, and `src/components/dashboard/BerdeCard.tsx`, including a taller 7-day chart, better Berde readability, and reduced empty space in the right rail.
+  - verification: `npm run lint` completed with existing unrelated warnings in `src/lib/berde/chat-parser.ts`, and `npx tsx --test src/lib/dashboard-history.test.ts` passed after the dashboard desktop refinement batch.
+
+v0.28.3 - 2026-04-06
+  - fix(berde): Split the remaining Berde chat page container in `src/components/pages/BerdeChatClientPage.tsx` by extracting the message thread and composer UI into `src/components/berde-chat/BerdeChatThread.tsx` and `src/components/berde-chat/BerdeChatComposer.tsx`, keeping the page focused on state and orchestration.
+  - test(berde): Add render-based UI regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` and `src/components/berde-chat/BerdeChatComposer.test.tsx` for pending preview confirmation controls and missing-field follow-up composer states.
+  - fix(berde): Correct singular follow-up copy in `src/components/berde-chat/BerdeChatComposer.tsx` so focused-action guidance reads naturally when only one other parsed item remains.
+  - verification: `npx tsx --test src/lib/berde/chat-parser.test.ts src/components/berde-chat/BerdeChatThread.test.tsx src/components/berde-chat/BerdeChatComposer.test.tsx` and `npx eslint src/components/pages/BerdeChatClientPage.tsx src/components/berde-chat/*.tsx` passed after the final Berde chat UI split.
+
+v0.28.2 - 2026-04-06
+  - fix(berde): Align the Berde debt parser, preview, and save path so natural debt drafts like `Ana utang 500` and `utang kay Ana` complete correctly, stop looping on missing person details, and save without requiring a filler reason.
+  - fix(berde): Clean up debt review cards in `src/components/pages/BerdeChatClientPage.tsx` by removing low-value debt scaffolding and suppressing fake debt reasons like echoed `Ana utang`.
+  - fix(debts): Make debt reason optional across `src/lib/types.ts`, `src/lib/local-store.ts`, and `src/components/AddDebtModal.tsx` so Berde-created and manually edited debts stay type-safe and savable without a note.
+  - test(berde): Add regression coverage in `src/lib/berde/chat-parser.test.ts` for Taglish debt creation, debt direction replies, optional debt notes, and multi-match settlement selection.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the Berde debt save and parser refinement patch.
+
+v0.28.1 - 2026-04-05
+  - fix(berde): Stop debt follow-up loops in `src/lib/berde/chat-parser.ts` by treating missing-person and missing-debt replies as field-level answers instead of re-parsing them as fresh debt commands.
+  - test(berde): Add debt follow-up regression coverage in `src/lib/berde/chat-parser.test.ts` for missing-person debt creation and debt-selection settlement flows.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the Berde debt follow-up patch.
+
+v0.28.0 — 2026-04-05
+  - feat(berde): Add a dedicated `/berde` chat workspace with dashboard and drawer entry points, desktop sidebar placement, mobile chat-first layout, and session-persisted Berde conversation flow for quick natural-language logging.
+  - feat(berde): Add a rule-first batched parser in `src/lib/berde/chat-parser.ts` and `src/lib/berde/chat.types.ts` for expense/income logs, transfers, savings moves, and debt actions, including multi-entry parsing, Taglish/local phrasing support, and conservative follow-up handling.
+  - feat(berde): Add grouped preview cards, preview-first confirmation, smarter cancel handling, clearer save summaries, focused batch follow-up callouts, and responsive preview-card polish in `src/components/pages/BerdeChatClientPage.tsx`.
+  - test(berde): Add parser regression coverage in `src/lib/berde/chat-parser.test.ts` for multi-action batches, typed follow-ups, local separators, and item-specific follow-up behavior.
+  - verification: `npm test`, `npm run lint`, and `npm run build` passed after the Berde chat logging implementation and refinement pass.
+
 v0.27.0 — 2026-04-02
   - feat(dashboard): Fix the dashboard Upcoming card in `src/lib/insights-engine.ts`, `src/lib/types.ts`, and `src/components/pages/DashboardClientPage.tsx` by exposing a dedicated `upcomingRecurringTransactions` payload so recurring templates due within 14 days are no longer hidden by current-month recent-transaction slicing.
   - feat(timeline): Make the Financial Timeline smarter in `src/lib/insights-engine.ts`, `src/lib/types.ts`, `src/components/TimelineView.tsx`, and `src/lib/timeline-events.test.ts` with predictive pacing events, income-aware context, savings-rate trend events, post-income behavior detection, and budget-recovery milestones.

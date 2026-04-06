@@ -1,15 +1,19 @@
 'use client';
 
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
 import { BarChart3, CalendarDays } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import BerdeCard from '@/components/dashboard/BerdeCard';
 import BerdeDrawer from '@/components/dashboard/BerdeDrawer';
 import CalendarPanel from '@/components/dashboard/CalendarPanel';
+import DashboardNextActions from '@/components/dashboard/DashboardNextActions';
+import DesktopQuickActions from '@/components/dashboard/DesktopQuickActions';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
+import PaydayCountdownCard from '@/components/dashboard/PaydayCountdownCard';
 import RemainingBudgetPopup from '@/components/dashboard/popups/RemainingBudgetPopup';
 import SavingsGoalsDashboardCard from '@/components/dashboard/SavingsGoalsDashboardCard';
+import SavingsGoalsRailCard from '@/components/dashboard/SavingsGoalsRailCard';
 import SpentThisMonthPopup from '@/components/dashboard/popups/SpentThisMonthPopup';
 import SpentTodayPopup from '@/components/dashboard/popups/SpentTodayPopup';
 import QuickStatTiles from '@/components/dashboard/QuickStatTiles';
@@ -21,7 +25,7 @@ import { resolveBerdeState } from '@/lib/berde/berde.logic';
 import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
 import { getBerdeInsightsForContext } from '../../lib/berde-messages';
 import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
-import { getDashboardData, getSavingsGoalsSummary } from '@/lib/local-store';
+import { getDashboardData, getLocalUserSettings, getSavingsGoalsSummary } from '@/lib/local-store';
 import { getTodayDateKeyInManila } from '@/lib/utils';
 import { useAppSession } from '@/components/AppSessionProvider';
 import { DashboardSkeleton } from '@/components/SkeletonLoaders';
@@ -32,8 +36,10 @@ type DailySpendingPoint = DashboardData['dailySpending'][number] & { date?: stri
 const EMPTY_MONTH_KEY = format(new Date(), 'yyyy-MM');
 
 const EMPTY_DASHBOARD_DATA: DashboardData = {
+  totalIncomeThisMonth: 0,
   totalSpentThisMonth: 0,
   totalSpentLastMonth: 0,
+  netThisMonth: 0,
   totalBalance: 0,
   remainingBudget: 0,
   monthlyBudget: 0,
@@ -100,23 +106,25 @@ function normalizeDateKey(value: unknown): string | null {
   return dateKey;
 }
 
+function parseDateOnly(value: string | null): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = parseISO(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return startOfDay(parsed);
+}
+
 export default function DashboardClientPage() {
   const { viewer } = useAppSession();
   const [data, setData] = useState<DashboardData>(EMPTY_DASHBOARD_DATA);
   const [loading, setLoading] = useState(true);
   const [statsOpen, setStatsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarExpanded] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-
-    try {
-      return window.localStorage.getItem('moneda-calendar-expanded') === 'true';
-    } catch {
-      return false;
-    }
-  });
   const [berdeOpen, setBerdeOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSpentPopup, setShowSpentPopup] = useState(false);
@@ -125,7 +133,9 @@ export default function DashboardClientPage() {
   const [showSavingsGoalsPopup, setShowSavingsGoalsPopup] = useState(false);
   const [savingsSummary, setSavingsSummary] = useState<SavingsGoalsSummary | null>(null);
   const [savingsLoading, setSavingsLoading] = useState(true);
+  const [nextPayday, setNextPayday] = useState<string | null>(null);
   const [defaultCategory, setDefaultCategory] = useState<string | undefined>();
+  const [defaultEntryType, setDefaultEntryType] = useState<'expense' | 'income'>('expense');
 
   const now = new Date();
   const today = getTodayDateKeyInManila();
@@ -136,13 +146,13 @@ export default function DashboardClientPage() {
   const safeFirstName = firstName.trim() || 'there';
   const monthOverview = format(now, 'MMMM yyyy');
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const daysUntilPayday = Math.max(0, daysInMonth - now.getDate());
   const isAnyPanelOpen = statsOpen || calendarOpen;
-  const fabRight = isAnyPanelOpen
-    ? calendarOpen && calendarExpanded
-      ? 'calc(560px + 24px)'
-      : 'calc(340px + 24px)'
-    : '24px';
+  const nextPaydayDate = parseDateOnly(nextPayday);
+  const monthEndFallback = Math.max(0, daysInMonth - now.getDate());
+  const paydayOffsetDays = nextPaydayDate
+    ? differenceInCalendarDays(nextPaydayDate, startOfDay(now))
+    : null;
+  const daysUntilPayday = paydayOffsetDays === null ? monthEndFallback : Math.max(paydayOffsetDays, 0);
 
   const overallBudget =
     data.budgetStatuses.find(
@@ -152,6 +162,10 @@ export default function DashboardClientPage() {
   const spentThisMonth = overallBudget?.spent ?? 0;
   const remaining = overallBudget?.remaining ?? 0;
   const strictCap = overallBudget?.baseLimit ?? overallBudget?.limit ?? 0;
+  const needsFirstTransaction = data.recentTransactions.length === 0;
+  const needsBudget = !overallBudget;
+  const needsSavingsGoal = (savingsSummary?.activeGoalCount ?? 0) === 0;
+  const shouldShowNextActions = needsFirstTransaction || (data.currentMonthTransactions.length < 5 && (needsBudget || needsSavingsGoal));
 
   const spentToday = data.recentTransactions
     .filter(
@@ -234,32 +248,48 @@ export default function DashboardClientPage() {
   };
 
   const refreshDashboard = useCallback(async () => {
-    const [dashboard, summary] = await Promise.all([
+    const [dashboard, summary, userSettings] = await Promise.all([
       getDashboardData(),
       getSavingsGoalsSummary(),
+      getLocalUserSettings(),
     ]);
     setData(dashboard);
     setSavingsSummary(summary);
+    setNextPayday(userSettings.nextPayday);
     setLoading(false);
     setSavingsLoading(false);
   }, []);
 
   const handleCategorySelect = useCallback((category: string) => {
     setDefaultCategory(category);
+    setDefaultEntryType('expense');
+    setShowAddModal(true);
+  }, []);
+
+  const handleAddExpense = useCallback(() => {
+    setDefaultCategory(undefined);
+    setDefaultEntryType('expense');
+    setShowAddModal(true);
+  }, []);
+
+  const handleAddIncome = useCallback(() => {
+    setDefaultCategory(undefined);
+    setDefaultEntryType('income');
     setShowAddModal(true);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([getDashboardData(), getSavingsGoalsSummary()])
-      .then(([dashboard, summary]) => {
+    Promise.all([getDashboardData(), getSavingsGoalsSummary(), getLocalUserSettings()])
+      .then(([dashboard, summary, userSettings]) => {
         if (cancelled) {
           return;
         }
 
         setData(dashboard);
         setSavingsSummary(summary);
+        setNextPayday(userSettings.nextPayday);
         setLoading(false);
         setSavingsLoading(false);
       })
@@ -270,6 +300,7 @@ export default function DashboardClientPage() {
 
         setData(EMPTY_DASHBOARD_DATA);
         setSavingsSummary({ goals: [], totalSaved: 0, activeGoalCount: 0, savingsRate: 0 });
+        setNextPayday(null);
         setLoading(false);
         setSavingsLoading(false);
       });
@@ -316,7 +347,7 @@ export default function DashboardClientPage() {
   return (
     <>
       <div className="dashboard-home min-h-screen">
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 md:py-6">
+        <div className="w-full px-4 py-5 sm:px-6 md:py-6 xl:px-8">
           <section
             className={`transition-opacity duration-300 ${isAnyPanelOpen ? 'hidden md:block' : 'block'}`}
             style={{ opacity: isAnyPanelOpen ? 0.55 : 1 }}
@@ -408,6 +439,8 @@ export default function DashboardClientPage() {
                 insight={primaryBerdeInsight}
                 quote={berdeContext.quote}
                 hasThoughts={hasBerdeThoughts}
+                footerHint="Tap to read Berde's thoughts and jump into chat"
+                ariaLabel="Open Berde insights drawer"
                 onClick={() => setBerdeOpen(true)}
               />
             </div>
@@ -415,10 +448,12 @@ export default function DashboardClientPage() {
             <div className="mt-4 animate-fade-up" style={{ animationDelay: '0.05s' }}>
               <QuickStatTiles
                 totalBalance={data.totalBalance}
+                totalIncomeThisMonth={data.totalIncomeThisMonth}
                 spentThisMonth={spentThisMonth}
                 remaining={remaining}
                 monthlyLimit={strictCap}
                 spentToday={spentToday}
+                netThisMonth={data.netThisMonth}
                 savingsTotalSaved={savingsSummary?.totalSaved ?? 0}
                 savingsActiveGoalCount={savingsSummary?.activeGoalCount ?? 0}
                 savingsLoading={savingsLoading}
@@ -439,13 +474,55 @@ export default function DashboardClientPage() {
               />
             )}
 
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 animate-fade-up" style={{ animationDelay: '0.1s' }}>
-              <div className="space-y-4">
-                <MiniBarChart dailySpending={last7Days} />
-                <UpcomingCard transactions={upcoming} />
+            <div className="mt-4 animate-fade-up md:flex md:items-start md:gap-6" style={{ animationDelay: '0.1s' }}>
+              <div className="min-w-0 flex-1 space-y-4">
+                <div className="grid grid-cols-1 gap-4 min-[1180px]:grid-cols-2 min-[1180px]:items-stretch">
+                  <MiniBarChart
+                    dailySpending={last7Days}
+                    className="h-full"
+                    tallOnDesktop
+                  />
+                  <UpcomingCard transactions={upcoming} className="h-full" />
+                </div>
+
+                <div className="hidden md:block">
+                  <PaydayCountdownCard
+                    nextPaydayDate={nextPaydayDate}
+                    daysUntilPayday={paydayOffsetDays}
+                    remainingBudget={remaining}
+                  />
+                </div>
+
+                {shouldShowNextActions ? (
+                  <div className="hidden md:block">
+                    <DashboardNextActions
+                      needsFirstTransaction={needsFirstTransaction}
+                      needsBudget={needsBudget}
+                      needsSavingsGoal={needsSavingsGoal}
+                      onAddExpense={handleAddExpense}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="md:hidden">
+                  <RecentTransactions transactions={data.recentTransactions} />
+                </div>
               </div>
 
-              <RecentTransactions transactions={data.recentTransactions} />
+              <aside className="hidden md:block md:w-[300px] md:flex-shrink-0">
+                <div className="md:sticky md:top-6 md:flex md:h-[calc(100vh-7.5rem)] md:flex-col md:gap-3">
+                  <RecentTransactions
+                    transactions={data.recentTransactions}
+                    limit={8}
+                    listClassName="max-h-[420px] overflow-y-auto pr-1"
+                  />
+                  <DesktopQuickActions
+                    onAddExpense={handleAddExpense}
+                    onAddIncome={handleAddIncome}
+                  />
+                  <SavingsGoalsRailCard summary={savingsSummary} loading={savingsLoading} />
+                </div>
+              </aside>
             </div>
           </section>
 
@@ -476,14 +553,10 @@ export default function DashboardClientPage() {
       />
 
       <div
-        className={`${isAnyPanelOpen ? 'hidden md:block' : 'block'} md:fixed md:bottom-6 md:z-[20] md:transition-all md:duration-300 md:ease-in-out fab-shift-wrapper`}
-        style={{ right: fabRight }}
+        className={`${isAnyPanelOpen ? 'hidden' : 'block'} md:hidden`}
       >
         <FloatingAddButton
-          onClick={() => {
-            setDefaultCategory(undefined);
-            setShowAddModal(true);
-          }}
+          onClick={handleAddExpense}
           compactOnMobile
           topCategories={topCategories}
           onCategorySelect={handleCategorySelect}
@@ -495,9 +568,11 @@ export default function DashboardClientPage() {
         onClose={() => {
           setShowAddModal(false);
           setDefaultCategory(undefined);
+          setDefaultEntryType('expense');
         }}
         onAdded={refreshDashboard}
         defaultCategory={defaultCategory}
+        defaultEntryType={defaultEntryType}
       />
 
       <SpentThisMonthPopup
@@ -518,17 +593,6 @@ export default function DashboardClientPage() {
         onClose={() => setShowTodayPopup(false)}
         recentTransactions={data.recentTransactions}
       />
-
-      <style jsx global>{`
-        @media (min-width: 768px) {
-          .fab-shift-wrapper > div {
-            position: relative !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            z-index: 50 !important;
-          }
-        }
-      `}</style>
     </>
   );
 }

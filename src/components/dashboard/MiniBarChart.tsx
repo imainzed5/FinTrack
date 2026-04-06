@@ -8,13 +8,20 @@ type DailyBarPoint = DashboardData['dailySpending'][number] & { date?: string };
 
 interface MiniBarChartProps {
   dailySpending: DailyBarPoint[];
+  className?: string;
+  tallOnDesktop?: boolean;
 }
 
-export default function MiniBarChart({ dailySpending }: MiniBarChartProps) {
+export default function MiniBarChart({
+  dailySpending,
+  className,
+  tallOnDesktop = false,
+}: MiniBarChartProps) {
   const todayLabel = getTodayWeekdayShortInManila();
   const todayDateKey = getTodayDateKeyInManila();
-  const maxMobileBarHeight = 60;
-  const maxDesktopBarHeight = 52;
+  const sectionClassName = tallOnDesktop
+    ? 'min-h-[220px] md:min-h-[280px]'
+    : 'min-h-[180px] md:min-h-[220px]';
 
   const entries = dailySpending.slice(-7).map((entry) => {
     const amountValue = Number(entry.amount);
@@ -32,24 +39,31 @@ export default function MiniBarChart({ dailySpending }: MiniBarChartProps) {
   });
 
   const maxAmount = Math.max(...entries.map((entry) => entry.amount), 1);
+  const sevenDayTotal = entries.reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
-    <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+    <section
+      className={`flex h-full flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 ${sectionClassName} ${className ?? ''}`}
+    >
       <div className="flex items-center justify-between">
-        <h2 className="text-[14px] font-medium text-zinc-800">Last 7 days</h2>
+        <div>
+          <h2 className="text-[14px] font-medium text-zinc-800">Last 7 days</h2>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            {entries.some((entry) => entry.amount > 0)
+              ? `${sevenDayTotal.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })} spent across the last 7 days`
+              : 'No spending recorded in the last 7 days'}
+          </p>
+        </div>
         <Link href="/transactions" className="text-xs font-medium text-[#1D9E75] hover:underline">
           See all
         </Link>
       </div>
 
-      <div className="mt-4">
-        <div className="flex h-[60px] items-end gap-1.5 md:h-[52px]">
+      <div className="mt-5 flex flex-1 flex-col justify-end">
+        <div className="flex h-[104px] flex-1 items-end gap-2 md:h-full md:min-h-[180px]">
           {entries.map((entry, index) => {
             const heightPercent = (entry.amount / maxAmount) * 100;
-            const mobileHeightPx = Math.round((heightPercent / 100) * maxMobileBarHeight);
-            const desktopHeightPx = Math.round((heightPercent / 100) * maxDesktopBarHeight);
-            const resolvedMobileHeight = entry.amount > 0 ? Math.max(6, mobileHeightPx) : 0;
-            const resolvedDesktopHeight = entry.amount > 0 ? Math.max(6, desktopHeightPx) : 0;
+            const resolvedHeight = entry.amount > 0 ? Math.max(8, heightPercent) : 0;
             const isToday = entry.dateKey
               ? entry.dateKey === todayDateKey
               : entry.day === todayLabel;
@@ -58,22 +72,18 @@ export default function MiniBarChart({ dailySpending }: MiniBarChartProps) {
             return (
               <div
                 key={`${entry.day}-${entry.dateKey || index}-${entry.amount}`}
-                className="flex flex-1 items-end"
+                className="flex h-full flex-1 items-end"
               >
                 <div
-                  className="block w-full rounded-md md:hidden"
-                  style={{ height: `${resolvedMobileHeight}px`, backgroundColor: barColor }}
-                />
-                <div
-                  className="hidden w-full rounded-md md:block"
-                  style={{ height: `${resolvedDesktopHeight}px`, backgroundColor: barColor }}
+                  className="w-full rounded-t-[10px] rounded-b-md"
+                  style={{ height: `${resolvedHeight}%`, backgroundColor: barColor }}
                 />
               </div>
             );
           })}
         </div>
 
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-3 flex gap-2">
           {entries.map((entry, index) => {
             const isToday = entry.dateKey
               ? entry.dateKey === todayDateKey

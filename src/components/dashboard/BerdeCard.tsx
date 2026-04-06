@@ -9,6 +9,8 @@ interface BerdeCardProps {
   quote?: string;
   hasThoughts?: boolean;
   onClick: () => void;
+  footerHint?: string;
+  ariaLabel?: string;
 }
 
 function resolveSpriteState(mood: BerdeMood) {
@@ -19,16 +21,23 @@ function resolveSpriteState(mood: BerdeMood) {
   return 'neutral' as const;
 }
 
-export default function BerdeCard({ insight, quote, hasThoughts = true, onClick }: BerdeCardProps) {
+export default function BerdeCard({
+  insight,
+  quote,
+  hasThoughts = true,
+  onClick,
+  footerHint,
+  ariaLabel,
+}: BerdeCardProps) {
   const spriteState = resolveSpriteState(insight.mood);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full overflow-hidden rounded-[20px] border border-[#0b5b47] px-4 py-4 text-left md:rounded-2xl md:px-5"
+      className="relative w-full overflow-hidden rounded-[20px] border border-[#0b5b47] px-4 py-4 text-left md:rounded-2xl md:px-5 md:py-4"
       style={{ background: '#0F6E56' }}
-      aria-label="Open Berde insights drawer"
+      aria-label={ariaLabel || 'Open Berde'}
     >
       <div
         aria-hidden
@@ -64,7 +73,7 @@ export default function BerdeCard({ insight, quote, hasThoughts = true, onClick 
           <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-emerald-100/90">
             BERDE SAYS
           </p>
-          <p className="mt-1 text-sm font-medium leading-snug text-white md:text-[15px]">
+          <p className="mt-1 text-sm font-medium leading-snug text-white md:text-[15px] md:leading-6">
             {insight.message}{' '}
             {insight.boldPhrase ? (
               <strong className="font-semibold text-emerald-100">{insight.boldPhrase}</strong>
@@ -72,19 +81,19 @@ export default function BerdeCard({ insight, quote, hasThoughts = true, onClick 
           </p>
           {quote ? (
             <div
-              className="mt-[5px] text-[11px] italic"
-              style={{ color: 'rgba(255,255,255,0.55)' }}
+              className="mt-1.5 text-[11px] italic md:text-[12px]"
+              style={{ color: 'rgba(255,255,255,0.78)' }}
             >
               {quote}
             </div>
           ) : null}
           <div
-            className="mt-[7px] flex items-center gap-1 text-[10px]"
-            style={{ color: 'rgba(255,255,255,0.4)' }}
+            className="mt-2.5 flex items-center gap-1.5 text-[10px] md:text-[11px]"
+            style={{ color: 'rgba(255,255,255,0.68)' }}
           >
             <Clock3 size={10} />
             <span>
-              {hasThoughts ? 'Berde has more to say - tap to read' : 'Still learning from this device'}
+              {footerHint || (hasThoughts ? 'Berde has more to say - tap to read' : 'Still learning from this device')}
             </span>
           </div>
         </div>

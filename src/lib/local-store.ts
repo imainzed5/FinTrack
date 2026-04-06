@@ -1696,7 +1696,7 @@ export async function createDebt(input: DebtInput): Promise<Debt> {
     direction: input.direction,
     personName: input.personName,
     amount: roundMoney(input.amount),
-    reason: input.reason,
+    reason: normalizeText(input.reason),
     date: normalizeDateOnly(input.date) ?? nowIso.split('T')[0],
     status: 'active',
     createdAt: nowIso,
@@ -1747,6 +1747,32 @@ export async function updateDebt(
 
 export async function settleDebt(id: string): Promise<Debt | null> {
   return updateDebt(id, { status: 'settled' });
+}
+
+export async function repayDebt(id: string, amount: number): Promise<Debt | null> {
+  const debts = await getDebts('active');
+  const debt = debts.find((entry) => entry.id === id);
+  if (!debt) {
+    return null;
+  }
+
+  const paymentAmount = roundMoney(amount);
+  if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+    throw new Error('Debt repayment amount must be greater than zero.');
+  }
+
+  const remainingAmount = roundMoney(Math.max(0, debt.amount - paymentAmount));
+  if (remainingAmount <= 0) {
+    return updateDebt(id, {
+      amount: debt.amount,
+      status: 'settled',
+    });
+  }
+
+  return updateDebt(id, {
+    amount: remainingAmount,
+    status: 'active',
+  });
 }
 
 export async function deleteDebt(id: string): Promise<boolean> {

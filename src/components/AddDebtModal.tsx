@@ -25,7 +25,7 @@ function getInitialFormState(initialDebt?: Debt | null): DebtFormState {
       direction: initialDebt.direction,
       personName: initialDebt.personName,
       amount: initialDebt.amount.toFixed(2),
-      reason: initialDebt.reason,
+      reason: initialDebt.reason ?? '',
       date: initialDebt.date,
     };
   }

@@ -307,80 +307,42 @@ function CalendarPanelContent({
 
       {isExpanded ? (
         <div style={{ minWidth: 0 }} className="flex flex-col">
-          <div className="flex gap-0 border-b border-[color:var(--color-border-tertiary,#d9d7cf)]">
-            <div className="w-[280px] flex-shrink-0 p-4 border-r border-[color:var(--color-border-tertiary,#d9d7cf)]">
-              <section className="grid grid-cols-2 gap-2">
-                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
-                    Total spent
-                  </p>
-                  <p className="mt-1 text-lg font-medium text-zinc-900">{formatCurrency(totalSpent)}</p>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">elapsed days</p>
-                </article>
-
-                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
-                    Spend days
-                  </p>
-                  <p className="mt-1 text-lg font-medium text-zinc-900">{spendDays}</p>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">with activity</p>
-                </article>
-
-                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
-                    No-spend days
-                  </p>
-                  <p className="mt-1 text-lg font-medium text-[#1D9E75]">{noSpendDays}</p>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">elapsed only</p>
-                </article>
-
-                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
-                    Best streak
-                  </p>
-                  <p className="mt-1 text-lg font-medium text-zinc-900">{bestNoSpendStreak}</p>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">no-spend run</p>
-                </article>
-              </section>
-            </div>
-
-            <div className="flex-1 min-w-0 p-4">{dayDetailContent}</div>
-          </div>
-
           <div className="p-4">
             <div className="mb-4">
               <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-3 py-2.5">
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={onPrevMonth}
-                  disabled={!canGoPrev}
-                  aria-label="Previous month"
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                    canGoPrev
-                      ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
-                      : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
-                  }`}
-                >
-                  <ChevronLeft size={14} />
-                </button>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-zinc-800">{format(viewedMonth, 'MMMM yyyy')}</p>
 
-                <p className="text-sm font-medium text-zinc-800">{format(viewedMonth, 'MMMM yyyy')}</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={onPrevMonth}
+                      disabled={!canGoPrev}
+                      aria-label="Previous month"
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                        canGoPrev
+                          ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
+                          : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
+                      }`}
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={onNextMonth}
-                  disabled={!canGoNext}
-                  aria-label="Next month"
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                    canGoNext
-                      ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
-                      : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
-                  }`}
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+                    <button
+                      type="button"
+                      onClick={onNextMonth}
+                      disabled={!canGoNext}
+                      aria-label="Next month"
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                        canGoNext
+                          ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
+                          : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
+                      }`}
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
               </section>
             </div>
 
@@ -453,40 +415,82 @@ function CalendarPanelContent({
               </div>
             </section>
           </div>
+
+          <div className="flex gap-0 border-t border-[color:var(--color-border-tertiary,#d9d7cf)]">
+            <div className="w-[280px] flex-shrink-0 border-r border-[color:var(--color-border-tertiary,#d9d7cf)] p-4">
+              <section className="grid grid-cols-2 gap-2">
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    Total spent
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-zinc-900">{formatCurrency(totalSpent)}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">elapsed days</p>
+                </article>
+
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    Spend days
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-zinc-900">{spendDays}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">with activity</p>
+                </article>
+
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    No-spend days
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-[#1D9E75]">{noSpendDays}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">elapsed only</p>
+                </article>
+
+                <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-zinc-500">
+                    Best streak
+                  </p>
+                  <p className="mt-1 text-lg font-medium text-zinc-900">{bestNoSpendStreak}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">no-spend run</p>
+                </article>
+              </section>
+            </div>
+
+            <div className="flex-1 min-w-0 p-4">{dayDetailContent}</div>
+          </div>
         </div>
       ) : (
         <div className="w-full space-y-4" style={{ minWidth: 0 }}>
           <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white px-3 py-2.5">
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={onPrevMonth}
-                disabled={!canGoPrev}
-                aria-label="Previous month"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                  canGoPrev
-                    ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
-                    : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
-                }`}
-              >
-                <ChevronLeft size={14} />
-              </button>
-
+            <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-zinc-800">{format(viewedMonth, 'MMMM yyyy')}</p>
 
-              <button
-                type="button"
-                onClick={onNextMonth}
-                disabled={!canGoNext}
-                aria-label="Next month"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                  canGoNext
-                    ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
-                    : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
-                }`}
-              >
-                <ChevronRight size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onPrevMonth}
+                  disabled={!canGoPrev}
+                  aria-label="Previous month"
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                    canGoPrev
+                      ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
+                      : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
+                  }`}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onNextMonth}
+                  disabled={!canGoNext}
+                  aria-label="Next month"
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                    canGoNext
+                      ? 'border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-700 hover:bg-zinc-100'
+                      : 'cursor-not-allowed border-[color:var(--color-border-tertiary,#d9d7cf)] text-zinc-400 opacity-50'
+                  }`}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
           </section>
 

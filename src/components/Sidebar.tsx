@@ -5,10 +5,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp,
+  Database,
   Shield,
   LayoutDashboard,
   Receipt,
   Lightbulb,
+  MessageCircleMore,
   LogOut,
   PiggyBank,
   Settings,
@@ -28,6 +30,12 @@ const navSections = [
     ],
   },
   {
+    label: 'Chat',
+    items: [
+      { href: '/berde', label: 'Berde', icon: MessageCircleMore },
+    ],
+  },
+  {
     label: 'Plan',
     items: [
       { href: '/savings', label: 'Savings', icon: PiggyBank },
@@ -41,6 +49,7 @@ const navSections = [
       { href: '/settings?section=accounts', label: 'Settings', icon: Settings },
       { href: '/settings?section=budgets', label: 'Budgets', icon: PiggyBank },
       { href: '/settings?section=security', label: 'Security', icon: Shield },
+      { href: '/settings?section=sync-data', label: 'Sync & Data', icon: Database },
       { href: '/settings?section=payday', label: 'Payday', icon: Wallet },
     ],
   },
@@ -79,6 +88,7 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
     Record<SidebarSectionLabel, boolean>
   >({
     Overview: false,
+    Chat: false,
     Plan: false,
     Account: false,
   });

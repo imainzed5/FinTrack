@@ -285,8 +285,10 @@ export interface DashboardCalendarRange {
 }
 
 export interface DashboardData {
+  totalIncomeThisMonth: number;
   totalSpentThisMonth: number;
   totalSpentLastMonth: number;
+  netThisMonth: number;
   totalBalance: number;
   remainingBudget: number;
   monthlyBudget: number;
@@ -371,7 +373,7 @@ export interface Debt {
   direction: DebtDirection;
   personName: string;
   amount: number;
-  reason: string;
+  reason?: string;
   date: string; // YYYY-MM-DD
   status: DebtStatus;
   settledAt?: string;
@@ -383,7 +385,7 @@ export interface DebtInput {
   direction: DebtDirection;
   personName: string;
   amount: number;
-  reason: string;
+  reason?: string;
   date?: string;
 }
 

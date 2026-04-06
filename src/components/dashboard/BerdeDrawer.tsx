@@ -1,11 +1,13 @@
 'use client';
 
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   BarChart3,
   CalendarDays,
   Lightbulb,
+  MessageCircleMore,
   TrendingUp,
   X,
 } from 'lucide-react';
@@ -104,6 +106,7 @@ export default function BerdeDrawer({
   onClose,
   berdeInsights,
 }: BerdeDrawerProps) {
+  const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const generatedInsights = berdeInsights;
@@ -169,6 +172,11 @@ export default function BerdeDrawer({
     return null;
   }
 
+  const handleOpenChat = () => {
+    onClose();
+    router.push('/berde');
+  };
+
   const drawerContent: ReactNode = (
     <>
       <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-zinc-300" />
@@ -211,6 +219,27 @@ export default function BerdeDrawer({
             Berde needs a little more history before calling out patterns. Keep logging and come back after a few transactions.
           </div>
         )}
+
+        <div className="rounded-2xl border border-[#c8e9dd] bg-[linear-gradient(180deg,rgba(241,252,247,0.95)_0%,rgba(255,255,255,0.95)_100%)] p-4 md:hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0F6E56]">
+                Want to log something quickly?
+              </p>
+              <p className="mt-1 hidden text-sm leading-6 text-zinc-700 sm:block">
+                Open full Berde chat for quick logging like &quot;spent 250 on lunch&quot; or &quot;salary 15000&quot;.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenChat}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#0F6E56] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0b5b47]"
+            >
+              <MessageCircleMore size={14} />
+              Chat with Berde
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );

@@ -30,6 +30,8 @@ const CATEGORY_ICON_MAP: Record<Category, typeof Wallet> = {
 interface RecentTransactionsProps {
   transactions: Transaction[];
   limit?: number;
+  className?: string;
+  listClassName?: string;
 }
 
 type CategoryPalette = {
@@ -136,6 +138,8 @@ function getTransactionTitle(transaction: Transaction): string {
 export default function RecentTransactions({
   transactions,
   limit,
+  className,
+  listClassName,
 }: RecentTransactionsProps) {
   const fallbackDesktopLimit = 5;
   const fallbackMobileLimit = 3;
@@ -151,7 +155,9 @@ export default function RecentTransactions({
   );
 
   return (
-    <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+    <section
+      className={`flex flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 ${className ?? ''}`}
+    >
       <div className="flex items-center justify-between">
         <h2 className="text-[14px] font-medium text-zinc-800">Recent transactions</h2>
         <Link href="/transactions" className="text-xs font-medium text-[#1D9E75] hover:underline">
@@ -159,7 +165,7 @@ export default function RecentTransactions({
         </Link>
       </div>
 
-      <div className="mt-3 space-y-2.5">
+      <div className={`mt-3 min-h-0 space-y-2.5 ${listClassName ?? ''}`}>
         {rows.length === 0 ? (
           <p className="text-sm text-zinc-500">No transactions recorded yet.</p>
         ) : (
