@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.31.0
+### Current version: v0.31.1
 
 
 ---
 
 ## Version Roadmap
+v0.31.1 - 2026-04-08
+  - fix(accounts): Add compact desktop net worth display logic in `src/components/accounts/AccountsClientPage.tsx` and `src/lib/account-ui.ts` so large account totals switch to compact peso notation only when the hero amount would overflow instead of clipping or wrapping awkwardly.
+  - fix(accounts): Move the archived accounts toggle into the Accounts section header in `src/components/accounts/AccountsClientPage.tsx`, keeping the control attached to the wallet list it manages instead of floating at the bottom of the page.
+  - fix(accounts): Add shared account display helpers and regression coverage in `src/lib/account-ui.ts` and `src/lib/account-ui.test.ts` for compact money formatting, cashflow context copy, and weekly activity summaries.
+  - fix(account-detail): Refine `src/components/accounts/AccountDetailClientPage.tsx` with contextual Cashflow Mix messaging, updated `Last 7 days` recency copy, per-day hover/tap value reveal, sparse-week empty-state handling, and muted transaction-group subtotal annotations.
+  - verification: `npm test`, `npm run build`, and `npm run lint` completed successfully, with only the pre-existing warnings in `src/lib/berde/chat-parser.ts`.
+
 v0.31.0 - 2026-04-08
   - feat(budgets): Add a dedicated budget workspace in `src/app/budgets/page.tsx` and `src/components/pages/BudgetsClientPage.tsx` so monthly budget planning now lives outside Settings with month switching, overall-first management, and inline create/edit/delete flows.
   - feat(navigation): Repoint budget entry paths in `src/app/plan/page.tsx`, `src/components/dashboard/DashboardNextActions.tsx`, `src/components/DashboardWidgets.tsx`, `src/components/EmptyState.tsx`, and `src/components/Sidebar.tsx` so budget setup consistently opens `/budgets`.

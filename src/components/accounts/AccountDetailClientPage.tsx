@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import {
   Archive,
@@ -11,9 +11,7 @@ import {
   ArrowRightLeft,
   Eye,
   EyeOff,
-  Landmark,
   Pencil,
-  Smartphone,
   Wallet,
 } from 'lucide-react';
 import AddExpenseModal from '@/components/AddExpenseModal';
@@ -21,10 +19,19 @@ import AccountAdjustDialog from '@/components/accounts/AccountAdjustDialog';
 import AccountFormDialog from '@/components/accounts/AccountFormDialog';
 import TransactionList from '@/components/TransactionList';
 import TransferModal from '@/components/TransferModal';
+import {
+  getAccountDetailSummary,
+  getCashflowMixContext,
+  getAccountIconComponent,
+  getAccountPalette,
+  getAccountTypeBadge,
+  getAccountTypeLabel,
+  getWeeklyActivitySummary,
+} from '@/lib/account-ui';
 import { getAccountsWithBalances, getTransactions, setAccountArchived } from '@/lib/local-store';
 import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { useNetWorthVisibility } from '@/hooks/useNetWorthVisibility';
-import type { AccountType, AccountWithBalance, Transaction } from '@/lib/types';
+import type { AccountWithBalance, Transaction } from '@/lib/types';
 
 interface AccountDetailClientPageProps {
   accountId: string;
@@ -37,6 +44,15 @@ type ExpenseModalState = {
   defaultLinkedTransferGroupId?: string;
   defaultEntryType: 'expense' | 'income';
 } | null;
+
+type WeeklyBar = {
+  key: string;
+  label: string;
+  shortLabel: string;
+  net: number;
+  direction: 'in' | 'out' | 'flat';
+  height: number;
+};
 
 const pesoFormatter = new Intl.NumberFormat('en-PH', {
   minimumFractionDigits: 2,
@@ -57,27 +73,6 @@ function formatSignedPeso(amount: number): string {
   return formatted;
 }
 
-function getAccountTypeLabel(type: AccountType): string {
-  if (type === 'Cash') return 'Cash wallet';
-  if (type === 'E-Wallet') return 'Digital wallet';
-  if (type === 'Bank') return 'Bank account';
-  return 'Other account';
-}
-
-function getAccountTypeBadge(type: AccountType): string {
-  if (type === 'Cash') return 'CASH WALLET';
-  if (type === 'E-Wallet') return 'DIGITAL WALLET';
-  if (type === 'Bank') return 'BANK ACCOUNT';
-  return 'OTHER ACCOUNT';
-}
-
-function getAccountIcon(type: AccountType) {
-  if (type === 'Cash') return Wallet;
-  if (type === 'E-Wallet') return Smartphone;
-  if (type === 'Bank') return Landmark;
-  return Wallet;
-}
-
 function getSignedTransactionAmount(transaction: Transaction): number {
   if (transaction.type === 'income') {
     return Math.abs(transaction.amount);
@@ -96,10 +91,7 @@ function isInCurrentMonth(dateValue: string): boolean {
   const date = parseISO(dateValue);
   const now = new Date();
 
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth()
-  );
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
 }
 
 function getDateGroupLabel(dateValue: string): string {
@@ -107,6 +99,77 @@ function getDateGroupLabel(dateValue: string): string {
   if (isToday(date)) return 'TODAY';
   if (isYesterday(date)) return 'YESTERDAY';
   return format(date, 'MMM d').toUpperCase();
+}
+
+function getActivityLabel(dateValue: string | null): string {
+  if (!dateValue) return 'No activity yet';
+
+  const date = parseISO(dateValue);
+  if (isToday(date)) return 'Active today';
+  if (isYesterday(date)) return 'Active yesterday';
+  return `Last active ${format(date, 'MMM d')}`;
+}
+
+function getUpdatedLabel(dateValue: string | null): string {
+  if (!dateValue) return 'Updated just now';
+
+  const date = parseISO(dateValue);
+  if (isToday(date)) return 'Updated today';
+  if (isYesterday(date)) return 'Updated yesterday';
+  return `Updated ${format(date, 'MMM d')}`;
+}
+
+function buildWeeklyBars(transactions: Transaction[]): WeeklyBar[] {
+  const today = new Date();
+  const dailyTotals = Array.from({ length: 7 }).map((_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - index));
+    const dayKey = date.toISOString().split('T')[0];
+    const net = transactions
+      .filter((transaction) => transaction.date.startsWith(dayKey))
+      .reduce((sum, transaction) => sum + getSignedTransactionAmount(transaction), 0);
+
+    return {
+      key: dayKey,
+      label: format(date, 'EEE'),
+      shortLabel: format(date, 'EEEEE'),
+      net,
+    };
+  });
+
+  const maxAbs = Math.max(...dailyTotals.map((item) => Math.abs(item.net)), 1);
+
+  return dailyTotals.map((item) => ({
+    key: item.key,
+    label: item.label,
+    shortLabel: item.shortLabel,
+    net: item.net,
+    direction: item.net > 0 ? 'in' : item.net < 0 ? 'out' : 'flat',
+    height: Math.max(12, Math.round((Math.abs(item.net) / maxAbs) * 72)),
+  }));
+}
+
+function ActionButton({
+  label,
+  accentClass,
+  icon,
+  onClick,
+}: {
+  label: string;
+  accentClass: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[96px] flex-col items-center justify-center gap-3 rounded-[24px] border border-[#ddd5c7] bg-white/80 p-4 text-center shadow-[0_16px_30px_-28px_rgba(31,36,48,0.45)] transition-transform duration-300 hover:-translate-y-0.5 ${accentClass}`}
+    >
+      <span className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#f8f5ee]">{icon}</span>
+      <span className="text-sm font-semibold">{label}</span>
+    </button>
+  );
 }
 
 export default function AccountDetailClientPage({ accountId }: AccountDetailClientPageProps) {
@@ -120,6 +183,7 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
   const [expenseModalState, setExpenseModalState] = useState<ExpenseModalState>(null);
   const [archiveSaving, setArchiveSaving] = useState(false);
+  const [activeWeeklyBarKey, setActiveWeeklyBarKey] = useState<string | null>(null);
   const { visible, toggle } = useNetWorthVisibility();
 
   const fetchPageData = useCallback(async () => {
@@ -159,7 +223,7 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
 
   const account = useMemo(
     () => accounts.find((item) => item.id === accountId) ?? null,
-    [accountId, accounts]
+    [accountId, accounts],
   );
 
   const accountTransactions = useMemo(() => {
@@ -192,6 +256,25 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
     }));
   }, [accountTransactions]);
 
+  const detailSummary = useMemo(
+    () => getAccountDetailSummary(accountId, transactions),
+    [accountId, transactions],
+  );
+
+  const weeklyBars = useMemo(() => buildWeeklyBars(accountTransactions), [accountTransactions]);
+  const weeklySummary = useMemo(
+    () => getWeeklyActivitySummary(weeklyBars.map((bar) => ({ label: bar.label, net: bar.net }))),
+    [weeklyBars],
+  );
+  const hasSparseWeeklyActivity = useMemo(
+    () => weeklyBars.filter((bar) => bar.direction !== 'flat').length < 3,
+    [weeklyBars],
+  );
+  const cashflowMixContext = useMemo(
+    () => getCashflowMixContext(detailSummary.recentIncome, detailSummary.recentExpense),
+    [detailSummary.recentExpense, detailSummary.recentIncome],
+  );
+
   const handleArchive = async () => {
     if (!account) return;
 
@@ -206,7 +289,7 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
       setStatus(
         archiveError instanceof Error
           ? archiveError.message
-          : 'Failed to update account archive state.'
+          : 'Failed to update account archive state.',
       );
     } finally {
       setArchiveSaving(false);
@@ -216,9 +299,15 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-        <div className="h-72 rounded-[32px] bg-emerald-500/90" />
-        <div className="mt-4 h-24 rounded-[28px] bg-white dark:bg-zinc-900" />
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+        <div className="h-[300px] rounded-[34px] bg-[linear-gradient(140deg,rgba(33,98,85,0.85)_0%,rgba(33,132,119,0.9)_100%)]" />
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="h-48 rounded-[30px] bg-white/80" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="h-32 rounded-[30px] bg-white/80" />
+            <div className="h-32 rounded-[30px] bg-white/80" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -242,181 +331,299 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
     );
   }
 
-  const AccountIcon = getAccountIcon(account.type);
+  const palette = getAccountPalette(account);
+  const accountIcon = createElement(getAccountIconComponent(account), { size: 34 });
+  const incomeShare =
+    detailSummary.recentIncome + detailSummary.recentExpense > 0
+      ? Math.round((detailSummary.recentIncome / (detailSummary.recentIncome + detailSummary.recentExpense)) * 100)
+      : 50;
 
   return (
     <>
-      <div className="mx-auto w-full max-w-5xl px-4 pb-8 pt-4 sm:px-6">
-        <section className="overflow-hidden rounded-[32px] bg-[#1D9E75] text-white">
-          <div className="p-4 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
-              <Link
-                href="/accounts"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white/90 transition-colors hover:text-white sm:text-base"
-              >
-                <ArrowLeft size={16} />
-                Back to accounts
-              </Link>
+      <div className="mx-auto w-full max-w-6xl px-3 pb-8 pt-4 sm:px-5 sm:pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+          <Link
+            href="/accounts"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ddd5c7] bg-white/[0.82] px-4 text-sm font-semibold text-[#4b5666] transition-colors hover:border-[#cbc1af] hover:text-[#152133] sm:min-h-11"
+          >
+            <ArrowLeft size={16} />
+            Back to accounts
+          </Link>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEditDialog(true)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-white/60 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 sm:min-h-10 sm:px-3 sm:text-sm"
-                >
-                  <Pencil size={13} />
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowArchiveConfirm(true)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-white/60 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 sm:min-h-10 sm:px-3 sm:text-sm"
-                >
-                  <Archive size={13} />
-                  {account.isArchived ? 'Restore' : 'Archive'}
-                </button>
-              </div>
-            </div>
+          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+            <button
+              type="button"
+              onClick={toggle}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#ddd5c7] bg-white/[0.82] px-3 text-sm font-semibold text-[#4b5666] transition-colors hover:border-[#cbc1af] hover:text-[#152133] sm:min-h-11 sm:px-4"
+            >
+              {visible ? <Eye size={16} /> : <EyeOff size={16} />}
+              <span className="hidden sm:inline">{visible ? 'Hide balance' : 'Show balance'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowArchiveConfirm(true)}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100 sm:min-h-11 sm:px-4"
+            >
+              <Archive size={16} />
+              <span className="hidden sm:inline">{account.isArchived ? 'Restore' : 'Archive'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEditDialog(true)}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#ddd5c7] bg-white/[0.82] px-3 text-sm font-semibold text-[#4b5666] transition-colors hover:border-[#cbc1af] hover:text-[#152133] sm:min-h-11 sm:px-4"
+            >
+              <Pencil size={16} />
+              <span className="hidden sm:inline">Edit</span>
+            </button>
+          </div>
+        </div>
 
-            <div className="mt-5 flex items-start gap-3 sm:mt-7 sm:gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white/12 sm:h-16 sm:w-16 sm:rounded-[22px]">
-                <AccountIcon size={24} className="sm:hidden" />
-                <AccountIcon size={30} className="hidden sm:block" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 sm:text-sm">
-                  {getAccountTypeBadge(account.type)}
-                </p>
-                <h1 className="mt-1.5 truncate font-display text-[2.25rem] font-bold leading-none sm:mt-2 sm:text-4xl">
-                  {account.name}
-                </h1>
-                <p className="mt-1.5 text-sm text-white/75 sm:mt-2">{getAccountTypeLabel(account.type)}</p>
-              </div>
-            </div>
+        <section className="mt-4 grid gap-3 lg:grid-cols-[1.02fr_0.98fr] sm:gap-4">
+          <div
+            className="relative overflow-hidden rounded-[28px] border p-4 text-white shadow-[0_30px_60px_-36px_rgba(33,41,51,0.55)] sm:rounded-[34px] sm:p-6"
+            style={{
+              borderColor: palette.border,
+              backgroundImage: palette.cardBackground,
+            }}
+          >
+            <div className="absolute inset-0" style={{ background: palette.cardOverlay }} />
+            <div
+              className="absolute -right-10 -top-10 h-44 w-44 rounded-full blur-3xl"
+              style={{ background: palette.softAccent }}
+            />
 
-            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-3">
-              <div className="rounded-2xl bg-white/15 p-3 sm:p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 sm:text-sm">
-                  Balance
-                </p>
-                <div className="mt-2 flex items-center justify-between gap-2 sm:mt-3">
-                  <p className="inline-flex min-w-0 text-[1.45rem] font-semibold leading-none tabular-nums sm:min-w-[10ch] sm:text-4xl">
-                    {visible ? formatPeso(account.computedBalance) : HIDDEN_BALANCE}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={toggle}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10"
-                    aria-label={visible ? 'Hide account balance' : 'Show account balance'}
+            <div className="relative flex h-full min-h-[220px] flex-col sm:min-h-[285px]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div
+                    className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/15 sm:h-[72px] sm:w-[72px] sm:rounded-[24px]"
+                    style={{ background: palette.iconBackground }}
                   >
-                    {visible ? <Eye size={16} /> : <EyeOff size={16} />}
-                  </button>
+                    {accountIcon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/[0.68]">
+                      {getAccountTypeBadge(account.type)}
+                    </p>
+                    <h1 className="mt-2 truncate font-display text-[1.9rem] leading-none sm:mt-3 sm:text-[2.7rem]">
+                      {account.name}
+                    </h1>
+                    <p className="mt-3 text-sm text-white/[0.76] sm:text-[15px]">
+                      {getAccountTypeLabel(account.type)}
+                      {account.expensePaymentMethod ? ` \u2022 ${account.expensePaymentMethod}` : ''}
+                    </p>
+                  </div>
                 </div>
+
+                <span className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/[0.82] sm:px-3 sm:text-[11px]">
+                  {account.isArchived ? 'Archived' : 'Active'}
+                </span>
               </div>
 
-              <div className="rounded-2xl bg-white/15 p-3 sm:p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 sm:text-sm">
-                  This Month
-                </p>
-                <p
-                  className={`mt-2 text-[1.45rem] font-semibold leading-none tabular-nums sm:mt-3 sm:text-4xl ${
-                    monthlyFlow < 0 ? 'text-red-200' : 'text-white'
-                  }`}
-                >
-                  {formatSignedPeso(monthlyFlow)}
-                </p>
+              <div className="mt-auto grid gap-3 pt-6 sm:grid-cols-2 sm:gap-4 sm:pt-10">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/[0.64]">
+                    Balance
+                  </p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <p className="min-w-0 max-w-full overflow-hidden text-[clamp(2rem,3vw,3.45rem)] font-semibold leading-none tracking-[-0.05em] tabular-nums whitespace-nowrap">
+                      {visible ? formatPeso(account.computedBalance) : HIDDEN_BALANCE}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-[20px] border border-white/15 bg-white/10 p-3 backdrop-blur-sm sm:rounded-[24px] sm:p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/[0.64]">
+                    This month
+                  </p>
+                  <p className={`mt-3 overflow-hidden text-[1.35rem] font-semibold leading-tight tracking-[-0.04em] tabular-nums whitespace-nowrap sm:text-[1.7rem] sm:leading-none ${monthlyFlow < 0 ? 'text-rose-100' : 'text-white'}`}>
+                    {formatSignedPeso(monthlyFlow)}
+                  </p>
+                  <p className="mt-2 text-sm text-white/[0.72]">
+                    {detailSummary.transactionCount} transaction{detailSummary.transactionCount === 1 ? '' : 's'} tracked
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 border-t border-zinc-200 bg-white px-4 py-4 text-center text-sm sm:gap-3 sm:px-6 sm:py-5 dark:border-zinc-800 dark:bg-zinc-950">
-            <button
-              type="button"
+          <div className="grid gap-3 lg:grid-cols-2 sm:gap-4">
+            <article className="rounded-[24px] border border-[#ddd5c7] bg-white/[0.82] p-4 shadow-[0_18px_34px_-30px_rgba(31,36,48,0.45)] sm:rounded-[30px] sm:p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9199a6]">
+                Cashflow mix
+              </p>
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div
+                  className="relative h-24 w-24 shrink-0 rounded-full"
+                  style={{
+                    background: `conic-gradient(#4f9362 0 ${incomeShare}%, #ef4444 ${incomeShare}% 100%)`,
+                  }}
+                >
+                  <div className="absolute inset-[11px] flex items-center justify-center rounded-full bg-[#fffdf9] text-center">
+                    <div>
+                      <p className="text-lg font-semibold text-[#183047]">{incomeShare}%</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9199a6]">
+                        Inflow
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="min-w-0 text-left">
+                  <p className="overflow-hidden text-sm font-semibold text-[#183047] whitespace-nowrap">
+                    In {formatPeso(detailSummary.recentIncome)}
+                  </p>
+                  <p className="mt-2 overflow-hidden text-sm font-semibold text-rose-500 whitespace-nowrap">
+                    Out {formatPeso(detailSummary.recentExpense)}
+                  </p>
+                  <p className="mt-3 max-w-[18rem] text-xs leading-relaxed text-[#7e8694]">
+                    Based on the last 30 days of movement in this account.
+                  </p>
+                  <p className="mt-2 max-w-[18rem] text-xs font-medium leading-relaxed text-[#526072]">
+                    {cashflowMixContext}
+                  </p>
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-[24px] border border-[#ddd5c7] bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(245,242,235,0.96)_100%)] p-4 shadow-[0_18px_34px_-30px_rgba(31,36,48,0.45)] sm:rounded-[30px] sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9199a6]">
+                    Last 7 days
+                  </p>
+                  <p className="mt-2 text-sm text-[#6e7785]">A quick read on the rhythm of recent activity.</p>
+                </div>
+                <span className="rounded-full bg-[#f0ece2] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a7364]">
+                  {getUpdatedLabel(detailSummary.lastActivityDate)}
+                </span>
+              </div>
+
+              {hasSparseWeeklyActivity ? (
+                <div className="mt-5 rounded-[20px] border border-dashed border-[#dfd6c8] bg-[#fffdf9] px-4 py-6 text-center text-sm text-[#6e7785]">
+                  No significant activity this week.
+                </div>
+              ) : (
+                <div className="mt-5 flex items-end justify-between gap-2 sm:gap-3">
+                  {weeklyBars.map((bar) => {
+                    const isActive = activeWeeklyBarKey === bar.key;
+
+                    return (
+                      <div key={bar.key} className="flex min-w-0 flex-1 flex-col items-center gap-3">
+                        <button
+                          type="button"
+                          className="relative flex h-[92px] w-full items-end justify-center rounded-[14px] outline-none transition-colors hover:bg-[#f6f1e9] focus-visible:bg-[#f6f1e9]"
+                          onMouseEnter={() => setActiveWeeklyBarKey(bar.key)}
+                          onMouseLeave={() => setActiveWeeklyBarKey((current) => (current === bar.key ? null : current))}
+                          onFocus={() => setActiveWeeklyBarKey(bar.key)}
+                          onBlur={() => setActiveWeeklyBarKey((current) => (current === bar.key ? null : current))}
+                          onClick={() =>
+                            setActiveWeeklyBarKey((current) => (current === bar.key ? null : bar.key))
+                          }
+                          aria-label={`${bar.label}: ${formatSignedPeso(bar.net)}`}
+                        >
+                          {isActive ? (
+                            <span className="absolute -top-7 rounded-full bg-[#183047] px-2.5 py-1 text-[10px] font-semibold text-white shadow-[0_10px_18px_-12px_rgba(24,48,71,0.75)]">
+                              {bar.label} {formatSignedPeso(bar.net)}
+                            </span>
+                          ) : null}
+                          <div
+                            className={`w-3 rounded-full ${
+                              bar.direction === 'in'
+                                ? 'bg-emerald-500'
+                                : bar.direction === 'out'
+                                  ? 'bg-rose-500'
+                                  : 'bg-[#d8d2c7]'
+                            }`}
+                            style={{ height: `${bar.height}px` }}
+                          />
+                        </button>
+                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#7d8591]">
+                          {bar.shortLabel}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="mt-4 text-sm font-medium text-[#526072]">{weeklySummary}</p>
+            </article>
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-[28px] border border-[#ddd5c7] bg-[linear-gradient(180deg,rgba(255,252,247,0.96)_0%,rgba(246,240,231,0.94)_100%)] p-4 shadow-[0_22px_42px_-34px_rgba(31,36,48,0.45)] sm:mt-5 sm:rounded-[32px] sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9199a6]">
+                Quick actions
+              </p>
+              <p className="mt-2 text-sm text-[#6e7785]">Move money, reconcile balance, or keep this account up to date.</p>
+            </div>
+            <p className="text-sm font-medium text-[#526072]">{getActivityLabel(detailSummary.lastActivityDate)}</p>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4 sm:mt-5">
+            <ActionButton
+              label="Deposit"
+              accentClass="text-emerald-600"
+              icon={<ArrowDown size={24} className="text-emerald-600" />}
               onClick={() => {
                 setExpenseModalState({
                   defaultAccountId: accountId,
                   defaultEntryType: 'income',
                 });
               }}
-              className="flex flex-col items-center gap-2 sm:gap-3"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 sm:h-16 sm:w-16 sm:rounded-3xl">
-                <ArrowDown size={22} className="sm:hidden" />
-                <ArrowDown size={28} className="hidden sm:block" />
-              </span>
-              <span className="text-[13px] font-medium text-emerald-600 sm:text-sm">Deposit</span>
-            </button>
-
-            <button
-              type="button"
+            />
+            <ActionButton
+              label="Withdraw"
+              accentClass="text-rose-500"
+              icon={<ArrowDown size={24} className="rotate-180 text-rose-500" />}
               onClick={() => setActiveAction('withdraw')}
-              className="flex flex-col items-center gap-2 sm:gap-3"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500 sm:h-16 sm:w-16 sm:rounded-3xl">
-                <ArrowDown size={22} className="rotate-180 sm:hidden" />
-                <ArrowDown size={28} className="hidden rotate-180 sm:block" />
-              </span>
-              <span className="text-[13px] font-medium text-red-500 sm:text-sm">Withdraw</span>
-            </button>
-
-            <button
-              type="button"
+            />
+            <ActionButton
+              label="Transfer"
+              accentClass="text-sky-600"
+              icon={<ArrowRightLeft size={24} className="text-sky-600" />}
               onClick={() => setActiveAction('transfer')}
-              className="flex flex-col items-center gap-2 sm:gap-3"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-500 sm:h-16 sm:w-16 sm:rounded-3xl">
-                <ArrowRightLeft size={22} className="sm:hidden" />
-                <ArrowRightLeft size={28} className="hidden sm:block" />
-              </span>
-              <span className="text-[13px] font-medium text-blue-500 sm:text-sm">Transfer</span>
-            </button>
-
-            <button
-              type="button"
+            />
+            <ActionButton
+              label="Adjust"
+              accentClass="text-[#5d6775]"
+              icon={<Wallet size={24} className="text-[#5d6775]" />}
               onClick={() => setActiveAction('adjust')}
-              className="flex flex-col items-center gap-2 sm:gap-3"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800 sm:h-16 sm:w-16 sm:rounded-3xl">
-                <Wallet size={22} className="sm:hidden" />
-                <Wallet size={28} className="hidden sm:block" />
-              </span>
-              <span className="text-[13px] font-medium text-zinc-500 sm:text-sm">Adjust</span>
-            </button>
+            />
           </div>
         </section>
 
-        <section className="mt-4 rounded-[28px] border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
-          <div>
-            <h2 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
-              Transaction history
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Expenses, income, and transfers for this account.
-            </p>
+        <section className="mt-4 rounded-[28px] border border-[#ddd5c7] bg-white/[0.88] p-4 shadow-[0_22px_40px_-34px_rgba(31,36,48,0.45)] sm:mt-5 sm:rounded-[32px] sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-[2rem] leading-none text-[#172033]">Transaction history</h2>
+              <p className="mt-2 text-sm text-[#6f7786]">
+                Expenses, income, savings movements, and transfers tied to this account.
+              </p>
+            </div>
+            <span className="rounded-full border border-[#e1d8ca] bg-[#faf6ee] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#697483]">
+              {accountTransactions.length} items
+            </span>
           </div>
 
           <div className="mt-5 space-y-5">
             {groupedTransactions.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-zinc-300 bg-white px-5 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+              <div className="rounded-[24px] border border-dashed border-[#d9d0c2] bg-[rgba(255,253,248,0.86)] px-5 py-12 text-center text-sm text-[#6f7786]">
                 No transactions found for this account yet.
               </div>
             ) : (
               groupedTransactions.map((group) => (
                 <section key={group.key} className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#8d95a2]">
                       {group.label}
                     </p>
                     <span
-                      className={`text-sm font-semibold ${
-                        group.total < 0
-                          ? 'text-red-500'
-                          : group.total > 0
-                            ? 'text-emerald-600'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                      }`}
+                      className="text-xs font-medium text-zinc-400"
                     >
-                      {formatSignedPeso(group.total)}
+                      total: {formatSignedPeso(group.total)}
                     </span>
                   </div>
                   <TransactionList
@@ -432,11 +639,7 @@ export default function AccountDetailClientPage({ accountId }: AccountDetailClie
           </div>
         </section>
 
-        {status && (
-          <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-            {status}
-          </p>
-        )}
+        {status ? <p className="mt-4 text-sm text-[#5f6a78]">{status}</p> : null}
       </div>
 
       <AccountFormDialog
