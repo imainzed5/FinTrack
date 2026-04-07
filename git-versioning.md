@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.31.3
+### Current version: v0.32.0
 
 
 ---
 
 ## Version Roadmap
+v0.32.0 - 2026-04-08
+  - feat(transactions): Refresh the PDF export in `src/app/transactions/page.tsx` with a new hero `Total Spent` card, secondary stat cards, and an expenses-only total row styled in brand green.
+  - feat(transactions): Add a spending breakdown section with category-colored horizontal bars and keep the export totals aligned with the existing filtered month/search/payment/category scope plus the current operational-spend toggle.
+  - fix(transactions): Remove the PDF export merchant column, promote full-width gray day divider rows, show income amounts with a green `+` prefix, add an income disclaimer note, and normalize export-only labels such as `Mrt` -> `MRT` and `Mcdo` -> `McD`.
+  - verification: `npm run lint -- src/app/transactions/page.tsx` and `npm run build` passed after the transactions PDF export refresh.
+
 v0.31.3 - 2026-04-08
   - fix(budgets): Rework the mobile month planner in `src/components/pages/BudgetsClientPage.tsx` into a compact three-part control row so previous, month select, and next actions fit naturally on narrow screens.
   - fix(budgets): Convert the top Budgets summary area into a denser 2-column mobile grid and tighten supporting copy so `Configured`, `Overall cap`, `Rollover`, and `Watchlist` read as quick-glance stat cards instead of a long single-column stack.

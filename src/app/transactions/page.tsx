@@ -378,6 +378,570 @@ export default function TransactionsPage() {
         .replace(/'/g, '&#39;');
 
     const formatPeso = (value: number) =>
+      `&#8369;${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const normalizeExportDisplayText = (value?: string) => {
+      if (!value) {
+        return undefined;
+      }
+
+      return value
+        .replace(/\bMrt\b/gi, 'MRT')
+        .replace(/\bMcdo\b/gi, 'McD')
+        .trim();
+    };
+
+    const categoryKey = (tx: Transaction) => (tx.type === 'income' ? 'Income' : tx.category);
+
+    const categoryToneMap: Record<string, { badgeBg: string; badgeText: string; bar: string; barSoft: string }> = {
+      food: {
+        badgeBg: '#fff1db',
+        badgeText: '#b45309',
+        bar: '#d97706',
+        barSoft: '#fff4e5',
+      },
+      transportation: {
+        badgeBg: '#dbeafe',
+        badgeText: '#1d4ed8',
+        bar: '#2563eb',
+        barSoft: '#eaf2ff',
+      },
+      subscriptions: {
+        badgeBg: '#ede9fe',
+        badgeText: '#6d28d9',
+        bar: '#7c3aed',
+        barSoft: '#f3efff',
+      },
+      utilities: {
+        badgeBg: '#f3e8ff',
+        badgeText: '#7e22ce',
+        bar: '#9333ea',
+        barSoft: '#f7efff',
+      },
+      shopping: {
+        badgeBg: '#fce7f3',
+        badgeText: '#be185d',
+        bar: '#ec4899',
+        barSoft: '#fdeef6',
+      },
+      entertainment: {
+        badgeBg: '#fef3c7',
+        badgeText: '#92400e',
+        bar: '#d97706',
+        barSoft: '#fff7dd',
+      },
+      health: {
+        badgeBg: '#dcfce7',
+        badgeText: '#166534',
+        bar: '#1d9e75',
+        barSoft: '#ebf8f1',
+      },
+      education: {
+        badgeBg: '#e0e7ff',
+        badgeText: '#3730a3',
+        bar: '#4f46e5',
+        barSoft: '#eef2ff',
+      },
+      miscellaneous: {
+        badgeBg: '#f3f4f6',
+        badgeText: '#4b5563',
+        bar: '#9ca3af',
+        barSoft: '#f5f6f8',
+      },
+      income: {
+        badgeBg: '#dcfce7',
+        badgeText: '#166534',
+        bar: '#0f6e56',
+        barSoft: '#ebf8f1',
+      },
+    };
+
+    const getCategoryTone = (category: string) =>
+      categoryToneMap[category.trim().toLowerCase()] ?? categoryToneMap.miscellaneous;
+
+    const paymentClass = (method: string) => {
+      const normalized = method.trim().toLowerCase();
+      if (normalized === 'gcash') return 'pay-gcash';
+      if (normalized === 'maya') return 'pay-maya';
+      if (normalized === 'cash') return 'pay-cash';
+      return 'pay-default';
+    };
+
+    const exportTransactions = includeOperationalInAnalytics
+      ? filtered
+      : filtered.filter((tx) => !isOperationalTransaction(tx));
+    const spendTransactions = exportTransactions.filter((tx) =>
+      includeOperationalInAnalytics ? tx.type === 'expense' : isSpendAnalyticsTransaction(tx)
+    );
+    const total = spendTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const largestSpend = spendTransactions.reduce<Transaction | null>(
+      (max, tx) => (!max || tx.amount > max.amount ? tx : max),
+      null
+    );
+    const incomeTransactions = exportTransactions.filter((tx) => tx.type === 'income');
+    const totalIncome = incomeTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const incomeTransactionCount = incomeTransactions.length;
+    const periodLabel = format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy');
+    const exportDate = format(new Date(), 'MMMM d, yyyy');
+
+    const categoryStats = spendTransactions.reduce<Record<string, { total: number; count: number }>>((acc, tx) => {
+      const key = categoryKey(tx);
+      if (!acc[key]) {
+        acc[key] = { total: 0, count: 0 };
+      }
+      acc[key].total += tx.amount;
+      acc[key].count += 1;
+      return acc;
+    }, {});
+
+    const categoryBreakdownRows = Object.entries(categoryStats)
+      .sort((left, right) => right[1].total - left[1].total)
+      .map(([category, stats]) => ({
+        category,
+        total: stats.total,
+        tone: getCategoryTone(category),
+      }));
+    const highestCategoryTotal = categoryBreakdownRows[0]?.total ?? 0;
+
+    const groupedByDay = exportTransactions.reduce<Record<string, Transaction[]>>((acc, tx) => {
+      const dayKey = tx.date.split('T')[0];
+      if (!acc[dayKey]) {
+        acc[dayKey] = [];
+      }
+      acc[dayKey].push(tx);
+      return acc;
+    }, {});
+
+    const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
+
+    const rows = sortedDays
+      .map((dayKey) => {
+        const groupRows = groupedByDay[dayKey]
+          .map((tx) => {
+            const category = categoryKey(tx);
+            const categoryTone = getCategoryTone(category);
+            const displayText = normalizeExportDisplayText(tx.description)
+              || normalizeExportDisplayText(tx.merchant)
+              || '&mdash;';
+            const amountLabel = tx.type === 'income'
+              ? `+${formatPeso(tx.amount)}`
+              : formatPeso(tx.amount);
+            const amountClassName = tx.type === 'income'
+              ? 'amount-cell amount-income'
+              : 'amount-cell';
+
+            return `<tr>
+              <td class="muted-date">${format(parseISO(tx.date), 'MMM d')}</td>
+              <td><span class="category-badge" style="background:${categoryTone.badgeBg};color:${categoryTone.badgeText};">${escapeHtml(category)}</span></td>
+              <td class="description-cell">${displayText === '&mdash;' ? displayText : escapeHtml(displayText)}</td>
+              <td><span class="payment-badge ${paymentClass(tx.paymentMethod)}">${escapeHtml(tx.paymentMethod)}</span></td>
+              <td class="${amountClassName}">${amountLabel}</td>
+            </tr>`;
+          })
+          .join('');
+
+        return `<tr class="group-row"><td colspan="5">${format(parseISO(dayKey), 'MMM d').toUpperCase()}</td></tr>${groupRows}`;
+      })
+      .join('');
+
+    const largestSpendLabel = largestSpend
+      ? normalizeExportDisplayText(largestSpend.description)
+        || normalizeExportDisplayText(largestSpend.merchant)
+        || categoryKey(largestSpend)
+      : 'No expenses';
+
+    const breakdownMarkup = categoryBreakdownRows.length > 0
+      ? categoryBreakdownRows
+        .map(({ category, total: categoryTotal, tone }) => {
+          const width = highestCategoryTotal > 0 ? (categoryTotal / highestCategoryTotal) * 100 : 0;
+          return `<div class="breakdown-row">
+              <div class="breakdown-meta">
+                <span class="breakdown-name">${escapeHtml(category)}</span>
+                <span class="breakdown-amount">${formatPeso(categoryTotal)}</span>
+              </div>
+              <div class="breakdown-track" style="background:${tone.barSoft};">
+                <div class="breakdown-fill" style="width:${width.toFixed(2)}%;background:${tone.bar};"></div>
+              </div>
+            </div>`;
+        })
+        .join('')
+      : `<div class="breakdown-empty">No expense categories in this export.</div>`;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Transaction Export</title>
+      <style>
+        :root {
+          --moneda-green: #1d9e75;
+          --moneda-green-dark: #0f6e56;
+          --moneda-green-soft: #e8f7f1;
+          --text-strong: #1f2937;
+          --text-muted: #6b7280;
+          --border-soft: #e5e7eb;
+          --surface-soft: #f8fafc;
+          --surface-table: #fbfcfd;
+          --color-background-secondary: #f3f4f6;
+        }
+        * { box-sizing: border-box; }
+        body {
+          font-family: "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
+          margin: 0;
+          padding: 32px;
+          color: var(--text-strong);
+          background: #ffffff;
+        }
+        .report {
+          max-width: 980px;
+          margin: 0 auto;
+        }
+        .brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          color: var(--moneda-green);
+          font-size: 31px;
+          line-height: 1;
+          margin-bottom: 8px;
+        }
+        .brand-name {
+          font-size: 29px;
+          font-weight: 600;
+          letter-spacing: 0.2px;
+        }
+        h1 {
+          margin: 0;
+          font-size: 42px;
+          line-height: 1.1;
+          font-weight: 650;
+          color: #111827;
+        }
+        .subtitle {
+          margin-top: 10px;
+          font-size: 19px;
+          color: var(--text-muted);
+        }
+        .separator {
+          margin: 24px 0;
+          border: none;
+          border-top: 1px solid var(--border-soft);
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 14px;
+          margin-bottom: 22px;
+        }
+        .summary-card {
+          background: var(--color-background-secondary);
+          border-radius: 18px;
+          padding: 18px 20px;
+        }
+        .summary-card.hero-card {
+          grid-column: span 2;
+          background: var(--moneda-green-dark);
+        }
+        .summary-label {
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #6b7280;
+          margin-bottom: 6px;
+        }
+        .summary-value {
+          font-size: 20px;
+          font-weight: 600;
+          line-height: 1.15;
+          color: #111827;
+          letter-spacing: -0.01em;
+          min-width: 0;
+        }
+        .summary-card.hero-card .summary-label,
+        .summary-card.hero-card .summary-value,
+        .summary-card.hero-card .summary-note {
+          color: #ffffff;
+        }
+        .summary-card.hero-card .summary-value {
+          font-size: 32px;
+          font-variant-numeric: tabular-nums;
+          line-height: 1.1;
+          overflow-wrap: anywhere;
+        }
+        .summary-card.hero-card .summary-note {
+          color: rgba(255, 255, 255, 0.78);
+        }
+        .summary-note {
+          margin-top: 6px;
+          color: #9ca3af;
+          font-size: 12px;
+        }
+        .section-title {
+          margin: 0 0 12px;
+          font-size: 13px;
+          letter-spacing: 0.08em;
+          color: #6b7280;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+        .breakdown-section {
+          margin-bottom: 24px;
+          border: 1px solid var(--border-soft);
+          border-radius: 18px;
+          padding: 18px 20px;
+          background: #ffffff;
+        }
+        .breakdown-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .breakdown-row {
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+        }
+        .breakdown-meta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        .breakdown-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .breakdown-amount {
+          font-size: 13px;
+          font-weight: 600;
+          color: #4b5563;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+        .breakdown-track {
+          height: 12px;
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .breakdown-fill {
+          height: 100%;
+          min-width: 10px;
+          border-radius: 999px;
+        }
+        .breakdown-empty {
+          border-radius: 14px;
+          background: var(--surface-soft);
+          color: var(--text-muted);
+          padding: 14px 16px;
+          font-size: 13px;
+        }
+        table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+          font-size: 12px;
+          border: 1px solid var(--border-soft);
+          border-radius: 18px;
+          overflow: hidden;
+        }
+        thead th {
+          background: var(--moneda-green-soft);
+          color: var(--moneda-green);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-size: 11px;
+          font-weight: 700;
+          text-align: left;
+          padding: 10px 12px;
+          border-bottom: 1px solid #b7e3d3;
+        }
+        tbody tr:not(.group-row):nth-child(odd) {
+          background: var(--surface-table);
+        }
+        tbody td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #eef2f7;
+          vertical-align: middle;
+        }
+        .group-row td {
+          background: #e5e7eb;
+          color: #4b5563;
+          font-weight: 700;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          font-size: 11px;
+          border-top: 1px solid #d1d5db;
+          border-bottom: 1px solid #d1d5db;
+          padding: 9px 12px;
+        }
+        .muted-date { color: #9ca3af; width: 84px; }
+        .description-cell {
+          color: #111827;
+          font-weight: 500;
+        }
+        .amount-cell {
+          text-align: right;
+          font-size: 13px;
+          font-weight: 600;
+          color: #111827;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+          width: 140px;
+        }
+        .amount-income {
+          color: var(--moneda-green-dark);
+        }
+        .category-badge,
+        .payment-badge {
+          display: inline-block;
+          border-radius: 999px;
+          padding: 2px 10px;
+          font-size: 11px;
+          line-height: 1.35;
+          border: 1px solid transparent;
+          white-space: nowrap;
+        }
+        .pay-default { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+        .pay-cash { background: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
+        .pay-gcash { background: #e7f8f1; color: #0e9f6e; border-color: #9edfc4; }
+        .pay-maya { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .table-total-row td {
+          background: #e7f8f1;
+          color: var(--moneda-green);
+          border-top: 1px solid #9edfc4;
+          border-bottom: none;
+          font-size: 15px;
+          padding-top: 11px;
+          padding-bottom: 11px;
+          font-weight: 650;
+        }
+        .table-total-row .total-amount {
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+        }
+        .income-note {
+          margin-top: 16px;
+          border-left: 4px solid var(--moneda-green);
+          background: #f4fbf8;
+          border-radius: 14px;
+          padding: 14px 16px;
+        }
+        .income-note p {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.55;
+          color: #4b5563;
+        }
+        .income-note strong {
+          color: var(--moneda-green-dark);
+        }
+        .footer {
+          margin-top: 16px;
+          padding-top: 10px;
+          border-top: 1px solid var(--border-soft);
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          color: #9ca3af;
+          font-size: 11px;
+        }
+        .footer .moneda {
+          color: var(--moneda-green);
+          text-decoration: none;
+        }
+        @media (max-width: 720px) {
+          .summary-grid {
+            grid-template-columns: 1fr;
+          }
+          .summary-card.hero-card {
+            grid-column: auto;
+          }
+          .breakdown-meta {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 4px;
+          }
+        }
+        @media print {
+          body { padding: 16px; }
+          .report { max-width: 100%; }
+        }
+      </style></head><body>
+      <main class="report">
+        <div class="brand"><span aria-hidden="true">&#9679;</span><span class="brand-name">Moneda</span></div>
+        <h1>Transaction Export</h1>
+        <p class="subtitle">${periodLabel} &#183; ${exportTransactions.length} transactions &#183; Exported ${exportDate}</p>
+        <hr class="separator" />
+
+        <section class="summary-grid" aria-label="Export summary">
+          <article class="summary-card hero-card">
+            <p class="summary-label">Total Spent</p>
+            <p class="summary-value">${formatPeso(total)}</p>
+            <p class="summary-note">excludes income</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-label">Transactions</p>
+            <p class="summary-value">${exportTransactions.length}</p>
+            <p class="summary-note">visible in this export</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-label">Largest Spend</p>
+            <p class="summary-value">${largestSpend ? formatPeso(largestSpend.amount) : formatPeso(0)}</p>
+            <p class="summary-note">${escapeHtml(largestSpendLabel)}</p>
+          </article>
+        </section>
+
+        <section class="breakdown-section" aria-label="Spending breakdown">
+          <h2 class="section-title">Spending breakdown</h2>
+          <div class="breakdown-list">
+            ${breakdownMarkup}
+          </div>
+        </section>
+
+        <h2 class="section-title">Transactions</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Payment</th>
+              <th style="text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr class="table-total-row">
+              <td colspan="4">Total &#183; ${periodLabel} (expenses only)</td>
+              <td class="total-amount">${formatPeso(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <aside class="income-note" aria-label="Income disclaimer">
+          <p><strong>${formatPeso(totalIncome)}</strong> from <strong>${incomeTransactionCount}</strong> income transaction${incomeTransactionCount === 1 ? '' : 's'} is excluded from the total above and tracked separately.</p>
+        </aside>
+
+        <footer class="footer">
+          <span>Generated by <span class="moneda">Moneda</span> &#183; moneda-nine.vercel.app</span>
+          <span>Page 1 of 1</span>
+        </footer>
+      </main>
+      <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+      </body></html>`;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+
+    /*
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const formatPeso = (value: number) =>
       `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const categoryKey = (tx: Transaction) => (tx.type === 'income' ? 'Income' : tx.category);
@@ -744,6 +1308,7 @@ export default function TransactionsPage() {
       win.document.write(html);
       win.document.close();
     }
+    */
   };
 
   const clearSelectedCategories = () => {
