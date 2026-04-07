@@ -47,7 +47,7 @@ const navSections = [
     label: 'Account',
     items: [
       { href: '/settings?section=accounts', label: 'Settings', icon: Settings },
-      { href: '/settings?section=budgets', label: 'Budgets', icon: PiggyBank },
+      { href: '/budgets', label: 'Budgets', icon: PiggyBank },
       { href: '/settings?section=security', label: 'Security', icon: Shield },
       { href: '/settings?section=sync-data', label: 'Sync & Data', icon: Database },
       { href: '/settings?section=payday', label: 'Payday', icon: Wallet },

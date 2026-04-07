@@ -82,7 +82,7 @@ async function loadPlanSummary(): Promise<PlanSummary> {
 const PLAN_CARDS: PlanCardDefinition[] = [
   {
     title: 'Category budgets',
-    href: '/settings?section=budgets',
+    href: '/budgets',
     icon: PiggyBank,
     tone: 'emerald',
     getHelper: (summary) => formatCount(summary.activeBudgetCount, 'active budget'),
@@ -127,7 +127,7 @@ const PLAN_CARDS: PlanCardDefinition[] = [
   },
   {
     title: 'Overall budget',
-    href: '/settings?section=budgets',
+    href: '/budgets',
     icon: Target,
     tone: 'emerald',
     getHelper: (summary) => (summary.hasOverallBudget ? 'Overall cap ready' : 'Needs overall cap'),

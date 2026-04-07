@@ -108,7 +108,7 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
         icon="berde"
         headline="No budget set yet."
         subtext="Berde can't guard what doesn't exist."
-        cta={{ label: 'Set a Budget', action: 'go-to-settings' }}
+        cta={{ label: 'Set a Budget', action: 'go-to-budgets' }}
       />
     );
   }

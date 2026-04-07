@@ -10,7 +10,7 @@ interface EmptyStateProps {
   subtext: string;
   cta?: {
     label: string;
-    action: 'add-transaction' | 'go-to-settings' | 'clear-filters';
+    action: 'add-transaction' | 'go-to-settings' | 'go-to-budgets' | 'clear-filters';
   };
   onAddTransaction?: () => void;
   onClearFilters?: () => void;
@@ -36,6 +36,11 @@ export default function EmptyState({
 
     if (cta.action === 'go-to-settings') {
       router.push('/settings');
+      return;
+    }
+
+    if (cta.action === 'go-to-budgets') {
+      router.push('/budgets');
       return;
     }
 

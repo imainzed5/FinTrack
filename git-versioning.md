@@ -79,12 +79,19 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.30.0
+### Current version: v0.31.0
 
 
 ---
 
 ## Version Roadmap
+v0.31.0 - 2026-04-08
+  - feat(budgets): Add a dedicated budget workspace in `src/app/budgets/page.tsx` and `src/components/pages/BudgetsClientPage.tsx` so monthly budget planning now lives outside Settings with month switching, overall-first management, and inline create/edit/delete flows.
+  - feat(navigation): Repoint budget entry paths in `src/app/plan/page.tsx`, `src/components/dashboard/DashboardNextActions.tsx`, `src/components/DashboardWidgets.tsx`, `src/components/EmptyState.tsx`, and `src/components/Sidebar.tsx` so budget setup consistently opens `/budgets`.
+  - feat(settings): Simplify the budgets section in `src/app/settings/page.tsx` into a lightweight summary and handoff to the dedicated workspace instead of duplicating budget CRUD inside Settings.
+  - fix(budgets): Reorder the budget workspace so the month picker and summary stats appear first, remove the heavy tutorial for returning users, and keep the page focused on Overall and category budget cards.
+  - verification: `npx eslint src/components/pages/BudgetsClientPage.tsx src/app/budgets/page.tsx src/app/plan/page.tsx src/components/dashboard/DashboardNextActions.tsx src/components/Sidebar.tsx src/components/EmptyState.tsx src/components/DashboardWidgets.tsx src/app/settings/page.tsx` and `npx tsc --noEmit` passed after the budget workspace rollout.
+
 v0.30.0 - 2026-04-08
   - feat(mobile-nav): Refresh the mobile navigation in `src/components/BottomNav.tsx`, `src/components/FloatingAddButton.tsx`, and `src/app/globals.css` so the app now uses `Home`, `Wallet`, `Plan`, and `History` with a detached mobile add action and updated safe-area spacing.
   - feat(plan): Add a dedicated planning hub in `src/app/plan/page.tsx` with real in-app destinations for category budgets, personal goals, debt, receivables, payday, and overall budget guardrails.
