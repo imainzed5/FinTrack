@@ -324,7 +324,7 @@ function BudgetEditor({
           className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-5 text-sm font-medium text-white transition-colors hover:bg-[#187f5d] disabled:cursor-not-allowed disabled:bg-[#7bc2ac]"
         >
           <Plus size={14} />
-          {saving ? 'Saving…' : 'Save budget'}
+          {saving ? 'Saving...' : 'Save budget'}
         </button>
       </div>
     </form>
@@ -347,7 +347,7 @@ function BudgetRuleCard({
   const percentage = status ? Math.min(status.percentage, 100) : 0;
 
   return (
-    <div className="rounded-[28px] border border-[#e8dfd0] bg-white p-4 shadow-[0_16px_34px_rgba(42,42,28,0.04)]">
+    <div className="rounded-[26px] border border-[#e8dfd0] bg-white p-3.5 shadow-[0_16px_34px_rgba(42,42,28,0.04)] sm:rounded-[28px] sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -371,7 +371,7 @@ function BudgetRuleCard({
             </span>
           </div>
 
-          <div className="mt-3 grid gap-3 text-sm text-zinc-500 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-zinc-500 sm:grid-cols-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
                 Limit
@@ -393,7 +393,7 @@ function BudgetRuleCard({
                 Remaining
               </p>
               <p
-                className={`mt-1 text-base font-semibold ${
+                className={`mt-1 text-base font-semibold sm:text-base ${
                   status && status.remaining < 0 ? 'text-rose-600' : 'text-zinc-900'
                 }`}
               >
@@ -403,11 +403,11 @@ function BudgetRuleCard({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 self-start">
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#ddd6c8] px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#fbf8f1]"
+            className="inline-flex min-h-9 items-center justify-center rounded-full border border-[#ddd6c8] px-3.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#fbf8f1] sm:min-h-10 sm:px-4"
           >
             Edit
           </button>
@@ -415,7 +415,7 @@ function BudgetRuleCard({
             type="button"
             onClick={onDelete}
             disabled={deleting}
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-rose-200 px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border border-rose-200 px-3.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-10 sm:px-4"
           >
             <Trash2 size={14} />
             Delete
@@ -423,7 +423,7 @@ function BudgetRuleCard({
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-3.5 sm:mt-4">
         <div className="h-2.5 overflow-hidden rounded-full bg-[#efe9db]">
           <div
             className={`h-full rounded-full transition-all ${
@@ -607,8 +607,8 @@ export default function BudgetsClientPage() {
   };
 
   return (
-    <div className="mx-auto min-h-screen max-w-6xl px-4 py-7 sm:px-6 sm:py-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto min-h-screen max-w-6xl px-4 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-5">
+      <header className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-display text-[2.15rem] font-semibold tracking-[-0.04em] text-zinc-900">
             Budgets
@@ -618,7 +618,7 @@ export default function BudgetsClientPage() {
           </p>
         </div>
 
-        <div className="w-full rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-4 shadow-[0_16px_32px_rgba(42,42,28,0.04)] sm:max-w-[26rem]">
+        <div className="w-full rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-3.5 shadow-[0_16px_32px_rgba(42,42,28,0.04)] sm:max-w-[26rem] sm:p-4">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#1D9E75]">
               <CalendarRange size={20} />
@@ -633,7 +633,7 @@ export default function BudgetsClientPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-3.5 grid grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 sm:mt-4 sm:flex sm:flex-row sm:items-center sm:gap-3">
             <button
               type="button"
               onClick={() =>
@@ -647,7 +647,7 @@ export default function BudgetsClientPage() {
             <select
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="min-h-11 flex-1 rounded-full border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
+              className="min-h-11 w-full min-w-0 rounded-full border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75] sm:flex-1"
             >
               {monthOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -669,46 +669,46 @@ export default function BudgetsClientPage() {
         </div>
       </header>
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[26px] border border-[#e3dbc9] bg-white p-4">
+      <section className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-[24px] border border-[#e3dbc9] bg-white p-3.5 sm:rounded-[26px] sm:p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Configured</p>
           <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-900">
             {loading ? '…' : selectedMonthBudgets.length}
           </p>
-          <p className="mt-1 text-sm text-zinc-500">Rules active for {formatMonthLabel(selectedMonth)}</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 sm:text-sm">Rules active for {formatMonthLabel(selectedMonth)}</p>
         </div>
 
-        <div className="rounded-[26px] border border-[#e3dbc9] bg-white p-4">
+        <div className="rounded-[24px] border border-[#e3dbc9] bg-white p-3.5 sm:rounded-[26px] sm:p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Overall cap</p>
-          <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-900">
+          <p className="mt-2 text-[1.65rem] font-semibold tracking-[-0.04em] text-zinc-900 sm:text-2xl">
             {loading ? '…' : overallBudget ? formatCurrency(overallBudget.monthlyLimit) : 'Missing'}
           </p>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-xs leading-5 text-zinc-500 sm:text-sm">
             {overallStatus ? getBudgetStatusLabel(overallStatus) : 'Set this first to anchor the month'}
           </p>
         </div>
 
-        <div className="rounded-[26px] border border-[#e3dbc9] bg-white p-4">
+        <div className="rounded-[24px] border border-[#e3dbc9] bg-white p-3.5 sm:rounded-[26px] sm:p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Rollover</p>
           <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-900">
             {loading ? '…' : rolloverCount}
           </p>
-          <p className="mt-1 text-sm text-zinc-500">Budgets carrying leftover room from the prior month</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 sm:text-sm">Leftover room carried from last month</p>
         </div>
 
-        <div className="rounded-[26px] border border-[#e3dbc9] bg-white p-4">
+        <div className="rounded-[24px] border border-[#e3dbc9] bg-white p-3.5 sm:rounded-[26px] sm:p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Watchlist</p>
           <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-900">
             {loading ? '…' : atRiskCount}
           </p>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-xs leading-5 text-zinc-500 sm:text-sm">
             {criticalCount > 0 ? `${criticalCount} already over limit` : 'No category is over the line right now'}
           </p>
         </div>
       </section>
 
       {!loading && !hasConfiguredBudgets ? (
-        <section className="mt-6 rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-5">
+        <section className="mt-5 rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-4 sm:mt-6 sm:p-5">
           <div className="flex items-start gap-3">
             <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#1D9E75]">
               <Target size={20} />
@@ -726,7 +726,7 @@ export default function BudgetsClientPage() {
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-[30px] border border-[#e3dbc9] bg-white p-5 shadow-[0_20px_44px_rgba(42,42,28,0.05)] sm:p-6">
+      <section className="mt-5 rounded-[30px] border border-[#e3dbc9] bg-white p-4 shadow-[0_20px_44px_rgba(42,42,28,0.05)] sm:mt-6 sm:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">
@@ -746,7 +746,7 @@ export default function BudgetsClientPage() {
           </button>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           {editorState &&
           (editorState.mode === 'create-overall' || editorState.mode === 'edit-overall') ? (
             <BudgetEditor
@@ -766,7 +766,7 @@ export default function BudgetsClientPage() {
               deleting={deletingBudgetId === overallBudget.id}
             />
           ) : (
-            <div className="rounded-[28px] border border-dashed border-[#d9d1c2] bg-[#fbf8f1] p-5">
+            <div className="rounded-[28px] border border-dashed border-[#d9d1c2] bg-[#fbf8f1] p-4 sm:p-5">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#1D9E75]">
                   <PiggyBank size={20} />
@@ -786,7 +786,7 @@ export default function BudgetsClientPage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-[30px] border border-[#e3dbc9] bg-white p-5 shadow-[0_20px_44px_rgba(42,42,28,0.05)] sm:p-6">
+      <section className="mt-5 rounded-[30px] border border-[#e3dbc9] bg-white p-4 shadow-[0_20px_44px_rgba(42,42,28,0.05)] sm:mt-6 sm:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">
@@ -827,12 +827,12 @@ export default function BudgetsClientPage() {
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-36 animate-pulse rounded-[28px] border border-[#ebe3d5] bg-[#fbf8f1]"
+                  className="h-32 animate-pulse rounded-[28px] border border-[#ebe3d5] bg-[#fbf8f1]"
                 />
               ))}
             </div>
           ) : categoryBudgets.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-[#d9d1c2] bg-[#fbf8f1] p-5">
+            <div className="rounded-[28px] border border-dashed border-[#d9d1c2] bg-[#fbf8f1] p-4 sm:p-5">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#1D9E75]">
                   <ShieldCheck size={20} />

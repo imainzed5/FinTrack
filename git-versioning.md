@@ -79,12 +79,17 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.31.1
+### Current version: v0.31.2
 
 
 ---
 
 ## Version Roadmap
+v0.31.2 - 2026-04-08
+  - fix(budgets): Tighten the dedicated budgets workspace header in `src/components/pages/BudgetsClientPage.tsx` by top-aligning the page title with the month planner card and reducing the extra top padding so the desktop layout no longer leaves a distracting empty band above the `Budgets` heading.
+  - fix(budgets): Normalize the budget editor save-button copy in `src/components/pages/BudgetsClientPage.tsx` so the loading state reads `Saving...` without the encoding artifact.
+  - verification: `npx eslint src/components/pages/BudgetsClientPage.tsx` and `npx tsc --noEmit` passed after the header-spacing patch.
+
 v0.31.1 - 2026-04-08
   - fix(accounts): Add compact desktop net worth display logic in `src/components/accounts/AccountsClientPage.tsx` and `src/lib/account-ui.ts` so large account totals switch to compact peso notation only when the hero amount would overflow instead of clipping or wrapping awkwardly.
   - fix(accounts): Move the archived accounts toggle into the Accounts section header in `src/components/accounts/AccountsClientPage.tsx`, keeping the control attached to the wallet list it manages instead of floating at the bottom of the page.
