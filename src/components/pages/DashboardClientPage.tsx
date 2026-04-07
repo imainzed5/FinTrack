@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
-import { BarChart3, CalendarDays } from 'lucide-react';
+import { BarChart3, CalendarDays, Settings } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import BerdeCard from '@/components/dashboard/BerdeCard';
@@ -396,6 +397,16 @@ export default function DashboardClientPage() {
                     Good {timeOfDay}, {safeFirstName}!
                   </h1>
                   <p className="mt-1 text-xs text-zinc-500">{monthOverview} Overview</p>
+                </div>
+
+                <div className="mt-1 shrink-0">
+                  <Link
+                    href="/settings"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white text-zinc-700 shadow-[0_10px_24px_rgba(36,31,22,0.05)] transition-colors hover:border-[#1D9E75] hover:bg-[#E1F5EE] hover:text-[#1D9E75] md:hidden"
+                    aria-label="Open settings"
+                  >
+                    <Settings size={18} />
+                  </Link>
                 </div>
 
                 <div className="mt-1 hidden shrink-0 items-center gap-2 md:flex">

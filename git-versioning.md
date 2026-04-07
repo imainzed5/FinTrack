@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.29.1
+### Current version: v0.30.0
 
 
 ---
 
 ## Version Roadmap
+v0.30.0 - 2026-04-08
+  - feat(mobile-nav): Refresh the mobile navigation in `src/components/BottomNav.tsx`, `src/components/FloatingAddButton.tsx`, and `src/app/globals.css` so the app now uses `Home`, `Wallet`, `Plan`, and `History` with a detached mobile add action and updated safe-area spacing.
+  - feat(plan): Add a dedicated planning hub in `src/app/plan/page.tsx` with real in-app destinations for category budgets, personal goals, debt, receivables, payday, and overall budget guardrails.
+  - feat(dashboard): Move mobile settings access into the dashboard header in `src/components/pages/DashboardClientPage.tsx`, removing settings from the mobile bottom navigation while keeping desktop sidebar behavior unchanged.
+  - verification: `npx eslint src/components/BottomNav.tsx src/components/FloatingAddButton.tsx src/components/pages/DashboardClientPage.tsx src/app/plan/page.tsx`, `npx eslint src/app/plan/page.tsx`, and `npx tsc --noEmit` passed after the mobile navigation and Plan hub update.
+
 v0.29.1 - 2026-04-06
   - fix(berde): Compact the bulk-log success state in `src/components/berde-chat/BatchPreviewCard.tsx` so confirmed multi-action chat logs stay in a single logged card with receipt-style lines instead of expanding into full review panels.
   - fix(berde): Keep session totals accurate for logged preview batches in `src/lib/berde/chat/presenters.ts` and add regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` for the compact logged layout.

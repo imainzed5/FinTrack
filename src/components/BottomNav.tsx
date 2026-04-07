@@ -4,19 +4,25 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Receipt,
-  Lightbulb,
+  History,
   PiggyBank,
-  Settings,
+  Wallet,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/transactions', label: 'Transactions', icon: Receipt },
-  { href: '/insights', label: 'Insights', icon: Lightbulb },
-  { href: '/savings', label: 'Savings', icon: PiggyBank },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/accounts', label: 'Wallet', icon: Wallet },
+  { href: '/plan', label: 'Plan', icon: PiggyBank },
+  { href: '/transactions', label: 'History', icon: History },
 ];
+
+function isItemActive(pathname: string, href: string): boolean {
+  if (href === '/accounts') {
+    return pathname === href || pathname.startsWith('/accounts/');
+  }
+
+  return pathname === href;
+}
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -27,10 +33,10 @@ export default function BottomNav() {
 
   return (
     <div className="bottom-nav fixed bottom-[calc(env(safe-area-inset-bottom)+0.8rem)] left-0 right-0 z-40 flex justify-center px-3 sm:hidden">
-      <nav className="relative grid w-full max-w-[21.25rem] grid-cols-5 items-center rounded-[24px] border border-[#e6dccd] bg-[linear-gradient(180deg,rgba(255,251,245,0.97)_0%,rgba(248,242,232,0.96)_100%)] p-1 shadow-[0_12px_26px_rgba(36,31,22,0.11),0_2px_8px_rgba(36,31,22,0.06)] backdrop-blur-md dark:border-zinc-800 dark:bg-[linear-gradient(180deg,rgba(28,28,30,0.96)_0%,rgba(18,18,20,0.96)_100%)]">
+      <nav className="relative grid w-full max-w-[22rem] grid-cols-4 items-center rounded-[26px] border border-[#e6dccd] bg-[linear-gradient(180deg,rgba(255,251,245,0.97)_0%,rgba(248,242,232,0.96)_100%)] p-1 shadow-[0_12px_26px_rgba(36,31,22,0.11),0_2px_8px_rgba(36,31,22,0.06)] backdrop-blur-md dark:border-zinc-800 dark:bg-[linear-gradient(180deg,rgba(28,28,30,0.96)_0%,rgba(18,18,20,0.96)_100%)]">
         <div className="pointer-events-none absolute inset-x-6 top-1 h-px rounded-full bg-white/70 dark:bg-white/10" />
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = isItemActive(pathname, item.href);
           const Icon = item.icon;
 
           return (

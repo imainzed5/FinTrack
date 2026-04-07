@@ -67,11 +67,11 @@ body.panel-open {
 @media (max-width: 639px) {
   /* Keep mobile content and FAB above the nav + iOS home indicator area. */
   .mobile-nav-offset {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
   .mobile-fab-offset {
-    bottom: calc(4rem + env(safe-area-inset-bottom));
+    bottom: calc(4.6rem + env(safe-area-inset-bottom));
   }
 }
 
