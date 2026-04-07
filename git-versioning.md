@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.31.2
+### Current version: v0.31.3
 
 
 ---
 
 ## Version Roadmap
+v0.31.3 - 2026-04-08
+  - fix(budgets): Rework the mobile month planner in `src/components/pages/BudgetsClientPage.tsx` into a compact three-part control row so previous, month select, and next actions fit naturally on narrow screens.
+  - fix(budgets): Convert the top Budgets summary area into a denser 2-column mobile grid and tighten supporting copy so `Configured`, `Overall cap`, `Rollover`, and `Watchlist` read as quick-glance stat cards instead of a long single-column stack.
+  - fix(budgets): Compress the mobile overall/category budget sections in `src/components/pages/BudgetsClientPage.tsx` by reducing shell spacing, tightening empty states, and using a denser metric/action layout inside budget rule cards without forcing heavy cards into multi-column rows.
+  - verification: `npm run build` and `npm run lint` passed after the mobile-first budgets density refresh, with only the existing warnings in `src/lib/berde/chat-parser.ts`.
+
 v0.31.2 - 2026-04-08
   - fix(budgets): Tighten the dedicated budgets workspace header in `src/components/pages/BudgetsClientPage.tsx` by top-aligning the page title with the month planner card and reducing the extra top padding so the desktop layout no longer leaves a distracting empty band above the `Budgets` heading.
   - fix(budgets): Normalize the budget editor save-button copy in `src/components/pages/BudgetsClientPage.tsx` so the loading state reads `Saving...` without the encoding artifact.
