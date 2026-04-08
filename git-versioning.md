@@ -79,12 +79,16 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.33.1
+### Current version: v0.33.2
 
 
 ---
 
 ## Version Roadmap
+v0.33.2 - 2026-04-08
+  - fix(accounts): Refine the Accounts hero in `src/components/accounts/AccountsClientPage.tsx` so the desktop net worth line no longer clips, the filter pills sit directly under the summary line, and the two mini summary cards use the full bottom row width without overflowing or leaving dead space.
+  - verification: `npx.cmd tsc --noEmit` and `npx.cmd eslint src/components/accounts/AccountsClientPage.tsx` passed after the Accounts hero layout polish.
+
 v0.33.1 - 2026-04-08
   - fix(budgets-mobile): Refine the mobile budgets overview and category detail layouts in `src/components/pages/BudgetsClientPage.tsx` and `src/components/pages/BudgetCategoryDetailPage.tsx` so month navigation becomes a compact inline row, overview stats lock to four mobile tiles, and desktop layouts remain unchanged.
   - fix(budgets-mobile): Move mobile budget-card actions into the header area, demote coverage into a compact warning strip, trim instructional copy from mobile cards and headers, and add clearer tappable affordances for uncovered-spend rows.

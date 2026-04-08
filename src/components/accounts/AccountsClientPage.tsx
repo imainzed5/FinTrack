@@ -516,7 +516,7 @@ export default function AccountsClientPage() {
   const netWorthDisplay = useMemo(
     () =>
       getCompactMoneyDisplay(netWorth, {
-        compactThreshold: 12,
+        compactThreshold: 14,
         hiddenText: HIDDEN_BALANCE,
         visible,
       }),
@@ -581,16 +581,16 @@ export default function AccountsClientPage() {
 
           <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] sm:mt-4 sm:gap-4">
             <div className="rounded-[26px] border border-white/70 bg-[linear-gradient(160deg,rgba(14,30,40,0.96)_0%,rgba(33,62,64,0.96)_48%,rgba(55,126,92,0.92)_100%)] p-4 text-white shadow-[0_22px_48px_-32px_rgba(20,37,39,0.7)] sm:rounded-[30px] sm:p-5">
-              <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] lg:items-start">
+              <div className="flex flex-col gap-4">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white/[0.62]">
                     Net worth
                   </p>
                   <p
-                    className={`mt-2 max-w-full overflow-hidden pr-0 font-semibold leading-none tracking-[-0.05em] tabular-nums whitespace-nowrap sm:mt-3 lg:pr-4 ${
+                    className={`mt-2 max-w-full font-semibold leading-none tracking-[-0.05em] tabular-nums whitespace-nowrap sm:mt-3 ${
                       netWorthDisplay.compact
-                        ? 'text-[clamp(1.95rem,2.55vw,2.85rem)]'
-                        : 'text-[clamp(2.15rem,3vw,3.3rem)]'
+                        ? 'text-[clamp(2rem,2.6vw,2.95rem)]'
+                        : 'text-[clamp(2.2rem,3vw,3.3rem)]'
                     }`}
                   >
                     {netWorthDisplay.text}
@@ -601,7 +601,36 @@ export default function AccountsClientPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 self-start sm:gap-3 lg:w-full">
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:mt-5">
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ['all', 'All'],
+                    ['wallets', 'Wallets'],
+                    ['bank', 'Bank'],
+                  ] as const).map(([value, label]) => {
+                    const isActive = filter === value;
+
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setFilter(value)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                          isActive
+                            ? 'bg-white text-[#17303a] shadow-[0_10px_26px_-20px_rgba(255,255,255,0.8)]'
+                            : 'border border-white/15 bg-white/[0.08] text-white/[0.74] hover:bg-white/[0.14]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="grid min-w-0 grid-cols-2 gap-2">
                   <div className="rounded-[18px] border border-white/12 bg-white/10 p-3 backdrop-blur-sm sm:rounded-[22px] sm:p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/[0.62]">
                       Active mix
@@ -625,31 +654,7 @@ export default function AccountsClientPage() {
                     </p>
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2 sm:mt-5">
-                {([
-                  ['all', 'All'],
-                  ['wallets', 'Wallets'],
-                  ['bank', 'Bank'],
-                ] as const).map(([value, label]) => {
-                  const isActive = filter === value;
-
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFilter(value)}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                        isActive
-                          ? 'bg-white text-[#17303a] shadow-[0_10px_26px_-20px_rgba(255,255,255,0.8)]'
-                          : 'border border-white/15 bg-white/[0.08] text-white/[0.74] hover:bg-white/[0.14]'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+                </div>
               </div>
             </div>
 
