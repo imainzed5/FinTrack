@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
+import SavedSubcategoryPicker from '@/components/SavedSubcategoryPicker';
 import {
   CATEGORIES,
   PAYMENT_METHODS,
@@ -11,12 +12,15 @@ import {
   type Category,
   type PaymentMethod,
   type RecurringFrequency,
+  type SavedSubcategoryRegistry,
   type TransactionSplit,
   type Transaction,
 } from '@/lib/types';
 import {
   deleteTransaction as deleteLocalTransaction,
   getAccounts,
+  getSavedSubcategoryRegistry,
+  saveSavedSubcategory,
   updateTransaction as updateLocalTransaction,
 } from '@/lib/local-store';
 
@@ -82,6 +86,18 @@ function createSplitDraft(defaultCategory: Category): SplitDraft {
   };
 }
 
+const EMPTY_SAVED_SUBCATEGORY_REGISTRY: SavedSubcategoryRegistry = {
+  Food: [],
+  Transportation: [],
+  Subscriptions: [],
+  Utilities: [],
+  Shopping: [],
+  Entertainment: [],
+  Health: [],
+  Education: [],
+  Miscellaneous: [],
+};
+
 export default function EditTransactionModal({
   transaction,
   onClose,
@@ -100,6 +116,9 @@ export default function EditTransactionModal({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [splitRows, setSplitRows] = useState<SplitDraft[]>([]);
+  const [savedSubcategories, setSavedSubcategories] = useState<SavedSubcategoryRegistry>(
+    EMPTY_SAVED_SUBCATEGORY_REGISTRY
+  );
   const [recurringEnabled, setRecurringEnabled] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<RecurringFrequency>('monthly');
   const [recurringEndDate, setRecurringEndDate] = useState('');
@@ -285,12 +304,16 @@ export default function EditTransactionModal({
     if (!isOpen) return;
     let cancelled = false;
 
-    async function fetchAccounts() {
+    async function loadModalData() {
       try {
-        const json = (await getAccounts({ includeArchived: true })) as AccountOption[];
+        const [json, nextSubcategories] = await Promise.all([
+          getAccounts({ includeArchived: true }),
+          getSavedSubcategoryRegistry(),
+        ]);
         if (cancelled) return;
         const nextAccounts = Array.isArray(json) ? json : [];
         setAccounts(nextAccounts);
+        setSavedSubcategories(nextSubcategories);
         if (nextAccounts.length > 0) {
           setSelectedAccountId((prev) => prev || nextAccounts[0].id);
         }
@@ -299,7 +322,7 @@ export default function EditTransactionModal({
       }
     }
 
-    void fetchAccounts();
+    void loadModalData();
     return () => {
       cancelled = true;
     };
@@ -346,12 +369,20 @@ export default function EditTransactionModal({
     setSplitRows((prev) => prev.map((entry) => {
       if (entry.id !== id) return entry;
       if (field === 'category') {
-        return { ...entry, category: value as Category };
+        return { ...entry, category: value as Category, subCategory: '' };
       }
       if (field === 'subCategory') {
         return { ...entry, subCategory: value };
       }
       return { ...entry, amount: normalizeDecimalInput(value) };
+    }));
+  };
+
+  const handleCreateSubcategory = async (targetCategory: Category, label: string) => {
+    const nextEntries = await saveSavedSubcategory(targetCategory, label);
+    setSavedSubcategories((current) => ({
+      ...current,
+      [targetCategory]: nextEntries,
     }));
   };
 
@@ -539,13 +570,14 @@ export default function EditTransactionModal({
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-zinc-400">Sub-category <span className="text-zinc-300">(optional)</span></label>
-              <input
-                type="text"
+              <SavedSubcategoryPicker
+                category={category}
                 value={subCategory}
-                onChange={(e) => setSubCategory(e.target.value)}
+                onChange={setSubCategory}
+                options={savedSubcategories[category] ?? []}
+                onCreateOption={handleCreateSubcategory}
                 disabled={splitEnabled}
-                placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
-                className={`${singleLineFieldClass} disabled:opacity-60`}
+                placeholder={splitEnabled ? 'Managed via split lines' : 'No subcategory'}
               />
             </div>
 
@@ -603,7 +635,10 @@ export default function EditTransactionModal({
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => setCategory(cat)}
+                    onClick={() => {
+                      setCategory(cat);
+                      setSubCategory('');
+                    }}
                     className={`rounded-[9px] border py-2 px-1 flex flex-col items-center gap-1 transition-colors ${
                       isActive
                         ? 'border-[#1D9E75] bg-[#E1F5EE] dark:bg-[#0F6E56]/20'
@@ -685,12 +720,14 @@ export default function EditTransactionModal({
                         ✕
                       </button>
                     </div>
-                    <input
-                      type="text"
+                    <SavedSubcategoryPicker
+                      category={row.category}
                       value={row.subCategory}
-                      onChange={(e) => updateSplitRow(row.id, 'subCategory', e.target.value)}
-                      placeholder="Sub-category"
-                      className={compactFieldClass}
+                      onChange={(value) => updateSplitRow(row.id, 'subCategory', value)}
+                      options={savedSubcategories[row.category] ?? []}
+                      onCreateOption={handleCreateSubcategory}
+                      compact
+                      placeholder="No subcategory"
                     />
                   </div>
                 ))}

@@ -43,7 +43,11 @@ export function useBerdeInputs(
         (status) => status.category === 'Overall' && !status.subCategory,
       ) ?? data.budgetStatuses.find((status) => status.category === 'Overall');
 
-    const totalBudget = overallStatus?.effectiveLimit ?? overallStatus?.limit ?? data.monthlyBudget ?? 0;
+    const totalBudget =
+      overallStatus?.effectiveLimit ??
+      data.budgetSummary.overallEffectiveLimit ??
+      data.monthlyBudget ??
+      0;
     const totalSpent = overallStatus?.spent ?? data.totalSpentThisMonth ?? 0;
     const budgetUsedPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 

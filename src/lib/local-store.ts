@@ -18,6 +18,7 @@ import {
 import {
   createDisplayNameFromSession,
   DEFAULT_DEVICE_CURRENCY,
+  EMPTY_SAVED_SUBCATEGORY_REGISTRY,
   EMPTY_LOCAL_USER_SETTINGS,
   getLocalAppSnapshotSummary,
   isRecordBackedUp,
@@ -40,6 +41,7 @@ import type {
   AccountType,
   AccountWithBalance,
   Budget,
+  Category,
   DashboardData,
   Debt,
   DebtInput,
@@ -47,6 +49,7 @@ import type {
   PaymentMethod,
   RecurringConfig,
   RecurringFrequency,
+  SavedSubcategoryRegistry,
   SavingsDeposit,
   SavingsDepositInput,
   SavingsGoal,
@@ -604,14 +607,111 @@ export async function saveLocalUserSettings(
   updates: Partial<LocalUserSettings>
 ): Promise<LocalUserSettings> {
   const current = await getLocalUserSettings();
+  const nextSavedSubcategories = updates.savedSubcategories
+    ? {
+        ...EMPTY_SAVED_SUBCATEGORY_REGISTRY,
+        ...updates.savedSubcategories,
+      }
+    : current.savedSubcategories;
   const nextSettings: LocalUserSettings = {
     ...current,
     ...updates,
     nextPayday: normalizeDateOnly(updates.nextPayday ?? current.nextPayday),
+    savedSubcategories: nextSavedSubcategories,
   };
 
   await setMetaValue(USER_SETTINGS_KEY, nextSettings);
   return nextSettings;
+}
+
+function normalizeSavedSubcategoryLabel(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function dedupeSavedSubcategories(entries: string[]): string[] {
+  return Array.from(
+    new Set(
+      entries
+        .map((entry) => normalizeSavedSubcategoryLabel(entry))
+        .filter((entry): entry is string => Boolean(entry))
+    )
+  ).sort((left, right) => left.localeCompare(right));
+}
+
+export async function getSavedSubcategoryRegistry(): Promise<SavedSubcategoryRegistry> {
+  const settings = await getLocalUserSettings();
+  return {
+    ...EMPTY_SAVED_SUBCATEGORY_REGISTRY,
+    ...settings.savedSubcategories,
+  };
+}
+
+export async function getSavedSubcategories(category: Category): Promise<string[]> {
+  const registry = await getSavedSubcategoryRegistry();
+  return registry[category] ?? [];
+}
+
+export async function saveSavedSubcategory(category: Category, label: string): Promise<string[]> {
+  const normalized = normalizeSavedSubcategoryLabel(label);
+  if (!normalized) {
+    return getSavedSubcategories(category);
+  }
+
+  const registry = await getSavedSubcategoryRegistry();
+  const nextEntries = dedupeSavedSubcategories([...(registry[category] ?? []), normalized]);
+  await saveLocalUserSettings({
+    savedSubcategories: {
+      ...registry,
+      [category]: nextEntries,
+    },
+  });
+
+  return nextEntries;
+}
+
+export async function renameSavedSubcategory(
+  category: Category,
+  previousLabel: string,
+  nextLabel: string
+): Promise<string[]> {
+  const normalizedNext = normalizeSavedSubcategoryLabel(nextLabel);
+  const normalizedPrevious = normalizeSavedSubcategoryLabel(previousLabel);
+  const registry = await getSavedSubcategoryRegistry();
+  const current = registry[category] ?? [];
+
+  if (!normalizedPrevious) {
+    return current;
+  }
+
+  const nextEntries = dedupeSavedSubcategories(
+    current.map((entry) => (entry === normalizedPrevious ? normalizedNext ?? '' : entry))
+  );
+
+  await saveLocalUserSettings({
+    savedSubcategories: {
+      ...registry,
+      [category]: nextEntries,
+    },
+  });
+
+  return nextEntries;
+}
+
+export async function deleteSavedSubcategory(category: Category, label: string): Promise<string[]> {
+  const normalized = normalizeSavedSubcategoryLabel(label);
+  const registry = await getSavedSubcategoryRegistry();
+  const current = registry[category] ?? [];
+  const nextEntries = normalized ? current.filter((entry) => entry !== normalized) : current;
+
+  await saveLocalUserSettings({
+    savedSubcategories: {
+      ...registry,
+      [category]: nextEntries,
+    },
+  });
+
+  return nextEntries;
 }
 
 export async function hasLocalAppData(): Promise<boolean> {

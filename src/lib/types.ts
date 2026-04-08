@@ -12,6 +12,8 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
+export type SavedSubcategoryRegistry = Record<Category, string[]>;
+
 export type TransactionType = 'expense' | 'income' | 'savings';
 
 export type IncomeCategory =
@@ -196,6 +198,7 @@ export type InsightType =
   | 'spending_spike'
   | 'subscription'
   | 'budget_risk'
+  | 'budget_plan_conflict'
   | 'pattern'
   | 'saving'
   | 'budget_burn_rate'
@@ -211,6 +214,7 @@ export type InsightType =
   | 'month_end_projection'
   | 'subscription_creep'
   | 'savings_rate_trend'
+  | 'uncovered_spend'
   | 'post_income_behavior'
   | 'best_month_replay';
 
@@ -231,9 +235,7 @@ export interface BudgetStatus {
   budgetId: string;
   category: Category | 'Overall';
   subCategory?: string;
-  baseLimit: number;
-  limit: number;
-  incomeBoost: number;
+  configuredLimit: number;
   effectiveLimit: number;
   rolloverCarry: number;
   spent: number;
@@ -242,6 +244,36 @@ export interface BudgetStatus {
   projectedSpent: number;
   projectedOverage: number;
   status: 'safe' | 'warning' | 'critical';
+}
+
+export interface BudgetCoverageGap {
+  category: Category;
+  amount: number;
+}
+
+export interface BudgetMonthSummary {
+  month: string;
+  hasOverallBudget: boolean;
+  overallConfiguredLimit: number;
+  overallEffectiveLimit: number;
+  additiveCategoryPlannedTotal: number;
+  scopedBudgetCount: number;
+  rolloverEnabledCount: number;
+  overlapCount: number;
+  atRiskCount: number;
+  criticalCount: number;
+  uncoveredSpendTotal: number;
+  uncoveredCategories: BudgetCoverageGap[];
+  topUncoveredCategory: BudgetCoverageGap | null;
+  hasPlanningMismatch: boolean;
+  planningMismatchAmount: number;
+}
+
+export interface BudgetCrossPageSignals {
+  topRiskBudget: BudgetStatus | null;
+  topUncoveredCategory: BudgetCoverageGap | null;
+  hasPlanningMismatch: boolean;
+  planningMismatchAmount: number;
 }
 
 export interface BudgetThresholdAlert {
@@ -296,6 +328,8 @@ export interface DashboardData {
   expenseGrowthRate: number;
   budgetStatuses: BudgetStatus[];
   budgetAlerts: BudgetThresholdAlert[];
+  budgetSummary: BudgetMonthSummary;
+  budgetSignals: BudgetCrossPageSignals;
   categoryBreakdown: { category: string; amount: number }[];
   weeklySpending: { week: string; amount: number }[];
   dailySpending: { day: string; amount: number }[];

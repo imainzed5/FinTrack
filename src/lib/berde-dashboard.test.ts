@@ -55,9 +55,7 @@ function createBudgetStatus(overrides: Partial<BudgetStatus> = {}): BudgetStatus
   return {
     budgetId: 'budget-1',
     category: 'Overall',
-    baseLimit: 4000,
-    limit: 4000,
-    incomeBoost: 0,
+    configuredLimit: 4000,
     effectiveLimit: 4000,
     rolloverCarry: 0,
     spent: 150,

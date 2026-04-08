@@ -1,6 +1,7 @@
 import type { BerdeContext, BerdeState } from '@/lib/berde/berde.types';
 import type {
   BerdeMemory,
+  BudgetCrossPageSignals,
   BudgetStatus,
   Insight,
   Transaction,
@@ -838,8 +839,9 @@ function buildSignalData(data: {
   budgetStatuses: BudgetStatus[];
   transactions: Transaction[];
   berdeMemory: BerdeMemory;
+  budgetSignals?: BudgetCrossPageSignals;
 }): BerdeSignalData {
-  const { budgetStatuses, transactions, berdeMemory } = data;
+  const { budgetStatuses, transactions, berdeMemory, budgetSignals } = data;
   const now = new Date();
   const todayKey = getTodayDateKeyInManila();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -853,7 +855,7 @@ function buildSignalData(data: {
 
   const spent =
     overall?.spent ?? expenseTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const limit = overall?.effectiveLimit ?? overall?.limit ?? 0;
+  const limit = overall?.effectiveLimit ?? overall?.configuredLimit ?? 0;
   const remaining = limit - spent;
   const saved = Math.max(0, remaining);
   const over = Math.max(0, spent - limit);
@@ -919,10 +921,15 @@ function buildSignalData(data: {
     }
   }
 
+  const priorityCategory =
+    budgetSignals?.topRiskBudget?.category ??
+    budgetSignals?.topUncoveredCategory?.category;
+
   const overspentCategory =
     budgetStatuses.find(
       (status) => status.category !== 'Overall' && (status.percentage >= 100 || status.status === 'critical'),
     )?.category ??
+    priorityCategory ??
     budgetStatuses.find((status) => status.category !== 'Overall')?.category ??
     'Overall';
 
@@ -1266,12 +1273,14 @@ export function getBerdeInsightsForContext(
     transactions: Transaction[];
     insights: Insight[];
     berdeMemory: BerdeMemory;
+    budgetSignals?: BudgetCrossPageSignals;
   },
 ): BerdeInsight[] {
   const signalData = buildSignalData({
     budgetStatuses: data.budgetStatuses,
     transactions: data.transactions,
     berdeMemory: data.berdeMemory,
+    budgetSignals: data.budgetSignals,
   });
 
   if (!hasEnoughSignalForBerdeThoughts({ context, signalData, insights: data.insights })) {
@@ -1309,6 +1318,7 @@ export function getBerdeInsightsForState(
     transactions: Transaction[];
     insights: Insight[];
     berdeMemory: BerdeMemory;
+    budgetSignals?: BudgetCrossPageSignals;
   },
 ): BerdeInsight[] {
   return getBerdeInsightsForContext(

@@ -63,6 +63,7 @@ import {
   subscribeBudgetUpdates,
 } from '@/lib/transaction-ws';
 import type { AccountWithBalance, Budget } from '@/lib/types';
+import { buildBudgetMonthSummary, compareBudgetScopes } from '@/lib/budgeting';
 import { formatCurrency } from '@/lib/utils';
 
 type SettingsSectionKey =
@@ -822,13 +823,7 @@ export default function SettingsPage() {
   const monthBudgets = useMemo(() => {
     return budgets
       .filter((budget) => budget.month === month)
-      .sort((first, second) => {
-        if (first.category === 'Overall' && second.category !== 'Overall') return -1;
-        if (first.category !== 'Overall' && second.category === 'Overall') return 1;
-        return `${first.category}:${first.subCategory || ''}`.localeCompare(
-          `${second.category}:${second.subCategory || ''}`
-        );
-      });
+      .sort(compareBudgetScopes);
   }, [budgets, month]);
 
   const nextPaydayDate = parseDateValue(nextPayday);
@@ -837,10 +832,11 @@ export default function SettingsPage() {
     loading,
     monthBudgets,
   });
-  const overallBudget = monthBudgets.find(
-    (budget) => budget.category === 'Overall' && !budget.subCategory
-  );
   const rolloverBudgetCount = monthBudgets.filter((budget) => budget.rollover).length;
+  const budgetSummary = useMemo(
+    () => buildBudgetMonthSummary([], budgets, month),
+    [budgets, month]
+  );
   const lastCloudBackupAt = useMemo(() => {
     const serverTimestamp = parseDateValue(cloudSyncStatus?.lastUpdatedAt ?? '');
     return serverTimestamp ?? lastSyncAt;
@@ -945,12 +941,12 @@ export default function SettingsPage() {
       id: 'budgets',
       title: 'Budgets',
       summary:
-        monthBudgets.length === 0
+        budgetSummary.scopedBudgetCount === 0
           ? 'No monthly budgets configured'
-          : monthBudgets.length === 1
+          : budgetSummary.scopedBudgetCount === 1
             ? '1 monthly budget configured'
-            : `${monthBudgets.length} monthly budgets configured`,
-      status: overallBudget ? 'Overall cap ready' : 'Needs overall cap',
+            : `${budgetSummary.scopedBudgetCount} monthly budgets configured`,
+      status: budgetSummary.hasOverallBudget ? 'Overall cap ready' : 'Needs overall cap',
       description:
         'Budgets now live in a dedicated workspace, while Settings keeps a lighter summary and handoff.',
       eyebrow: 'Accounts & Money',
@@ -1045,29 +1041,44 @@ export default function SettingsPage() {
           <div className="grid gap-3 md:grid-cols-3">
             <SummaryTile
               label="Configured"
-              value={loading ? '...' : String(monthBudgets.length)}
+              value={loading ? '...' : String(budgetSummary.scopedBudgetCount)}
               helper={formattedBudgetMonth}
               loading={loading}
             />
             <SummaryTile
               label="Overall budget"
-              value={loading ? '...' : overallBudget ? formatCurrency(overallBudget.monthlyLimit) : 'Missing'}
-              helper={overallBudget ? 'Main monthly cap is active' : 'Add an Overall budget first'}
+              value={
+                loading
+                  ? '...'
+                  : budgetSummary.hasOverallBudget
+                    ? formatCurrency(budgetSummary.overallConfiguredLimit)
+                    : 'Missing'
+              }
+              helper={
+                budgetSummary.hasOverallBudget
+                  ? 'Main monthly cap is active'
+                  : 'Add an Overall budget first'
+              }
               loading={loading}
-              accent={Boolean(overallBudget)}
+              accent={budgetSummary.hasOverallBudget}
             />
             <SummaryTile
-              label="Rollover"
-              value={loading ? '...' : String(rolloverBudgetCount)}
-              helper="Budgets carrying unused room forward"
+              label="Category plan"
+              value={loading ? '...' : formatCurrency(budgetSummary.additiveCategoryPlannedTotal)}
+              helper={
+                budgetSummary.hasPlanningMismatch
+                  ? `${formatCurrency(budgetSummary.planningMismatchAmount)} above the Overall cap`
+                  : 'Additive total after overlap rules'
+              }
               loading={loading}
+              accent={budgetSummary.hasPlanningMismatch}
             />
           </div>
 
           <SettingsSurface
             eyebrow="Budgets"
             title={`Budget workspace for ${formattedBudgetMonth}`}
-            description="Budget planning has moved into its own page so people can understand Overall versus category budgets without digging through Settings."
+            description="Budget planning now lives in one dedicated workspace, so Settings only keeps a light summary and the jump-off point."
             action={
               <div className="flex flex-col gap-2 sm:flex-row">
                 <select
@@ -1082,7 +1093,7 @@ export default function SettingsPage() {
                   ))}
                 </select>
                 <Link
-                  href="/budgets"
+                  href={`/budgets?month=${month}`}
                   className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-4 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
                 >
                   Open budget workspace
@@ -1091,45 +1102,40 @@ export default function SettingsPage() {
               </div>
             }
           >
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  What changed
-                </p>
-                <p className="mt-3 text-base font-semibold text-zinc-900">
-                  Budgets now have one dedicated home.
-                </p>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  The new workspace explains the Overall budget first, supports month switching, and
-                  keeps create, edit, and delete actions in one place instead of splitting them across Settings.
-                </p>
-              </div>
-
-              <div className="rounded-[24px] border border-[#e8dfd0] bg-white p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  This month at a glance
-                </p>
-                <div className="mt-4 space-y-3 text-sm text-zinc-600">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Month</span>
-                    <span className="font-medium text-zinc-900">{formattedBudgetMonth}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Overall budget</span>
-                    <span className="font-medium text-zinc-900">
-                      {loading ? '...' : overallBudget ? formatCurrency(overallBudget.monthlyLimit) : 'Missing'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Configured rules</span>
-                    <span className="font-medium text-zinc-900">{loading ? '...' : monthBudgets.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Rollover enabled</span>
-                    <span className="font-medium text-zinc-900">{loading ? '...' : rolloverBudgetCount}</span>
-                  </div>
+            <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                This month at a glance
+              </p>
+              <div className="mt-4 grid gap-3 text-sm text-zinc-600 sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Month</span>
+                  <span className="font-medium text-zinc-900">{formattedBudgetMonth}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Overall budget</span>
+                  <span className="font-medium text-zinc-900">
+                    {loading
+                      ? '...'
+                      : budgetSummary.hasOverallBudget
+                        ? formatCurrency(budgetSummary.overallConfiguredLimit)
+                        : 'Missing'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Rollover enabled</span>
+                  <span className="font-medium text-zinc-900">{loading ? '...' : rolloverBudgetCount}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Overlap warnings</span>
+                  <span className="font-medium text-zinc-900">{loading ? '...' : budgetSummary.overlapCount}</span>
                 </div>
               </div>
+
+              <p className="mt-4 text-sm leading-6 text-zinc-500">
+                The budgets page now handles month switching, copy-forward planning, overlap warnings,
+                and category coverage, so people can understand the whole budget model without digging
+                through Settings first.
+              </p>
             </div>
           </SettingsSurface>
         </div>

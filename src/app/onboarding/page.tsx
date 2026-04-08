@@ -78,7 +78,7 @@ const STORY_STEPS: readonly StoryStep[] = [
   {
     label: 'Start Tracking',
     eyebrow: 'Step 3 of 3',
-    prompt: 'Add a monthly budget if you want one, then review everything before you begin.',
+    prompt: 'Add an Overall monthly budget if you want one, then review everything before you begin. Category guardrails can be added later in the budgets workspace.',
     icon: BadgeDollarSign,
     spriteState: 'motivational',
   },

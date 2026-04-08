@@ -24,7 +24,7 @@ export function StatsCards({ data }: StatsCardsProps) {
   const overallBudget = data.budgetStatuses.find(
     (b) => b.category === 'Overall' && !b.subCategory
   );
-  const strictCap = overallBudget?.baseLimit ?? data.monthlyBudget;
+  const strictCap = overallBudget?.configuredLimit ?? data.budgetSummary.overallConfiguredLimit ?? data.monthlyBudget;
   const budgetRemaining = overallBudget?.remaining ?? data.remainingBudget;
   const hasBudget = strictCap > 0;
 
@@ -118,7 +118,7 @@ export function BudgetProgress({ budgets }: BudgetProgressProps) {
       {budgets.map((b) => (
         <div key={b.budgetId}>
           {(() => {
-            const limit = b.baseLimit || b.effectiveLimit;
+            const limit = b.effectiveLimit || b.configuredLimit;
 
             return (
               <>

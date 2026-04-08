@@ -38,7 +38,7 @@ export default function RemainingBudgetPopup({
   const displayDaysLeft = Math.max(0, endOfMonth.getDate() - now.getDate());
   const divisorDaysLeft = Math.max(1, displayDaysLeft);
 
-  const budgetCap = overallBudget?.baseLimit ?? overallBudget?.effectiveLimit ?? 0;
+  const budgetCap = overallBudget?.effectiveLimit ?? overallBudget?.configuredLimit ?? 0;
   const remaining = overallBudget?.remaining ?? 0;
 
   const savedPercentage =

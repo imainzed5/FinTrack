@@ -1,8 +1,10 @@
 import type {
   Account,
   Budget,
+  Category,
   Debt,
   PaymentMethod,
+  SavedSubcategoryRegistry,
   SavingsDeposit,
   SavingsGoal,
   Transaction,
@@ -42,7 +44,20 @@ export interface DeviceProfile {
 
 export interface LocalUserSettings {
   nextPayday: string | null;
+  savedSubcategories: SavedSubcategoryRegistry;
 }
+
+export const EMPTY_SAVED_SUBCATEGORY_REGISTRY: SavedSubcategoryRegistry = {
+  Food: [],
+  Transportation: [],
+  Subscriptions: [],
+  Utilities: [],
+  Shopping: [],
+  Entertainment: [],
+  Health: [],
+  Education: [],
+  Miscellaneous: [],
+};
 
 export interface LocalRecordMeta {
   localUpdatedAt: string;
@@ -98,6 +113,7 @@ export interface LocalOnboardingInput {
 
 export const EMPTY_LOCAL_USER_SETTINGS: LocalUserSettings = {
   nextPayday: null,
+  savedSubcategories: EMPTY_SAVED_SUBCATEGORY_REGISTRY,
 };
 
 export function deriveStorageSyncMode(params: {
@@ -250,8 +266,26 @@ function normalizeUserSettings(value: unknown): LocalUserSettings {
     return EMPTY_LOCAL_USER_SETTINGS;
   }
 
+  const rawSubcategories = isRecord(value.savedSubcategories) ? value.savedSubcategories : {};
+  const savedSubcategories = Object.fromEntries(
+    (Object.keys(EMPTY_SAVED_SUBCATEGORY_REGISTRY) as Category[]).map((category) => [
+      category,
+      Array.isArray(rawSubcategories[category])
+        ? Array.from(
+            new Set(
+              rawSubcategories[category]
+                .filter((entry): entry is string => typeof entry === 'string')
+                .map((entry) => entry.trim())
+                .filter(Boolean)
+            )
+          ).sort((left, right) => left.localeCompare(right))
+        : [],
+    ])
+  ) as SavedSubcategoryRegistry;
+
   return {
     nextPayday: typeof value.nextPayday === 'string' ? value.nextPayday : null,
+    savedSubcategories,
   };
 }
 

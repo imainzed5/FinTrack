@@ -68,13 +68,17 @@ async function loadPlanSummary(): Promise<PlanSummary> {
     getDebts('active'),
     getLocalUserSettings(),
   ]);
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const currentMonthBudgets = budgets.filter((budget) => budget.month === currentMonth);
 
   return {
-    activeBudgetCount: budgets.length,
+    activeBudgetCount: currentMonthBudgets.length,
     activeGoalCount: goalsSummary.activeGoalCount,
     owingDebtCount: debts.filter((debt) => debt.direction === 'owing').length,
     owedDebtCount: debts.filter((debt) => debt.direction === 'owed').length,
-    hasOverallBudget: budgets.some((budget) => budget.category === 'Overall' && !budget.subCategory),
+    hasOverallBudget: currentMonthBudgets.some(
+      (budget) => budget.category === 'Overall' && !budget.subCategory
+    ),
     nextPayday: userSettings.nextPayday,
   };
 }

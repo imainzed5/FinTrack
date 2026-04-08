@@ -79,12 +79,20 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.32.0
+### Current version: v0.33.0
 
 
 ---
 
 ## Version Roadmap
+v0.33.0 - 2026-04-08
+  - feat(budgets): Simplify the budget model so active planning now uses only `Overall` and category-wide caps, while legacy subcategory budget rows are ignored by the active budget workspace and planning math.
+  - feat(subcategories): Add a synced saved-subcategory registry through local user settings and surface it in `src/components/pages/BudgetCategoryDetailPage.tsx` as reusable labels under each category instead of separate subcategory budget rules.
+  - feat(expenses): Replace free-text subcategory entry in `src/components/AddExpenseModal.tsx` and `src/components/EditTransactionModal.tsx` with a reusable picker that lets users choose existing subcategories or add new ones inline, including split rows.
+  - fix(dashboard): Reduce uncovered-spend treatment in `src/components/pages/DashboardClientPage.tsx` from a full dashboard card to a lighter inline warning banner so it stops consuming a full content slot.
+  - fix(budgets): Replace native browser alert and confirm dialogs in the budgets workspace with in-app confirmation modals for deletes, move/replace actions, copy-month actions, and informational notices.
+  - verification: `npx.cmd tsc --noEmit` and targeted `npx.cmd eslint` checks passed across the changed budget, dashboard, modal, and local-store files. Full `npm.cmd test -- --runInBand` could not complete in this environment because Node child-process spawning fails with `spawn EPERM`.
+
 v0.32.0 - 2026-04-08
   - feat(transactions): Refresh the PDF export in `src/app/transactions/page.tsx` with a new hero `Total Spent` card, secondary stat cards, and an expenses-only total row styled in brand green.
   - feat(transactions): Add a spending breakdown section with category-colored horizontal bars and keep the export totals aligned with the existing filtered month/search/payment/category scope plus the current operational-spend toggle.

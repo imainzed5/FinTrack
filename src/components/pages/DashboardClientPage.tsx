@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
-import { BarChart3, CalendarDays, Settings } from 'lucide-react';
+import { AlertTriangle, BarChart3, CalendarDays, Settings } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import BerdeCard from '@/components/dashboard/BerdeCard';
@@ -25,9 +25,10 @@ import FloatingAddButton from '@/components/FloatingAddButton';
 import { resolveBerdeState } from '@/lib/berde/berde.logic';
 import { useBerdeInputs } from '@/lib/berde/useBerdeInputs';
 import { getBerdeInsightsForContext } from '../../lib/berde-messages';
+import { getBudgetLabel } from '@/lib/budgeting';
 import { isSyncStateRealtimeUpdate, subscribeAppUpdates } from '@/lib/transaction-ws';
 import { getDashboardData, getLocalUserSettings, getSavingsGoalsSummary } from '@/lib/local-store';
-import { getTodayDateKeyInManila } from '@/lib/utils';
+import { formatCurrency, getTodayDateKeyInManila } from '@/lib/utils';
 import { useAppSession } from '@/components/AppSessionProvider';
 import { DashboardSkeleton } from '@/components/SkeletonLoaders';
 import type { DashboardData, SavingsGoalsSummary } from '@/lib/types';
@@ -48,6 +49,29 @@ const EMPTY_DASHBOARD_DATA: DashboardData = {
   expenseGrowthRate: 0,
   budgetStatuses: [],
   budgetAlerts: [],
+  budgetSummary: {
+    month: EMPTY_MONTH_KEY,
+    hasOverallBudget: false,
+    overallConfiguredLimit: 0,
+    overallEffectiveLimit: 0,
+    additiveCategoryPlannedTotal: 0,
+    scopedBudgetCount: 0,
+    rolloverEnabledCount: 0,
+    overlapCount: 0,
+    atRiskCount: 0,
+    criticalCount: 0,
+    uncoveredSpendTotal: 0,
+    uncoveredCategories: [],
+    topUncoveredCategory: null,
+    hasPlanningMismatch: false,
+    planningMismatchAmount: 0,
+  },
+  budgetSignals: {
+    topRiskBudget: null,
+    topUncoveredCategory: null,
+    hasPlanningMismatch: false,
+    planningMismatchAmount: 0,
+  },
   categoryBreakdown: [],
   weeklySpending: [],
   dailySpending: [],
@@ -162,7 +186,7 @@ export default function DashboardClientPage() {
 
   const spentThisMonth = overallBudget?.spent ?? 0;
   const remaining = overallBudget?.remaining ?? 0;
-  const strictCap = overallBudget?.baseLimit ?? overallBudget?.limit ?? 0;
+  const strictCap = overallBudget?.configuredLimit ?? data.budgetSummary.overallConfiguredLimit ?? 0;
   const needsFirstTransaction = data.recentTransactions.length === 0;
   const needsBudget = !overallBudget;
   const needsSavingsGoal = (savingsSummary?.activeGoalCount ?? 0) === 0;
@@ -238,6 +262,7 @@ export default function DashboardClientPage() {
     transactions: data.currentMonthTransactions,
     insights: data.insights,
     berdeMemory: data.berdeMemory,
+    budgetSignals: data.budgetSignals,
   });
   const hasBerdeThoughts = berdeInsights.length > 0;
   const primaryBerdeInsight = berdeInsights[0] ?? {
@@ -476,6 +501,70 @@ export default function DashboardClientPage() {
                 onSavingsGoalsTap={() => setShowSavingsGoalsPopup(true)}
               />
             </div>
+
+            {(
+              data.budgetSignals.hasPlanningMismatch ||
+              data.budgetSignals.topRiskBudget ||
+              data.budgetSignals.topUncoveredCategory
+            ) ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {data.budgetSignals.hasPlanningMismatch ? (
+                  <Link
+                    href={`/budgets?month=${format(now, 'yyyy-MM')}`}
+                    className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 transition-colors hover:bg-amber-50"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+                      Plan mismatch
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-zinc-900">
+                      Category plans are {formatCurrency(data.budgetSignals.planningMismatchAmount)} over the Overall cap.
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-zinc-600">
+                      Review this month&apos;s budget workspace before the plan drifts further.
+                    </p>
+                  </Link>
+                ) : null}
+
+                {data.budgetSignals.topRiskBudget ? (
+                  <Link
+                    href={`/budgets?month=${format(now, 'yyyy-MM')}`}
+                    className="rounded-2xl border border-[#e3dbc9] bg-white p-4 transition-colors hover:bg-[#fbf8f1]"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      Top budget risk
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-zinc-900">
+                      {getBudgetLabel(data.budgetSignals.topRiskBudget)}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-zinc-600">
+                      {Math.round(data.budgetSignals.topRiskBudget.percentage)}% used with{' '}
+                      {formatCurrency(data.budgetSignals.topRiskBudget.remaining)} remaining.
+                    </p>
+                  </Link>
+                ) : null}
+
+              </div>
+            ) : null}
+
+            {data.budgetSignals.topUncoveredCategory ? (
+              <Link
+                href={`/budgets?month=${format(now, 'yyyy-MM')}`}
+                className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm transition-colors hover:bg-amber-50"
+              >
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-amber-600">
+                  <AlertTriangle size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-zinc-900">
+                    {data.budgetSignals.topUncoveredCategory.category} has uncovered spend
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">
+                    {formatCurrency(data.budgetSignals.topUncoveredCategory.amount)} this month has no
+                    category guardrail yet.
+                  </p>
+                </div>
+              </Link>
+            ) : null}
 
             {showSavingsGoalsPopup && (
               <SavingsGoalsDashboardCard
