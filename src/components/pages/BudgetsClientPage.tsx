@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addMonths, format, startOfMonth } from 'date-fns';
 import ConfirmModal from '@/components/ConfirmModal';
+import MobileMonthNavigation from '@/components/budgets/MobileMonthNavigation';
 import {
   AlertTriangle,
   CalendarRange,
@@ -240,7 +241,7 @@ function BudgetEditor({
           <h3 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-zinc-900">
             {isEditing ? 'Update this budget rule' : 'Create a budget rule'}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
             {isEditing
               ? 'Amount and rollover edits stay simple. Subcategory rules now live inside each category page so the main workspace stays focused.'
               : `Saving for ${formatMonthLabel(month)} keeps one category-wide rule per month.`}
@@ -276,7 +277,7 @@ function BudgetEditor({
             ))}
           </select>
           {isEditing ? (
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
+            <p className="mt-2 hidden text-xs leading-5 text-zinc-500 sm:block">
               Category edits are allowed, but changing the scope will ask before replacing the old
               rule.
             </p>
@@ -364,8 +365,8 @@ function SummaryTile({
         accent ? 'border-emerald-200 bg-emerald-50/80' : 'border-[#e3dbc9] bg-white'
       }`}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{label}</p>
-      <p className="mt-2 text-[1.65rem] font-semibold tracking-[-0.04em] text-zinc-900 sm:text-2xl">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{label}</p>
+      <p className="mt-2 text-[1.25rem] font-bold tracking-[-0.04em] text-zinc-900 sm:text-2xl sm:font-semibold">
         {value}
       </p>
       <p className="mt-1 text-xs leading-5 text-zinc-500 sm:text-sm">{helper}</p>
@@ -397,61 +398,82 @@ function BudgetRuleCard({
     <div className="rounded-[26px] border border-[#e8dfd0] bg-white p-3.5 shadow-[0_16px_34px_rgba(42,42,28,0.04)] sm:rounded-[28px] sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold tracking-[-0.02em] text-zinc-900">
-              {getBudgetLabel(budget)}
-            </h3>
-            <span className="inline-flex rounded-full bg-[#fbf8f1] px-2.5 py-1 text-xs font-medium text-zinc-600">
-              {scopeKind}
-            </span>
-            {budget.rollover ? (
-              <span className="inline-flex rounded-full bg-[#eef7f0] px-2.5 py-1 text-xs font-medium text-[#1D9E75]">
-                Rollover on
+          <div className="flex flex-wrap items-start justify-between gap-3 sm:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold tracking-[-0.02em] text-zinc-900">
+                {getBudgetLabel(budget)}
+              </h3>
+              <span className="inline-flex rounded-full bg-[#fbf8f1] px-2.5 py-1 text-xs font-medium text-zinc-600">
+                {scopeKind}
               </span>
-            ) : null}
-            {overlapping ? (
-              <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
-                Overlap warning
+              {budget.rollover ? (
+                <span className="inline-flex rounded-full bg-[#eef7f0] px-2.5 py-1 text-xs font-medium text-[#1D9E75]">
+                  Rollover on
+                </span>
+              ) : null}
+              {overlapping ? (
+                <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                  Overlap warning
+                </span>
+              ) : null}
+              <span
+                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getBudgetStatusTone(status)}`}
+              >
+                {getBudgetStatusLabel(status)}
               </span>
-            ) : null}
-            <span
-              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getBudgetStatusTone(status)}`}
-            >
-              {getBudgetStatusLabel(status)}
-            </span>
+            </div>
+
+            <div className="flex items-center gap-3 sm:hidden">
+              <button
+                type="button"
+                onClick={onEdit}
+                className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1 text-sm font-medium text-rose-600 transition-colors hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-zinc-500 xl:grid-cols-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Configured
               </p>
-              <p className="mt-1 text-base font-semibold text-zinc-900">
+              <p className="mt-1 text-[1.25rem] font-bold text-zinc-900 sm:text-base sm:font-semibold">
                 {formatCurrency(status?.configuredLimit ?? budget.monthlyLimit)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Effective
               </p>
-              <p className="mt-1 text-base font-semibold text-zinc-900">
+              <p className="mt-1 text-[1.25rem] font-bold text-zinc-900 sm:text-base sm:font-semibold">
                 {formatCurrency(status?.effectiveLimit ?? budget.monthlyLimit)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Spent
               </p>
-              <p className="mt-1 text-base font-semibold text-zinc-900">
+              <p className="mt-1 text-[1.25rem] font-bold text-zinc-900 sm:text-base sm:font-semibold">
                 {formatCurrency(status?.spent ?? 0)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Remaining
               </p>
               <p
-                className={`mt-1 text-base font-semibold ${
+                className={`mt-1 text-[1.25rem] font-bold sm:text-base sm:font-semibold ${
                   status && status.remaining < 0 ? 'text-rose-600' : 'text-zinc-900'
                 }`}
               >
@@ -461,7 +483,7 @@ function BudgetRuleCard({
           </div>
         </div>
 
-        <div className="flex gap-2 self-start">
+        <div className="hidden gap-2 self-start sm:flex">
           <button
             type="button"
             onClick={onEdit}
@@ -573,7 +595,7 @@ function CategoryBudgetCard({
             ) : null}
           </div>
 
-          <p className="mt-3 text-sm leading-6 text-zinc-500">
+          <p className="mt-3 hidden text-sm leading-6 text-zinc-500 sm:block">
             Keep the main category cap here, then open the detail page to manage saved
             subcategories inside it.
           </p>
@@ -966,13 +988,32 @@ export default function BudgetsClientPage() {
           <h1 className="font-display text-[2.15rem] font-semibold tracking-[-0.04em] text-zinc-900">
             Budgets
           </h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
             Review one month at a time, keep Overall as the anchor, and add category guardrails only
             where they help.
           </p>
         </div>
 
-        <div className="w-full rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-3.5 shadow-[0_16px_32px_rgba(42,42,28,0.04)] sm:max-w-[32rem] sm:p-4">
+        <div className="w-full sm:max-w-[32rem]">
+          <MobileMonthNavigation
+            selectedMonth={selectedMonth}
+            monthOptions={monthOptions}
+            onSelectMonth={setSelectedMonth}
+            onPreviousMonth={() =>
+              setSelectedMonth(format(addMonths(parseBudgetMonth(selectedMonth), -1), 'yyyy-MM'))
+            }
+            onNextMonth={() =>
+              setSelectedMonth(format(addMonths(parseBudgetMonth(selectedMonth), 1), 'yyyy-MM'))
+            }
+            copyAction={{
+              label: "Copy previous month's setup",
+              busyLabel: 'Copying...',
+              disabled: copying,
+              onClick: () => void handleCopyPreviousMonth(),
+            }}
+          />
+
+        <div className="hidden rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-3.5 shadow-[0_16px_32px_rgba(42,42,28,0.04)] sm:block sm:p-4">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#1D9E75]">
               <CalendarRange size={20} />
@@ -1031,9 +1072,53 @@ export default function BudgetsClientPage() {
             </button>
           </div>
         </div>
+        </div>
       </header>
 
-      <section className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 xl:grid-cols-5">
+      <section className="mt-5 grid grid-cols-2 gap-3 sm:hidden">
+        <SummaryTile
+          label="Configured"
+          value={loading ? '...' : String(summary.scopedBudgetCount)}
+          helper={`Rules active for ${formatMonthLabel(selectedMonth)}`}
+        />
+        <SummaryTile
+          label="Overall cap"
+          value={
+            loading
+              ? '...'
+              : summary.hasOverallBudget
+                ? formatCurrency(summary.overallConfiguredLimit)
+                : 'Missing'
+          }
+          helper={
+            summary.hasOverallBudget
+              ? `${formatCurrency(summary.overallEffectiveLimit)} effective this month`
+              : 'Add this first to anchor the month'
+          }
+          accent={summary.hasOverallBudget}
+        />
+        <SummaryTile
+          label="Category plan"
+          value={loading ? '...' : formatCurrency(summary.additiveCategoryPlannedTotal)}
+          helper={
+            summary.hasPlanningMismatch
+              ? `${formatCurrency(summary.planningMismatchAmount)} above the Overall plan`
+              : 'Additive total after overlap rules'
+          }
+          accent={summary.hasPlanningMismatch}
+        />
+        <SummaryTile
+          label="Watchlist"
+          value={loading ? '...' : String(summary.atRiskCount)}
+          helper={
+            summary.criticalCount > 0
+              ? `${summary.criticalCount} already over limit`
+              : 'No rule is over the line right now'
+          }
+        />
+      </section>
+
+      <section className="mt-5 hidden grid-cols-2 gap-3 sm:mt-6 sm:grid xl:grid-cols-5">
         <SummaryTile
           label="Configured"
           value={loading ? '...' : String(summary.scopedBudgetCount)}
@@ -1085,6 +1170,37 @@ export default function BudgetsClientPage() {
           accent={summary.uncoveredSpendTotal > 0}
         />
       </section>
+
+      {summary.uncoveredSpendTotal > 0 ? (
+        <section className="mt-3 sm:hidden">
+          <div className="rounded-[22px] border border-amber-200 bg-amber-50/80 px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <ShieldAlert size={16} className="mt-0.5 shrink-0 text-amber-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-zinc-900">Coverage warning</p>
+                <p className="mt-1 text-sm leading-5 text-zinc-600">
+                  {formatCurrency(summary.uncoveredSpendTotal)} is still outside category guardrails.
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {summary.uncoveredCategories.slice(0, 3).map((item) => (
+                    <Link
+                      key={item.category}
+                      href={`/budgets/${encodeURIComponent(item.category)}?month=${selectedMonth}`}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-white/80 px-3 py-2 text-sm text-zinc-700"
+                    >
+                      <span className="font-medium text-zinc-900">{item.category}</span>
+                      <span className="inline-flex items-center gap-1 text-zinc-500">
+                        {formatCurrency(item.amount)}
+                        <ChevronRight size={14} />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {summary.hasPlanningMismatch ? (
         <section className="mt-5 rounded-[26px] border border-amber-200 bg-amber-50/90 p-4 sm:mt-6">
@@ -1155,7 +1271,9 @@ export default function BudgetsClientPage() {
           <button
             type="button"
             onClick={openOverallEditor}
-            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-5 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
+            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-5 text-sm font-medium text-white transition-colors hover:bg-[#187f5d] ${
+              overallBudget ? 'hidden sm:inline-flex' : ''
+            }`}
           >
             {overallBudget ? 'Edit overall budget' : 'Set overall budget'}
           </button>
@@ -1201,7 +1319,7 @@ export default function BudgetsClientPage() {
         </div>
 
         {summary.uncoveredSpendTotal > 0 ? (
-          <div className="mt-4 rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+          <div className="mt-4 hidden rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4 sm:block">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
               Coverage hint
             </p>
@@ -1223,7 +1341,7 @@ export default function BudgetsClientPage() {
             <h2 className="mt-2 text-[1.55rem] font-semibold tracking-[-0.03em] text-zinc-900">
               By category
             </h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">
+            <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
               Keep this page focused on main category caps. Open a category to manage its saved
               subcategories and uncovered spending.
             </p>
@@ -1247,20 +1365,24 @@ export default function BudgetsClientPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-base font-semibold text-zinc-900">Uncovered spending</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                <p className="mt-2 hidden text-sm leading-6 text-zinc-600 sm:block">
                   These categories have spending this month but no category budget coverage yet.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {summary.uncoveredCategories.slice(0, 4).map((item) => (
-                    <div
+                    <Link
                       key={item.category}
+                      href={`/budgets/${encodeURIComponent(item.category)}?month=${selectedMonth}`}
                       className="rounded-2xl border border-[#e4dbc9] bg-white px-4 py-3 text-sm"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="font-medium text-zinc-900">{item.category}</span>
-                        <span className="text-zinc-600">{formatCurrency(item.amount)}</span>
+                        <span className="inline-flex items-center gap-1 text-zinc-600">
+                          {formatCurrency(item.amount)}
+                          <ChevronRight size={14} className="sm:hidden" />
+                        </span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -1345,7 +1467,7 @@ export default function BudgetsClientPage() {
         ) : null}
       </section>
 
-      <div className="mt-6 text-sm text-zinc-500">
+      <div className="mt-6 hidden text-sm text-zinc-500 sm:block">
         Need deeper setup help? You can still review payday and account context in{' '}
         <Link href="/settings?section=payday" className="font-medium text-[#1D9E75] hover:underline">
           Settings

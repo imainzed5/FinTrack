@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addMonths, format, startOfMonth } from 'date-fns';
 import ConfirmModal from '@/components/ConfirmModal';
+import MobileMonthNavigation from '@/components/budgets/MobileMonthNavigation';
 import {
   ArrowLeft,
   CalendarRange,
@@ -223,7 +224,7 @@ function CategoryBudgetEditor({
           <h3 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-zinc-900">
             {state.budgetId ? `Update ${category}` : `Create ${category} cap`}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
             Keep the main cap here, then maintain the saved subcategories below only when this
             category needs more detail in expense entry.
           </p>
@@ -350,7 +351,7 @@ function SubcategoryBudgetEditor({
           <h3 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-zinc-900">
             {state.previousLabel ? 'Rename subcategory' : `Add a subcategory under ${category}`}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
             Saved subcategories become reusable choices in the expense modal for {category}.
           </p>
         </div>
@@ -431,56 +432,77 @@ function BudgetRuleCard({
     <div className="rounded-[26px] border border-[#e8dfd0] bg-white p-3.5 shadow-[0_16px_34px_rgba(42,42,28,0.04)] sm:rounded-[28px] sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold tracking-[-0.02em] text-zinc-900">
-              {getBudgetLabel(budget)}
-            </h3>
-            <span className="inline-flex rounded-full bg-[#fbf8f1] px-2.5 py-1 text-xs font-medium text-zinc-600">
-              {budget.subCategory ? 'Subcategory' : 'Category-wide'}
-            </span>
-            {budget.rollover ? (
-              <span className="inline-flex rounded-full bg-[#eef7f0] px-2.5 py-1 text-xs font-medium text-[#1D9E75]">
-                Rollover on
+          <div className="flex flex-wrap items-start justify-between gap-3 sm:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold tracking-[-0.02em] text-zinc-900">
+                {getBudgetLabel(budget)}
+              </h3>
+              <span className="inline-flex rounded-full bg-[#fbf8f1] px-2.5 py-1 text-xs font-medium text-zinc-600">
+                {budget.subCategory ? 'Subcategory' : 'Category-wide'}
               </span>
-            ) : null}
-            <span
-              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getBudgetStatusTone(status)}`}
-            >
-              {getBudgetStatusLabel(status)}
-            </span>
+              {budget.rollover ? (
+                <span className="inline-flex rounded-full bg-[#eef7f0] px-2.5 py-1 text-xs font-medium text-[#1D9E75]">
+                  Rollover on
+                </span>
+              ) : null}
+              <span
+                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getBudgetStatusTone(status)}`}
+              >
+                {getBudgetStatusLabel(status)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 sm:hidden">
+              <button
+                type="button"
+                onClick={onEdit}
+                className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1 text-sm font-medium text-rose-600 transition-colors hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-zinc-500 xl:grid-cols-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Configured
               </p>
-              <p className="mt-1 text-base font-semibold text-zinc-900">
+              <p className="mt-1 text-[1.25rem] font-bold text-zinc-900 sm:text-base sm:font-semibold">
                 {formatCurrency(status?.configuredLimit ?? budget.monthlyLimit)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Effective
               </p>
-              <p className="mt-1 text-base font-semibold text-zinc-900">
+              <p className="mt-1 text-[1.25rem] font-bold text-zinc-900 sm:text-base sm:font-semibold">
                 {formatCurrency(status?.effectiveLimit ?? budget.monthlyLimit)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Spent
               </p>
-              <p className="mt-1 text-base font-semibold text-zinc-900">
+              <p className="mt-1 text-[1.25rem] font-bold text-zinc-900 sm:text-base sm:font-semibold">
                 {formatCurrency(status?.spent ?? 0)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Remaining
               </p>
               <p
-                className={`mt-1 text-base font-semibold ${
+                className={`mt-1 text-[1.25rem] font-bold sm:text-base sm:font-semibold ${
                   status && status.remaining < 0 ? 'text-rose-600' : 'text-zinc-900'
                 }`}
               >
@@ -490,7 +512,7 @@ function BudgetRuleCard({
           </div>
         </div>
 
-        <div className="flex gap-2 self-start">
+        <div className="hidden gap-2 self-start sm:flex">
           <button
             type="button"
             onClick={onEdit}
@@ -791,13 +813,26 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
           <h1 className="mt-3 font-display text-[2.15rem] font-semibold tracking-[-0.04em] text-zinc-900">
             {category}
           </h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
             Keep the main category cap here, then manage the saved subcategories people can reuse
             inside this category.
           </p>
         </div>
 
-        <div className="w-full rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-3.5 shadow-[0_16px_32px_rgba(42,42,28,0.04)] sm:max-w-[28rem] sm:p-4">
+        <div className="w-full sm:max-w-[28rem]">
+          <MobileMonthNavigation
+            selectedMonth={selectedMonth}
+            monthOptions={monthOptions}
+            onSelectMonth={setSelectedMonth}
+            onPreviousMonth={() =>
+              setSelectedMonth(format(addMonths(parseBudgetMonth(selectedMonth), -1), 'yyyy-MM'))
+            }
+            onNextMonth={() =>
+              setSelectedMonth(format(addMonths(parseBudgetMonth(selectedMonth), 1), 'yyyy-MM'))
+            }
+          />
+
+        <div className="hidden rounded-[28px] border border-[#e3dbc9] bg-[#fbf8f1] p-3.5 shadow-[0_16px_32px_rgba(42,42,28,0.04)] sm:block sm:p-4">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#1D9E75]">
               <CalendarRange size={20} />
@@ -843,6 +878,7 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
               <ChevronRight size={16} />
             </button>
           </div>
+        </div>
         </div>
       </div>
 
@@ -958,10 +994,16 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
               <div>
                 <p className="text-base font-semibold text-zinc-900">Some spend is still uncovered</p>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  {formatCurrency(uncoveredSpend)} in {category} is not matched by a saved
-                  subcategory yet. Add the labels you actually use so expense entry becomes faster and
-                  your uncovered-spend warnings get clearer.
+                  {formatCurrency(uncoveredSpend)} in {category} has no matching subcategory label yet.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setSubcategoryEditorState(buildSubcategoryEditorState())}
+                  className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#1D9E75] transition-colors hover:text-[#187f5d]"
+                >
+                  Add subcategory
+                  <ChevronRight size={14} />
+                </button>
               </div>
             </div>
           </div>
@@ -977,7 +1019,7 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
             <h2 className="mt-2 text-[1.55rem] font-semibold tracking-[-0.03em] text-zinc-900">
               Inside {category}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">
+            <p className="mt-2 hidden text-sm leading-6 text-zinc-500 sm:block">
               These labels feed the expense modal so people can choose an existing subcategory or add
               a new one without creating extra budget rules.
             </p>
@@ -986,7 +1028,7 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
           <button
             type="button"
             onClick={() => setSubcategoryEditorState(buildSubcategoryEditorState())}
-            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-[#d8ceb8] bg-[#fbf8f1] px-5 text-sm font-medium text-zinc-800 transition-colors hover:bg-[#f4efe4]"
+            className="hidden min-h-11 items-center justify-center gap-1.5 rounded-full border border-[#d8ceb8] bg-[#fbf8f1] px-5 text-sm font-medium text-zinc-800 transition-colors hover:bg-[#f4efe4] sm:inline-flex"
           >
             <Plus size={14} />
             Add subcategory
@@ -994,6 +1036,17 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
         </div>
 
         <div className="mt-5">
+          {!subcategoryEditorState ? (
+            <button
+              type="button"
+              onClick={() => setSubcategoryEditorState(buildSubcategoryEditorState())}
+              className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#1D9E75] transition-colors hover:text-[#187f5d] sm:hidden"
+            >
+              <Plus size={14} />
+              Add subcategory
+            </button>
+          ) : null}
+
           {subcategoryEditorState ? (
             <div className="mb-4">
               <SubcategoryBudgetEditor
@@ -1032,39 +1085,65 @@ export default function BudgetCategoryDetailPage({ category }: { category: Categ
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {savedSubcategories.map((label) => (
-                <div
-                  key={label}
-                  className="flex flex-col gap-3 rounded-[26px] border border-[#e8dfd0] bg-white p-4 shadow-[0_16px_34px_rgba(42,42,28,0.04)] sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-base font-semibold text-zinc-900">{label}</p>
-                    <p className="mt-1 text-sm leading-6 text-zinc-500">
-                      Available in add expense, edit expense, and split rows for {category}.
-                    </p>
+            <>
+              <div className="hidden space-y-3 sm:block">
+                {savedSubcategories.map((label) => (
+                  <div
+                    key={label}
+                    className="flex flex-col gap-3 rounded-[26px] border border-[#e8dfd0] bg-white p-4 shadow-[0_16px_34px_rgba(42,42,28,0.04)] sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-base font-semibold text-zinc-900">{label}</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-500">
+                        Available in add expense, edit expense, and split rows for {category}.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 self-start">
+                      <button
+                        type="button"
+                        onClick={() => setSubcategoryEditorState(buildSubcategoryEditorState(label))}
+                        className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#ddd6c8] px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#fbf8f1]"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteSavedSubcategory(label)}
+                        disabled={saving}
+                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-rose-200 px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 self-start">
-                    <button
-                      type="button"
-                      onClick={() => setSubcategoryEditorState(buildSubcategoryEditorState(label))}
-                      className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#ddd6c8] px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-[#fbf8f1]"
-                    >
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteSavedSubcategory(label)}
-                      disabled={saving}
-                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-rose-200 px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
+                ))}
+              </div>
+              <div className="divide-y divide-[#ebe3d5] rounded-[24px] border border-[#e8dfd0] bg-white sm:hidden">
+                {savedSubcategories.map((label) => (
+                  <div key={label} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <p className="min-w-0 truncate text-[15px] font-medium text-zinc-900">{label}</p>
+                    <div className="flex shrink-0 items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setSubcategoryEditorState(buildSubcategoryEditorState(label))}
+                        className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteSavedSubcategory(label)}
+                        disabled={saving}
+                        className="text-sm font-medium text-rose-500 transition-colors hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </section>

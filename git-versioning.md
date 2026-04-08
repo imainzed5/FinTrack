@@ -79,12 +79,18 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.33.0
+### Current version: v0.33.1
 
 
 ---
 
 ## Version Roadmap
+v0.33.1 - 2026-04-08
+  - fix(budgets-mobile): Refine the mobile budgets overview and category detail layouts in `src/components/pages/BudgetsClientPage.tsx` and `src/components/pages/BudgetCategoryDetailPage.tsx` so month navigation becomes a compact inline row, overview stats lock to four mobile tiles, and desktop layouts remain unchanged.
+  - fix(budgets-mobile): Move mobile budget-card actions into the header area, demote coverage into a compact warning strip, trim instructional copy from mobile cards and headers, and add clearer tappable affordances for uncovered-spend rows.
+  - fix(subcategories-mobile): Redesign saved subcategories on mobile into compact list rows with inline `Rename` and `Delete` actions, plus a lighter inline `Add subcategory` action backed by the new shared `src/components/budgets/MobileMonthNavigation.tsx` component.
+  - verification: `npx.cmd tsc --noEmit` and `npx.cmd eslint src/components/pages/BudgetsClientPage.tsx src/components/pages/BudgetCategoryDetailPage.tsx src/components/budgets/MobileMonthNavigation.tsx` passed after the mobile-only budgets layout refinement.
+
 v0.33.0 - 2026-04-08
   - feat(budgets): Simplify the budget model so active planning now uses only `Overall` and category-wide caps, while legacy subcategory budget rows are ignored by the active budget workspace and planning math.
   - feat(subcategories): Add a synced saved-subcategory registry through local user settings and surface it in `src/components/pages/BudgetCategoryDetailPage.tsx` as reusable labels under each category instead of separate subcategory budget rules.
