@@ -33,8 +33,13 @@ import {
   isOperationalTransaction,
   isSpendAnalyticsTransaction,
 } from './transaction-classification';
-
-const BUDGET_ALERT_THRESHOLDS = [50, 80, 100] as const;
+import {
+  BUDGET_ALERT_THRESHOLDS,
+  buildBudgetCrossPageSignals,
+  buildBudgetMonthSummary,
+  calculateBudgetStatuses as deriveBudgetStatuses,
+  resolveBudgetLimit,
+} from './budgeting';
 
 function roundMoney(value: number): number {
   return Number(value.toFixed(2));
@@ -48,8 +53,7 @@ function budgetLabel(budget: Pick<Budget, 'category' | 'subCategory'>): string {
 type Allocation = { category: Category; subCategory?: string; amount: number };
 
 type ResolvedBudgetLimit = {
-  baseLimit: number;
-  incomeBoost: number;
+  configuredLimit: number;
   effectiveLimit: number;
   rolloverCarry: number;
 };
@@ -80,80 +84,13 @@ function getTransactionAllocations(tx: Transaction): Allocation[] {
   ];
 }
 
-function getBudgetSpentForMonth(
-  transactions: Transaction[],
-  budget: Budget,
-  month: string
-): number {
-  const monthTxs = transactions.filter(
-    (tx) => tx.date.startsWith(month) && isExpenseTransaction(tx)
-  );
-
-  if (budget.category === 'Overall') {
-    return roundMoney(sumTransactions(monthTxs));
-  }
-
-  let spent = 0;
-  for (const tx of monthTxs) {
-    for (const allocation of getTransactionAllocations(tx)) {
-      if (allocation.category !== budget.category) continue;
-      if (budget.subCategory && (allocation.subCategory || '') !== budget.subCategory) {
-        continue;
-      }
-      spent += allocation.amount;
-    }
-  }
-
-  return roundMoney(spent);
-}
-
 function getEffectiveBudgetLimit(
   budget: Budget,
   budgets: Budget[],
   transactions: Transaction[],
   memo: Map<string, ResolvedBudgetLimit> = new Map()
 ): ResolvedBudgetLimit {
-  const key = `${budget.month}|${budget.category}|${budget.subCategory || ''}`;
-  const cached = memo.get(key);
-  if (cached) return cached;
-
-  const incomeBoost = 0;
-
-  const buildResolved = (baseLimit: number, rolloverCarry: number): ResolvedBudgetLimit => ({
-    baseLimit: roundMoney(baseLimit),
-    incomeBoost,
-    effectiveLimit: roundMoney(baseLimit),
-    rolloverCarry: roundMoney(rolloverCarry),
-  });
-
-  if (!budget.rollover) {
-    const resolved = buildResolved(budget.monthlyLimit, 0);
-    memo.set(key, resolved);
-    return resolved;
-  }
-
-  const [year, month] = budget.month.split('-').map(Number);
-  const previousMonth = format(subMonths(new Date(year, month - 1, 1), 1), 'yyyy-MM');
-  const previousBudget = budgets.find(
-    (candidate) =>
-      candidate.month === previousMonth &&
-      candidate.category === budget.category &&
-      (candidate.subCategory || '') === (budget.subCategory || '')
-  );
-
-  if (!previousBudget) {
-    const resolved = buildResolved(budget.monthlyLimit, 0);
-    memo.set(key, resolved);
-    return resolved;
-  }
-
-  const previousResolved = getEffectiveBudgetLimit(previousBudget, budgets, transactions, memo);
-  const previousSpent = getBudgetSpentForMonth(transactions, previousBudget, previousMonth);
-  const rolloverCarry = Math.max(0, previousResolved.baseLimit - previousSpent);
-
-  const resolved = buildResolved(budget.monthlyLimit + rolloverCarry, rolloverCarry);
-  memo.set(key, resolved);
-  return resolved;
+  return resolveBudgetLimit(budget, budgets, transactions, memo);
 }
 
 function getMonthTransactions(transactions: Transaction[], date: Date): Transaction[] {
@@ -316,51 +253,7 @@ export function calculateBudgetStatuses(
   budgets: Budget[],
   now: Date = new Date()
 ): BudgetStatus[] {
-  const monthStr = format(now, 'yyyy-MM');
-  const dayOfMonth = now.getDate();
-  const daysInMonth = endOfMonth(now).getDate();
-  const rolloverMemo = new Map<string, ResolvedBudgetLimit>();
-
-  const statuses: BudgetStatus[] = [];
-
-  for (const budget of budgets) {
-    if (budget.month !== monthStr) continue;
-
-    const spent = getBudgetSpentForMonth(transactions, budget, monthStr);
-    const { baseLimit, incomeBoost, effectiveLimit, rolloverCarry } = getEffectiveBudgetLimit(
-      budget,
-      budgets,
-      transactions,
-      rolloverMemo
-    );
-    const remaining = roundMoney(effectiveLimit - spent);
-    const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0;
-    const projectedSpent = dayOfMonth > 0 ? (spent / dayOfMonth) * daysInMonth : 0;
-    const projectedOverage = Math.max(0, projectedSpent - effectiveLimit);
-
-    let status: 'safe' | 'warning' | 'critical' = 'safe';
-    if (percentage >= 100) status = 'critical';
-    else if (percentage >= 80) status = 'warning';
-
-    statuses.push({
-      budgetId: budget.id,
-      category: budget.category,
-      subCategory: budget.subCategory,
-      baseLimit,
-      limit: baseLimit,
-      incomeBoost,
-      effectiveLimit,
-      rolloverCarry,
-      spent,
-      remaining,
-      percentage,
-      projectedSpent: roundMoney(projectedSpent),
-      projectedOverage: roundMoney(projectedOverage),
-      status,
-    });
-  }
-
-  return statuses;
+  return deriveBudgetStatuses(transactions, budgets, now);
 }
 
 // Budget Risk Prediction
@@ -1062,6 +955,76 @@ export function generateMonthEndProjection(
   ];
 }
 
+export function generateBudgetPlanConflict(
+  transactions: Transaction[],
+  budgets: Budget[],
+  now: Date
+): Insight[] {
+  const month = format(now, 'yyyy-MM');
+  const summary = buildBudgetMonthSummary(transactions, budgets, month);
+
+  if (!summary.hasPlanningMismatch || summary.overallConfiguredLimit <= 0) {
+    return [];
+  }
+
+  const mismatchRatio =
+    summary.overallConfiguredLimit > 0
+      ? summary.planningMismatchAmount / summary.overallConfiguredLimit
+      : 0;
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'budget_plan_conflict',
+      title: 'Budget plan conflict',
+      message: `Your category plans add up to ₱${summary.additiveCategoryPlannedTotal.toFixed(2)}, which is ₱${summary.planningMismatchAmount.toFixed(2)} over your Overall budget of ₱${summary.overallConfiguredLimit.toFixed(2)}.`,
+      severity: mismatchRatio >= 0.25 ? 'critical' : 'warning',
+      createdAt: new Date().toISOString(),
+      tier: 1,
+      requiresTransactionCount: 0,
+      dataPayload: {
+        month,
+        additiveCategoryPlannedTotal: summary.additiveCategoryPlannedTotal,
+        overallConfiguredLimit: summary.overallConfiguredLimit,
+        planningMismatchAmount: summary.planningMismatchAmount,
+      },
+    },
+  ];
+}
+
+export function generateUncoveredSpendInsight(
+  transactions: Transaction[],
+  budgets: Budget[],
+  now: Date
+): Insight[] {
+  const month = format(now, 'yyyy-MM');
+  const summary = buildBudgetMonthSummary(transactions, budgets, month);
+  const topUncoveredCategory = summary.topUncoveredCategory;
+
+  if (!topUncoveredCategory || summary.uncoveredSpendTotal <= 0) {
+    return [];
+  }
+
+  return [
+    {
+      id: uuidv4(),
+      insightType: 'uncovered_spend',
+      title: 'Spending without a guardrail',
+      message: `${topUncoveredCategory.category} has ₱${topUncoveredCategory.amount.toFixed(2)} in uncovered spend this month. ₱${summary.uncoveredSpendTotal.toFixed(2)} of spending has no category budget coverage yet.`,
+      severity: summary.uncoveredSpendTotal >= 1000 ? 'warning' : 'info',
+      category: topUncoveredCategory.category,
+      createdAt: new Date().toISOString(),
+      tier: 1,
+      requiresTransactionCount: 1,
+      dataPayload: {
+        month,
+        uncoveredSpendTotal: summary.uncoveredSpendTotal,
+        uncoveredCategories: summary.uncoveredCategories,
+      },
+    },
+  ];
+}
+
 export function generateSubscriptionCreep(
   transactions: Transaction[],
   now: Date
@@ -1349,6 +1312,8 @@ export function generateInsights(
   return [
     ...detectSpendingSpikes(transactions, now),
     ...predictBudgetRisk(transactions, budgets, now),
+    ...generateBudgetPlanConflict(transactions, budgets, now),
+    ...generateUncoveredSpendInsight(transactions, budgets, now),
     ...analyzeSpendingPatterns(transactions, now),
     ...generateBudgetBurnRate(transactions, budgets, now),
     ...generateBiggestExpense(transactions, now),
@@ -1584,12 +1549,8 @@ export function buildDashboardData(
   const netThisMonth = roundMoney(totalIncomeThisMonth - totalSpentThisMonth);
 
   const monthStr = format(now, 'yyyy-MM');
-  const overallBudget = budgets.find(
-    (b) => b.category === 'Overall' && b.month === monthStr && !b.subCategory
-  );
-  const monthlyBudget = overallBudget
-    ? getEffectiveBudgetLimit(overallBudget, budgets, transactions).effectiveLimit
-    : 0;
+  const budgetSummary = buildBudgetMonthSummary(transactions, budgets, monthStr);
+  const monthlyBudget = budgetSummary.overallEffectiveLimit;
   const remainingBudget = Math.max(0, monthlyBudget - totalSpentThisMonth);
 
   const savingsRate =
@@ -1601,6 +1562,7 @@ export function buildDashboardData(
       : 0;
 
   const budgetStatuses = calculateBudgetStatuses(transactions, budgets, now);
+  const budgetSignals = buildBudgetCrossPageSignals(budgetSummary, budgetStatuses);
   const budgetById = new Map(budgets.map((budget) => [budget.id, budget]));
 
   const budgetAlerts: BudgetThresholdAlert[] = [];
@@ -1694,6 +1656,8 @@ export function buildDashboardData(
     expenseGrowthRate,
     budgetStatuses,
     budgetAlerts,
+    budgetSummary,
+    budgetSignals,
     categoryBreakdown,
     weeklySpending,
     dailySpending,

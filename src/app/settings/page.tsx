@@ -25,18 +25,15 @@ import {
   Moon,
   Palette,
   PiggyBank,
-  Plus,
   Settings as SettingsIcon,
   Shield,
   Sun,
-  Trash2,
   Upload,
   Wallet,
   Wifi,
   WifiOff,
   X,
 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import AccountSecuritySection from '@/components/settings/AccountSecuritySection';
 import AccountsSection, {
   type AccountsSectionSummary,
@@ -52,7 +49,6 @@ import {
   type LocalAppSnapshot,
 } from '@/lib/local-first';
 import {
-  deleteBudget,
   exportLocalSnapshot,
   getAccountsWithBalances,
   getBudgets,
@@ -60,15 +56,14 @@ import {
   getPendingSyncCount,
   replaceLocalSnapshot,
   saveLocalUserSettings,
-  setBudget,
 } from '@/lib/local-store';
 import {
   isSyncStateRealtimeUpdate,
   subscribeAppUpdates,
   subscribeBudgetUpdates,
 } from '@/lib/transaction-ws';
-import type { AccountWithBalance, Budget, Category } from '@/lib/types';
-import { CATEGORIES } from '@/lib/types';
+import type { AccountWithBalance, Budget } from '@/lib/types';
+import { buildBudgetMonthSummary, compareBudgetScopes } from '@/lib/budgeting';
 import { formatCurrency } from '@/lib/utils';
 
 type SettingsSectionKey =
@@ -117,12 +112,11 @@ function formatPendingChanges(count: number): string {
 
 function resolveSettingsBerdeContext(params: {
   loading: boolean;
-  showBudgetComposer: boolean;
   monthBudgets: Budget[];
 }): { state: BerdeState; message: string } {
-  const { loading, showBudgetComposer, monthBudgets } = params;
+  const { loading, monthBudgets } = params;
 
-  if (loading || showBudgetComposer) {
+  if (loading) {
     return {
       state: 'helper',
       message:
@@ -538,11 +532,6 @@ export default function SettingsPage() {
   } = useAppSession();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBudgetComposer, setShowBudgetComposer] = useState(false);
-  const [newCategory, setNewCategory] = useState<Category | 'Overall'>('Overall');
-  const [newSubCategory, setNewSubCategory] = useState('');
-  const [newLimit, setNewLimit] = useState('');
-  const [newRollover, setNewRollover] = useState(false);
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [nextPayday, setNextPayday] = useState('');
   const [paydaySaving, setPaydaySaving] = useState(false);
@@ -697,47 +686,6 @@ export default function SettingsPage() {
     }
   };
 
-  const closeBudgetComposer = () => {
-    setShowBudgetComposer(false);
-    setNewCategory('Overall');
-    setNewSubCategory('');
-    setNewLimit('');
-    setNewRollover(false);
-  };
-
-  const handleAddBudget = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!newLimit || Number.parseFloat(newLimit) <= 0) return;
-
-    const budget: Budget = {
-      id: uuidv4(),
-      category: newCategory,
-      subCategory:
-        newCategory === 'Overall' ? undefined : newSubCategory.trim() || undefined,
-      monthlyLimit: Number.parseFloat(newLimit),
-      month,
-      rollover: newRollover,
-      alertThresholdsTriggered: [],
-    };
-
-    try {
-      await setBudget(budget);
-      closeBudgetComposer();
-      await fetchBudgets();
-    } catch {
-      // offline
-    }
-  };
-
-  const handleDeleteBudget = async (id: string) => {
-    try {
-      await deleteBudget(id);
-      await fetchBudgets();
-    } catch {
-      // offline
-    }
-  };
-
   const handleSync = async () => {
     if (!authSession.authenticated) {
       return;
@@ -875,26 +823,20 @@ export default function SettingsPage() {
   const monthBudgets = useMemo(() => {
     return budgets
       .filter((budget) => budget.month === month)
-      .sort((first, second) => {
-        if (first.category === 'Overall' && second.category !== 'Overall') return -1;
-        if (first.category !== 'Overall' && second.category === 'Overall') return 1;
-        return `${first.category}:${first.subCategory || ''}`.localeCompare(
-          `${second.category}:${second.subCategory || ''}`
-        );
-      });
+      .sort(compareBudgetScopes);
   }, [budgets, month]);
 
   const nextPaydayDate = parseDateValue(nextPayday);
   const formattedBudgetMonth = format(new Date(`${month}-01`), 'MMMM yyyy');
   const berdeSettingsContext = resolveSettingsBerdeContext({
     loading,
-    showBudgetComposer,
     monthBudgets,
   });
-  const overallBudget = monthBudgets.find(
-    (budget) => budget.category === 'Overall' && !budget.subCategory
-  );
   const rolloverBudgetCount = monthBudgets.filter((budget) => budget.rollover).length;
+  const budgetSummary = useMemo(
+    () => buildBudgetMonthSummary([], budgets, month),
+    [budgets, month]
+  );
   const lastCloudBackupAt = useMemo(() => {
     const serverTimestamp = parseDateValue(cloudSyncStatus?.lastUpdatedAt ?? '');
     return serverTimestamp ?? lastSyncAt;
@@ -999,14 +941,14 @@ export default function SettingsPage() {
       id: 'budgets',
       title: 'Budgets',
       summary:
-        monthBudgets.length === 0
+        budgetSummary.scopedBudgetCount === 0
           ? 'No monthly budgets configured'
-          : monthBudgets.length === 1
+          : budgetSummary.scopedBudgetCount === 1
             ? '1 monthly budget configured'
-            : `${monthBudgets.length} monthly budgets configured`,
-      status: overallBudget ? 'Overall cap ready' : 'Needs overall cap',
+            : `${budgetSummary.scopedBudgetCount} monthly budgets configured`,
+      status: budgetSummary.hasOverallBudget ? 'Overall cap ready' : 'Needs overall cap',
       description:
-        'Monthly guardrails belong here, but heavier setup stays inside a dedicated composer instead of an always-open form.',
+        'Budgets now live in a dedicated workspace, while Settings keeps a lighter summary and handoff.',
       eyebrow: 'Accounts & Money',
       group: 'Accounts & Money',
       icon: PiggyBank,
@@ -1099,29 +1041,44 @@ export default function SettingsPage() {
           <div className="grid gap-3 md:grid-cols-3">
             <SummaryTile
               label="Configured"
-              value={loading ? '...' : String(monthBudgets.length)}
+              value={loading ? '...' : String(budgetSummary.scopedBudgetCount)}
               helper={formattedBudgetMonth}
               loading={loading}
             />
             <SummaryTile
               label="Overall budget"
-              value={loading ? '...' : overallBudget ? formatCurrency(overallBudget.monthlyLimit) : 'Missing'}
-              helper={overallBudget ? 'Main monthly cap is active' : 'Add an Overall budget first'}
+              value={
+                loading
+                  ? '...'
+                  : budgetSummary.hasOverallBudget
+                    ? formatCurrency(budgetSummary.overallConfiguredLimit)
+                    : 'Missing'
+              }
+              helper={
+                budgetSummary.hasOverallBudget
+                  ? 'Main monthly cap is active'
+                  : 'Add an Overall budget first'
+              }
               loading={loading}
-              accent={Boolean(overallBudget)}
+              accent={budgetSummary.hasOverallBudget}
             />
             <SummaryTile
-              label="Rollover"
-              value={loading ? '...' : String(rolloverBudgetCount)}
-              helper="Budgets carrying unused room forward"
+              label="Category plan"
+              value={loading ? '...' : formatCurrency(budgetSummary.additiveCategoryPlannedTotal)}
+              helper={
+                budgetSummary.hasPlanningMismatch
+                  ? `${formatCurrency(budgetSummary.planningMismatchAmount)} above the Overall cap`
+                  : 'Additive total after overlap rules'
+              }
               loading={loading}
+              accent={budgetSummary.hasPlanningMismatch}
             />
           </div>
 
           <SettingsSurface
             eyebrow="Budgets"
-            title={`Budget rules for ${formattedBudgetMonth}`}
-            description="Budget setup stays clean here: browse the month, scan what is already configured, and add new rules inside a dedicated composer."
+            title={`Budget workspace for ${formattedBudgetMonth}`}
+            description="Budget planning now lives in one dedicated workspace, so Settings only keeps a light summary and the jump-off point."
             action={
               <div className="flex flex-col gap-2 sm:flex-row">
                 <select
@@ -1135,75 +1092,51 @@ export default function SettingsPage() {
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() => setShowBudgetComposer(true)}
+                <Link
+                  href={`/budgets?month=${month}`}
                   className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-4 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
                 >
-                  <Plus size={14} />
-                  Add budget
-                </button>
+                  Open budget workspace
+                  <ChevronRight size={14} />
+                </Link>
               </div>
             }
           >
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-24 animate-pulse rounded-[24px] border border-[#ebe3d5] bg-[#fbf8f1]"
-                  />
-                ))}
+            <div className="rounded-[24px] border border-[#e8dfd0] bg-[#fbf8f1] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                This month at a glance
+              </p>
+              <div className="mt-4 grid gap-3 text-sm text-zinc-600 sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Month</span>
+                  <span className="font-medium text-zinc-900">{formattedBudgetMonth}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Overall budget</span>
+                  <span className="font-medium text-zinc-900">
+                    {loading
+                      ? '...'
+                      : budgetSummary.hasOverallBudget
+                        ? formatCurrency(budgetSummary.overallConfiguredLimit)
+                        : 'Missing'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Rollover enabled</span>
+                  <span className="font-medium text-zinc-900">{loading ? '...' : rolloverBudgetCount}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span>Overlap warnings</span>
+                  <span className="font-medium text-zinc-900">{loading ? '...' : budgetSummary.overlapCount}</span>
+                </div>
               </div>
-            ) : monthBudgets.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-[#d9d1c2] bg-[#fbf8f1] px-4 py-6 text-sm text-zinc-500">
-                No budgets configured for {formattedBudgetMonth} yet. Start with an Overall limit so the month has a clear ceiling.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {monthBudgets.map((budget) => (
-                  <div
-                    key={budget.id}
-                    className="rounded-[26px] border border-[#e8dfd0] bg-[#fbf8f1] p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                            {budget.category}
-                          </p>
-                          {budget.subCategory ? (
-                            <span className="inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-                              {budget.subCategory}
-                            </span>
-                          ) : null}
-                          {budget.rollover ? (
-                            <span className="inline-flex rounded-full bg-[#eef7f0] px-2 py-0.5 text-[11px] font-medium text-[#1D9E75]">
-                              Rollover
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-2 text-xs uppercase tracking-[0.12em] text-zinc-500">
-                          Monthly limit
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                          {formatCurrency(budget.monthlyLimit)}
-                        </p>
-                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteBudget(budget.id)}
-                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-rose-200 px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50"
-                      >
-                        <Trash2 size={14} />
-                        Delete budget
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              <p className="mt-4 text-sm leading-6 text-zinc-500">
+                The budgets page now handles month switching, copy-forward planning, overlap warnings,
+                and category coverage, so people can understand the whole budget model without digging
+                through Settings first.
+              </p>
+            </div>
           </SettingsSurface>
         </div>
       );
@@ -1733,106 +1666,6 @@ export default function SettingsPage() {
       >
         {renderSectionContent(activeSection)}
       </SettingsSheet>
-
-      <SettingsDialog
-        open={showBudgetComposer}
-        eyebrow="Budgets"
-        title="Add budget"
-        description={`Create a focused budget for ${formattedBudgetMonth} without cluttering the main settings view.`}
-        icon={PiggyBank}
-        onClose={closeBudgetComposer}
-      >
-        <form onSubmit={handleAddBudget} className="space-y-4">
-          <div className="rounded-[24px] border border-[#e8dfd0] bg-white/80 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-              Budget month
-            </p>
-            <p className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">
-              {formattedBudgetMonth}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-              Category
-            </label>
-            <select
-              value={newCategory}
-              onChange={(event) => setNewCategory(event.target.value as Category | 'Overall')}
-              className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
-            >
-              <option value="Overall">Overall</option>
-              {CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {newCategory !== 'Overall' ? (
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                Subcategory
-              </label>
-              <input
-                value={newSubCategory}
-                onChange={(event) => setNewSubCategory(event.target.value)}
-                placeholder="Optional detail, like groceries"
-                className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
-              />
-            </div>
-          ) : null}
-
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-              Monthly limit
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={newLimit}
-              onChange={(event) => setNewLimit(event.target.value)}
-              placeholder="0.00"
-              className="mt-2 min-h-11 w-full rounded-2xl border border-[#ddd6c8] bg-white px-4 text-sm text-zinc-700 outline-none transition focus:border-[#1D9E75]"
-            />
-          </div>
-
-          <label className="flex items-start gap-3 rounded-[24px] border border-[#e8dfd0] bg-white/80 px-4 py-4">
-            <input
-              type="checkbox"
-              checked={newRollover}
-              onChange={(event) => setNewRollover(event.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-[#cfc6b8] text-[#1D9E75] focus:ring-[#1D9E75]"
-            />
-            <span>
-              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                Carry unused budget forward
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Helpful when a category should flex month to month instead of resetting hard.
-              </span>
-            </span>
-          </label>
-
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={closeBudgetComposer}
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#ddd6c8] px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-white"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1D9E75] px-5 text-sm font-medium text-white transition-colors hover:bg-[#187f5d]"
-            >
-              <Plus size={14} />
-              Save budget
-            </button>
-          </div>
-        </form>
-      </SettingsDialog>
 
       <SettingsDialog
         open={Boolean(importPreview && importPreviewSummary)}

@@ -4,9 +4,11 @@ import Image from 'next/image';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import SavedSubcategoryPicker from '@/components/SavedSubcategoryPicker';
 import {
   CATEGORIES,
   INCOME_CATEGORIES,
+  type SavedSubcategoryRegistry,
   type TransactionInput,
   type TransactionType,
   type PaymentMethod,
@@ -17,7 +19,7 @@ import {
   type TransactionSplitInput,
 } from '@/lib/types';
 import { resolvePaymentMethodForAccount } from '@/lib/accounts-utils';
-import { createTransaction, getAccounts } from '@/lib/local-store';
+import { createTransaction, getAccounts, getSavedSubcategoryRegistry, saveSavedSubcategory } from '@/lib/local-store';
 
 interface AddExpenseModalProps {
   open: boolean;
@@ -112,6 +114,18 @@ function resolveDefaultCategory(defaultCategory?: string): Category {
   return DEFAULT_CATEGORY_ALIASES[normalized] ?? 'Food';
 }
 
+const EMPTY_SAVED_SUBCATEGORY_REGISTRY: SavedSubcategoryRegistry = {
+  Food: [],
+  Transportation: [],
+  Subscriptions: [],
+  Utilities: [],
+  Shopping: [],
+  Entertainment: [],
+  Health: [],
+  Education: [],
+  Miscellaneous: [],
+};
+
 export default function AddExpenseModal({
   open,
   onClose,
@@ -143,6 +157,9 @@ export default function AddExpenseModal({
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [savedSubcategories, setSavedSubcategories] = useState<SavedSubcategoryRegistry>(
+    EMPTY_SAVED_SUBCATEGORY_REGISTRY
+  );
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [autoFocusAmount, setAutoFocusAmount] = useState(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
@@ -277,12 +294,16 @@ export default function AddExpenseModal({
 
     let cancelled = false;
 
-    async function fetchAccounts() {
+    async function loadModalData() {
       try {
-        const nextAccounts = await getAccounts();
+        const [nextAccounts, nextSubcategories] = await Promise.all([
+          getAccounts(),
+          getSavedSubcategoryRegistry(),
+        ]);
         if (cancelled) return;
 
         setAccounts(nextAccounts as AccountOption[]);
+        setSavedSubcategories(nextSubcategories);
         setSelectedAccountId((prev) => {
           if (defaultAccountId && nextAccounts.some((account) => account.id === defaultAccountId)) {
             return defaultAccountId;
@@ -297,7 +318,7 @@ export default function AddExpenseModal({
       }
     }
 
-    void fetchAccounts();
+    void loadModalData();
     return () => {
       cancelled = true;
     };
@@ -319,6 +340,7 @@ export default function AddExpenseModal({
     setDate(new Date().toISOString().split('T')[0]);
     setSplitEnabled(false);
     setSplitRows([]);
+    setSavedSubcategories(EMPTY_SAVED_SUBCATEGORY_REGISTRY);
     setRecurringEnabled(false);
     setRecurringFrequency('monthly');
     setRecurringEndDate('');
@@ -384,6 +406,14 @@ export default function AddExpenseModal({
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [handleClose, open]);
+
+  const handleCreateSubcategory = useCallback(async (targetCategory: Category, label: string) => {
+    const nextEntries = await saveSavedSubcategory(targetCategory, label);
+    setSavedSubcategories((current) => ({
+      ...current,
+      [targetCategory]: nextEntries,
+    }));
+  }, []);
 
   if (!open) return null;
 
@@ -536,7 +566,7 @@ export default function AddExpenseModal({
     setSplitRows((prev) => prev.map((entry) => {
       if (entry.id !== id) return entry;
       if (field === 'category') {
-        return { ...entry, category: value as Category };
+        return { ...entry, category: value as Category, subCategory: '' };
       }
       if (field === 'subCategory') {
         return { ...entry, subCategory: value };
@@ -688,13 +718,14 @@ export default function AddExpenseModal({
             {!isIncomeEntry && (
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] text-zinc-400">Sub-category <span className="text-zinc-300">(optional)</span></label>
-                <input
-                  type="text"
+                <SavedSubcategoryPicker
+                  category={category}
                   value={subCategory}
-                  onChange={(e) => setSubCategory(e.target.value)}
+                  onChange={setSubCategory}
+                  options={savedSubcategories[category] ?? []}
+                  onCreateOption={handleCreateSubcategory}
                   disabled={splitEnabled}
-                  placeholder={splitEnabled ? 'Managed via split lines' : 'e.g., Groceries'}
-                  className={`${singleLineFieldClass} disabled:opacity-60`}
+                  placeholder={splitEnabled ? 'Managed via split lines' : 'No subcategory'}
                 />
               </div>
             )}
@@ -749,6 +780,7 @@ export default function AddExpenseModal({
                         setIncomeCategory(cat as IncomeCategory);
                       } else {
                         setCategory(cat as Category);
+                        setSubCategory('');
                       }
                     }}
                     className={`rounded-[9px] border py-2 px-1 flex flex-col items-center gap-1 transition-colors ${
@@ -860,12 +892,14 @@ export default function AddExpenseModal({
                       <Trash2 size={10} />
                     </button>
                   </div>
-                  <input
-                    type="text"
+                  <SavedSubcategoryPicker
+                    category={row.category}
                     value={row.subCategory}
-                    onChange={(e) => updateSplitRow(row.id, 'subCategory', e.target.value)}
-                    placeholder="Sub-category"
-                    className={compactFieldClass}
+                    onChange={(value) => updateSplitRow(row.id, 'subCategory', value)}
+                    options={savedSubcategories[row.category] ?? []}
+                    onCreateOption={handleCreateSubcategory}
+                    compact
+                    placeholder="No subcategory"
                   />
                 </div>
               ))}

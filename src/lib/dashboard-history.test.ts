@@ -128,6 +128,8 @@ test('buildDashboardData keeps current-month overview math while exposing calend
   assert.equal(dashboard.totalSpentThisMonth, 225);
   assert.equal(dashboard.totalSpentLastMonth, 2100);
   assert.equal(dashboard.netThisMonth, 675);
+  assert.equal(dashboard.budgetSummary.hasOverallBudget, true);
+  assert.equal(dashboard.budgetSignals.topRiskBudget, null);
   assert.equal(dashboard.calendarRange.minMonth, '2026-03');
   assert.equal(dashboard.calendarTransactions.length, 3);
   assert.equal(dashboard.currentMonthTransactions.length, 2);

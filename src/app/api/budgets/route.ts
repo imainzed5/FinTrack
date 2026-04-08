@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { getBudgets, setBudget, deleteBudget } from '@/lib/db';
+import { BUDGET_ALERT_THRESHOLDS } from '@/lib/budgeting';
 import type { Budget, BudgetInput } from '@/lib/types';
 import { CATEGORIES } from '@/lib/types';
 import { isAuthRequiredError } from '@/lib/supabase/server';
-
-const VALID_THRESHOLDS = [50, 80, 100] as const;
 
 function normalizeText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -18,8 +17,8 @@ function normalizeThresholds(value: unknown): number[] {
   return Array.from(
     new Set(
       value.filter(
-        (entry): entry is (typeof VALID_THRESHOLDS)[number] =>
-          VALID_THRESHOLDS.includes(entry as (typeof VALID_THRESHOLDS)[number])
+        (entry): entry is (typeof BUDGET_ALERT_THRESHOLDS)[number] =>
+          BUDGET_ALERT_THRESHOLDS.includes(entry as (typeof BUDGET_ALERT_THRESHOLDS)[number])
       )
     )
   ).sort((a, b) => a - b);

@@ -79,12 +79,63 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.29.1
+### Current version: v0.33.1
 
 
 ---
 
 ## Version Roadmap
+v0.33.1 - 2026-04-08
+  - fix(budgets-mobile): Refine the mobile budgets overview and category detail layouts in `src/components/pages/BudgetsClientPage.tsx` and `src/components/pages/BudgetCategoryDetailPage.tsx` so month navigation becomes a compact inline row, overview stats lock to four mobile tiles, and desktop layouts remain unchanged.
+  - fix(budgets-mobile): Move mobile budget-card actions into the header area, demote coverage into a compact warning strip, trim instructional copy from mobile cards and headers, and add clearer tappable affordances for uncovered-spend rows.
+  - fix(subcategories-mobile): Redesign saved subcategories on mobile into compact list rows with inline `Rename` and `Delete` actions, plus a lighter inline `Add subcategory` action backed by the new shared `src/components/budgets/MobileMonthNavigation.tsx` component.
+  - verification: `npx.cmd tsc --noEmit` and `npx.cmd eslint src/components/pages/BudgetsClientPage.tsx src/components/pages/BudgetCategoryDetailPage.tsx src/components/budgets/MobileMonthNavigation.tsx` passed after the mobile-only budgets layout refinement.
+
+v0.33.0 - 2026-04-08
+  - feat(budgets): Simplify the budget model so active planning now uses only `Overall` and category-wide caps, while legacy subcategory budget rows are ignored by the active budget workspace and planning math.
+  - feat(subcategories): Add a synced saved-subcategory registry through local user settings and surface it in `src/components/pages/BudgetCategoryDetailPage.tsx` as reusable labels under each category instead of separate subcategory budget rules.
+  - feat(expenses): Replace free-text subcategory entry in `src/components/AddExpenseModal.tsx` and `src/components/EditTransactionModal.tsx` with a reusable picker that lets users choose existing subcategories or add new ones inline, including split rows.
+  - fix(dashboard): Reduce uncovered-spend treatment in `src/components/pages/DashboardClientPage.tsx` from a full dashboard card to a lighter inline warning banner so it stops consuming a full content slot.
+  - fix(budgets): Replace native browser alert and confirm dialogs in the budgets workspace with in-app confirmation modals for deletes, move/replace actions, copy-month actions, and informational notices.
+  - verification: `npx.cmd tsc --noEmit` and targeted `npx.cmd eslint` checks passed across the changed budget, dashboard, modal, and local-store files. Full `npm.cmd test -- --runInBand` could not complete in this environment because Node child-process spawning fails with `spawn EPERM`.
+
+v0.32.0 - 2026-04-08
+  - feat(transactions): Refresh the PDF export in `src/app/transactions/page.tsx` with a new hero `Total Spent` card, secondary stat cards, and an expenses-only total row styled in brand green.
+  - feat(transactions): Add a spending breakdown section with category-colored horizontal bars and keep the export totals aligned with the existing filtered month/search/payment/category scope plus the current operational-spend toggle.
+  - fix(transactions): Remove the PDF export merchant column, promote full-width gray day divider rows, show income amounts with a green `+` prefix, add an income disclaimer note, and normalize export-only labels such as `Mrt` -> `MRT` and `Mcdo` -> `McD`.
+  - verification: `npm run lint -- src/app/transactions/page.tsx` and `npm run build` passed after the transactions PDF export refresh.
+
+v0.31.3 - 2026-04-08
+  - fix(budgets): Rework the mobile month planner in `src/components/pages/BudgetsClientPage.tsx` into a compact three-part control row so previous, month select, and next actions fit naturally on narrow screens.
+  - fix(budgets): Convert the top Budgets summary area into a denser 2-column mobile grid and tighten supporting copy so `Configured`, `Overall cap`, `Rollover`, and `Watchlist` read as quick-glance stat cards instead of a long single-column stack.
+  - fix(budgets): Compress the mobile overall/category budget sections in `src/components/pages/BudgetsClientPage.tsx` by reducing shell spacing, tightening empty states, and using a denser metric/action layout inside budget rule cards without forcing heavy cards into multi-column rows.
+  - verification: `npm run build` and `npm run lint` passed after the mobile-first budgets density refresh, with only the existing warnings in `src/lib/berde/chat-parser.ts`.
+
+v0.31.2 - 2026-04-08
+  - fix(budgets): Tighten the dedicated budgets workspace header in `src/components/pages/BudgetsClientPage.tsx` by top-aligning the page title with the month planner card and reducing the extra top padding so the desktop layout no longer leaves a distracting empty band above the `Budgets` heading.
+  - fix(budgets): Normalize the budget editor save-button copy in `src/components/pages/BudgetsClientPage.tsx` so the loading state reads `Saving...` without the encoding artifact.
+  - verification: `npx eslint src/components/pages/BudgetsClientPage.tsx` and `npx tsc --noEmit` passed after the header-spacing patch.
+
+v0.31.1 - 2026-04-08
+  - fix(accounts): Add compact desktop net worth display logic in `src/components/accounts/AccountsClientPage.tsx` and `src/lib/account-ui.ts` so large account totals switch to compact peso notation only when the hero amount would overflow instead of clipping or wrapping awkwardly.
+  - fix(accounts): Move the archived accounts toggle into the Accounts section header in `src/components/accounts/AccountsClientPage.tsx`, keeping the control attached to the wallet list it manages instead of floating at the bottom of the page.
+  - fix(accounts): Add shared account display helpers and regression coverage in `src/lib/account-ui.ts` and `src/lib/account-ui.test.ts` for compact money formatting, cashflow context copy, and weekly activity summaries.
+  - fix(account-detail): Refine `src/components/accounts/AccountDetailClientPage.tsx` with contextual Cashflow Mix messaging, updated `Last 7 days` recency copy, per-day hover/tap value reveal, sparse-week empty-state handling, and muted transaction-group subtotal annotations.
+  - verification: `npm test`, `npm run build`, and `npm run lint` completed successfully, with only the pre-existing warnings in `src/lib/berde/chat-parser.ts`.
+
+v0.31.0 - 2026-04-08
+  - feat(budgets): Add a dedicated budget workspace in `src/app/budgets/page.tsx` and `src/components/pages/BudgetsClientPage.tsx` so monthly budget planning now lives outside Settings with month switching, overall-first management, and inline create/edit/delete flows.
+  - feat(navigation): Repoint budget entry paths in `src/app/plan/page.tsx`, `src/components/dashboard/DashboardNextActions.tsx`, `src/components/DashboardWidgets.tsx`, `src/components/EmptyState.tsx`, and `src/components/Sidebar.tsx` so budget setup consistently opens `/budgets`.
+  - feat(settings): Simplify the budgets section in `src/app/settings/page.tsx` into a lightweight summary and handoff to the dedicated workspace instead of duplicating budget CRUD inside Settings.
+  - fix(budgets): Reorder the budget workspace so the month picker and summary stats appear first, remove the heavy tutorial for returning users, and keep the page focused on Overall and category budget cards.
+  - verification: `npx eslint src/components/pages/BudgetsClientPage.tsx src/app/budgets/page.tsx src/app/plan/page.tsx src/components/dashboard/DashboardNextActions.tsx src/components/Sidebar.tsx src/components/EmptyState.tsx src/components/DashboardWidgets.tsx src/app/settings/page.tsx` and `npx tsc --noEmit` passed after the budget workspace rollout.
+
+v0.30.0 - 2026-04-08
+  - feat(mobile-nav): Refresh the mobile navigation in `src/components/BottomNav.tsx`, `src/components/FloatingAddButton.tsx`, and `src/app/globals.css` so the app now uses `Home`, `Wallet`, `Plan`, and `History` with a detached mobile add action and updated safe-area spacing.
+  - feat(plan): Add a dedicated planning hub in `src/app/plan/page.tsx` with real in-app destinations for category budgets, personal goals, debt, receivables, payday, and overall budget guardrails.
+  - feat(dashboard): Move mobile settings access into the dashboard header in `src/components/pages/DashboardClientPage.tsx`, removing settings from the mobile bottom navigation while keeping desktop sidebar behavior unchanged.
+  - verification: `npx eslint src/components/BottomNav.tsx src/components/FloatingAddButton.tsx src/components/pages/DashboardClientPage.tsx src/app/plan/page.tsx`, `npx eslint src/app/plan/page.tsx`, and `npx tsc --noEmit` passed after the mobile navigation and Plan hub update.
+
 v0.29.1 - 2026-04-06
   - fix(berde): Compact the bulk-log success state in `src/components/berde-chat/BatchPreviewCard.tsx` so confirmed multi-action chat logs stay in a single logged card with receipt-style lines instead of expanding into full review panels.
   - fix(berde): Keep session totals accurate for logged preview batches in `src/lib/berde/chat/presenters.ts` and add regression coverage in `src/components/berde-chat/BerdeChatThread.test.tsx` for the compact logged layout.

@@ -75,7 +75,7 @@ function StatisticsContent({
 
   const spent = overallBudget?.spent ?? 0;
   const saved = Math.max(overallBudget?.remaining ?? 0, 0);
-  const baselineBudget = overallBudget?.effectiveLimit ?? overallBudget?.limit ?? 0;
+  const baselineBudget = overallBudget?.effectiveLimit ?? 0;
   const netFlow = baselineBudget - spent;
   const transactionCount = recentTransactions?.length ?? 0;
 

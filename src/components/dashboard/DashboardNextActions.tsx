@@ -47,7 +47,7 @@ export default function DashboardNextActions({
       title: 'Set a monthly budget',
       description: 'This unlocks a more meaningful remaining-budget and payday pace.',
       ctaLabel: 'Open budgets',
-      href: '/settings?section=budgets',
+      href: '/budgets',
       icon: Target,
       accentClass: 'bg-[#EEF5FF] text-[#185FA5]',
     });

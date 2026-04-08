@@ -17,14 +17,15 @@ import { getBudgets, getInsights, getTransactions } from '@/lib/local-store';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EmptyState from '@/components/EmptyState';
 import InsightCards from '@/components/InsightCards';
+import { buildBudgetMonthSummary } from '@/lib/budgeting';
 
 const TABS = ['All', 'Alerts', 'Snapshot', 'Spending', 'Budget', 'Patterns'] as const;
 type InsightsTab = (typeof TABS)[number];
 
 const TAB_INSIGHT_TYPES: Record<string, InsightType[]> = {
-  Alerts: ['spending_spike', 'budget_risk', 'week_comparison', 'category_drift', 'month_end_projection', 'subscription_creep'],
+  Alerts: ['spending_spike', 'budget_risk', 'budget_plan_conflict', 'uncovered_spend', 'week_comparison', 'category_drift', 'month_end_projection', 'subscription_creep'],
   Spending: ['spending_spike', 'week_comparison', 'weekend_vs_weekday', 'avg_transaction_size', 'category_drift', 'biggest_expense', 'category_concentration', 'payment_method_split'],
-  Budget: ['budget_risk', 'budget_burn_rate', 'month_end_projection', 'essentials_ratio'],
+  Budget: ['budget_risk', 'budget_plan_conflict', 'uncovered_spend', 'budget_burn_rate', 'month_end_projection', 'essentials_ratio'],
   Patterns: ['pattern', 'no_spend_days', 'post_income_behavior', 'best_month_replay', 'savings_rate_trend', 'subscription', 'subscription_creep'],
 };
 
@@ -170,10 +171,8 @@ export default function InsightsPage() {
 
     const totalSpentThisMonth = monthTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
-    const overallBudget = budgets.find(
-      (budget) => budget.category === 'Overall' && budget.month === currentMonth && !budget.subCategory
-    );
-    const monthlyBudget = overallBudget?.monthlyLimit ?? 0;
+    const budgetSummary = buildBudgetMonthSummary(transactions, budgets, currentMonth);
+    const monthlyBudget = budgetSummary.overallEffectiveLimit;
 
     const daysInMonth = monthEnd.getDate();
     const daysElapsed = Math.max(1, now.getDate());

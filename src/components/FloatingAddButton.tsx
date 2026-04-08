@@ -128,7 +128,7 @@ export default function FloatingAddButton({
   };
 
   const buttonClassName = compactOnMobile
-    ? 'relative z-50 inline-flex h-12 min-h-12 items-center gap-2 rounded-full bg-emerald-500 px-4 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95 sm:h-14 sm:min-h-14 sm:px-5'
+    ? 'relative z-50 inline-flex h-14 w-14 min-h-14 items-center justify-center rounded-[24px] bg-emerald-600 text-white shadow-[0_20px_36px_rgba(29,158,117,0.28)] transition-all hover:scale-105 hover:bg-emerald-700 active:scale-95 sm:h-14 sm:w-auto sm:min-h-14 sm:gap-2 sm:rounded-full sm:px-5'
     : 'relative z-50 inline-flex h-14 min-h-14 items-center gap-2 rounded-full bg-emerald-500 px-5 text-white shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 hover:bg-emerald-600 active:scale-95';
 
   return (
@@ -145,7 +145,7 @@ export default function FloatingAddButton({
       <div
         className="fixed right-4 z-50 flex flex-col items-end gap-2 sm:bottom-8 sm:right-8"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom) + 4.85rem)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 4.6rem)',
           opacity: visible ? 1 : 0,
           pointerEvents: visible ? 'auto' : 'none',
           transition: 'opacity 0.2s ease',
@@ -200,7 +200,9 @@ export default function FloatingAddButton({
             strokeWidth={2.5}
             className={`transition-transform duration-[250ms] ${menuOpen ? 'rotate-45' : 'rotate-0'}`}
           />
-          <span className="text-sm font-semibold">Transaction</span>
+          <span className={compactOnMobile ? 'hidden text-sm font-semibold sm:inline' : 'text-sm font-semibold'}>
+            Transaction
+          </span>
         </button>
       </div>
     </>
