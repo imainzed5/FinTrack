@@ -55,7 +55,7 @@ const DAY_OF_WEEK_ORDER: Array<{ label: string; short: string; dayIndex: number 
 ];
 
 const ZONE_LABEL_CLASS =
-  'text-[11px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3';
+  'text-[11px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 lg:mb-2';
 
 function formatPeso(value: number): string {
   return value.toLocaleString('en-PH', {
@@ -357,198 +357,227 @@ export default function InsightsPage() {
 
   return (
     <>
-      <div className="font-body max-w-3xl mx-auto px-4 sm:px-6 py-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center">
-            <Lightbulb size={20} className="text-amber-600 dark:text-amber-400" />
+      <div className="font-body w-full px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1600px]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center">
+              <Lightbulb size={20} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
+                Financial Insights
+              </h1>
+              <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">
+                Smart analysis of your spending behavior
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
-              Financial Insights
-            </h1>
-            <p className="font-body text-sm text-zinc-500 dark:text-zinc-400">
-              Smart analysis of your spending behavior
-            </p>
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-[13px] px-4 py-1.5 rounded-full cursor-pointer transition-colors ${
-                activeTab === tab
-                  ? 'bg-[#1D9E75] text-white border-[#1D9E75]'
-                  : 'border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+          <div className="mt-6 lg:flex lg:items-start lg:gap-6">
+            <div className="min-w-0 lg:flex-1">
+              <div className="flex flex-wrap gap-2 mb-6 lg:hidden">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`text-[13px] px-4 py-1.5 rounded-full cursor-pointer transition-colors ${
+                      activeTab === tab
+                        ? 'bg-[#1D9E75] text-white border-[#1D9E75]'
+                        : 'border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
 
-        {loading ? (
-          <InsightsSkeleton />
-        ) : showInsightsEmptyState ? (
-          <EmptyState
-            icon={BarChart2}
-            headline="Not enough data yet."
-            subtext="Log transactions across a few categories and your financial patterns will start to emerge."
-            cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
-            onAddTransaction={openAddTransactionModal}
-          />
-        ) : (
-          <div className="space-y-7">
-            {error && (
-              <p className="font-body text-sm text-red-600 dark:text-red-400">{error}</p>
-            )}
+              {loading ? (
+                <InsightsSkeleton />
+              ) : showInsightsEmptyState ? (
+                <EmptyState
+                  icon={BarChart2}
+                  headline="Not enough data yet."
+                  subtext="Log transactions across a few categories and your financial patterns will start to emerge."
+                  cta={{ label: '+ Add Transaction', action: 'add-transaction' }}
+                  onAddTransaction={openAddTransactionModal}
+                />
+              ) : (
+                <div className="space-y-7 lg:space-y-5">
+                  {error && (
+                    <p className="font-body text-sm text-red-600 dark:text-red-400">{error}</p>
+                  )}
 
-            {zoneNeedsAttentionVisible && (
-              <section>
-                <p className={ZONE_LABEL_CLASS}>Needs attention</p>
-                <InsightCards insights={urgentInsights} transactionCount={currentMonthTransactionCount} />
-              </section>
-            )}
+                  {zoneNeedsAttentionVisible && (
+                    <section>
+                      <p className={ZONE_LABEL_CLASS}>Needs attention</p>
+                      <InsightCards insights={urgentInsights} transactionCount={currentMonthTransactionCount} />
+                    </section>
+                  )}
 
-            {zoneNeedsAttentionVisible && (zoneSnapshotVisible || zoneDeeperVisible) && (
-              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-6" />
-            )}
+                  {zoneNeedsAttentionVisible && (zoneSnapshotVisible || zoneDeeperVisible) && (
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-6 lg:my-4" />
+                  )}
 
-            {zoneSnapshotVisible && (
-              <section>
-                <p className={ZONE_LABEL_CLASS}>This month at a glance</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <article className="sm:col-span-2 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 p-4">
-                    <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                      You spend most on {model.highestDay.label}.
-                    </p>
+                  {zoneSnapshotVisible && (
+                    <section>
+                      <p className={ZONE_LABEL_CLASS}>This month at a glance</p>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr]">
+                        <article className="sm:col-span-2 lg:col-span-1 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 p-4">
+                          <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                            You spend most on {model.highestDay.label}.
+                          </p>
 
-                    <div className="mt-4 grid grid-cols-7 gap-2">
-                      {model.spendByDayOfWeek.map((day) => {
-                        const isHighest = model.highestDayAmount > 0 && day.amount === model.highestDayAmount;
-                        const barHeight =
-                          model.highestDayAmount > 0
-                            ? clamp((day.amount / model.highestDayAmount) * 100, 10, 100)
-                            : 10;
+                          <div className="mt-4 grid grid-cols-7 gap-2">
+                            {model.spendByDayOfWeek.map((day) => {
+                              const isHighest = model.highestDayAmount > 0 && day.amount === model.highestDayAmount;
+                              const barHeight =
+                                model.highestDayAmount > 0
+                                  ? clamp((day.amount / model.highestDayAmount) * 100, 10, 100)
+                                  : 10;
 
-                        return (
-                          <div key={day.short} className="flex flex-col items-center gap-1.5">
-                            <div className="h-24 w-full max-w-[44px] rounded-md bg-emerald-100/90 dark:bg-emerald-500/20 flex items-end overflow-hidden">
-                              <div
-                                className={`w-full rounded-md ${isHighest ? 'bg-emerald-500' : 'bg-emerald-500/30'}`}
-                                style={{ height: `${barHeight}%` }}
-                              />
-                            </div>
-                            <p className="font-body text-[10px] uppercase tracking-[0.08em] text-emerald-800 dark:text-emerald-200">
-                              {day.short}
-                            </p>
-                            <p className="font-body text-[10px] leading-tight text-center text-emerald-900 dark:text-emerald-100">
-                              {formatPeso(day.amount)}
-                            </p>
+                              return (
+                                <div key={day.short} className="flex flex-col items-center gap-1.5">
+                                  <div className="h-24 w-full max-w-[44px] rounded-md bg-emerald-100/90 dark:bg-emerald-500/20 flex items-end overflow-hidden">
+                                    <div
+                                      className={`w-full rounded-md ${isHighest ? 'bg-emerald-500' : 'bg-emerald-500/30'}`}
+                                      style={{ height: `${barHeight}%` }}
+                                    />
+                                  </div>
+                                  <p className="font-body text-[10px] uppercase tracking-[0.08em] text-emerald-800 dark:text-emerald-200">
+                                    {day.short}
+                                  </p>
+                                  <p className="font-body text-[10px] leading-tight text-center text-emerald-900 dark:text-emerald-100">
+                                    {formatPeso(day.amount)}
+                                  </p>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </article>
+                        </article>
 
-                  <article className="rounded-[12px] border-[0.5px] border-blue-300/80 dark:border-blue-500/30 bg-blue-50/75 dark:bg-blue-500/10 p-4">
-                    <p className="font-body text-sm font-semibold text-blue-900 dark:text-blue-200">
-                      Top category
-                    </p>
-
-                    {model.topCategory ? (
-                      <div className="mt-2 space-y-1.5">
-                        <p className="font-body text-xs uppercase tracking-[0.13em] text-blue-700 dark:text-blue-300/80">
-                          {model.topCategory.category}
-                        </p>
-                        <p className="font-display text-2xl leading-tight text-blue-900 dark:text-blue-100">
-                          {formatPeso(model.topCategory.amount)}
-                        </p>
-                        <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
-                          {model.topCategory.percentage.toFixed(1)}% of monthly spend
-                        </p>
-                        <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
-                          Avg transaction size: {formatPeso(model.topCategory.averageTransactionSize)}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="font-body mt-2 text-sm text-blue-800 dark:text-blue-200/90">
-                        Add transactions this month to reveal category patterns.
-                      </p>
-                    )}
-                  </article>
-
-                  <article className="rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/75 dark:bg-emerald-500/10 p-4">
-                    <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                      Financial Health Score
-                    </p>
-
-                    <div className="mt-3 flex items-center gap-4">
-                      <div className="relative h-32 w-32 shrink-0">
-                        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-                          <circle
-                            cx="60"
-                            cy="60"
-                            r="52"
-                            fill="none"
-                            strokeWidth="10"
-                            className="text-emerald-200 dark:text-emerald-900"
-                            stroke="currentColor"
-                          />
-                          <circle
-                            cx="60"
-                            cy="60"
-                            r="52"
-                            fill="none"
-                            strokeWidth="10"
-                            strokeLinecap="round"
-                            className="text-emerald-500"
-                            stroke="currentColor"
-                            strokeDasharray={model.ringCircumference}
-                            strokeDashoffset={model.ringOffset}
-                          />
-                        </svg>
-
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <p className="font-display text-3xl leading-none text-emerald-900 dark:text-emerald-100">
-                            {model.financialHealthScore}
+                        <article className="rounded-[12px] border-[0.5px] border-blue-300/80 dark:border-blue-500/30 bg-blue-50/75 dark:bg-blue-500/10 p-4">
+                          <p className="font-body text-sm font-semibold text-blue-900 dark:text-blue-200">
+                            Top category
                           </p>
-                          <p className="font-body text-[10px] uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300/80">
-                            out of 100
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="min-w-0">
-                        <p className="font-body text-lg font-semibold text-emerald-900 dark:text-emerald-100">
-                          {model.scoreLabel}
-                        </p>
-                        <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90 mt-1">
-                          {model.scoreSummaryLine1}
-                        </p>
-                        <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90">
-                          {model.scoreSummaryLine2}
-                        </p>
+                          {model.topCategory ? (
+                            <div className="mt-2 space-y-1.5">
+                              <p className="font-body text-xs uppercase tracking-[0.13em] text-blue-700 dark:text-blue-300/80">
+                                {model.topCategory.category}
+                              </p>
+                              <p className="font-display text-2xl leading-tight text-blue-900 dark:text-blue-100">
+                                {formatPeso(model.topCategory.amount)}
+                              </p>
+                              <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
+                                {model.topCategory.percentage.toFixed(1)}% of monthly spend
+                              </p>
+                              <p className="font-body text-sm text-blue-800 dark:text-blue-200/90">
+                                Avg transaction size: {formatPeso(model.topCategory.averageTransactionSize)}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-body mt-2 text-sm text-blue-800 dark:text-blue-200/90">
+                              Add transactions this month to reveal category patterns.
+                            </p>
+                          )}
+                        </article>
+
+                        <article className="sm:col-span-2 lg:col-span-1 lg:col-start-2 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/75 dark:bg-emerald-500/10 p-4">
+                          <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                            Financial Health Score
+                          </p>
+
+                          <div className="mt-3 flex items-center gap-4">
+                            <div className="relative h-32 w-32 shrink-0">
+                              <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                                <circle
+                                  cx="60"
+                                  cy="60"
+                                  r="52"
+                                  fill="none"
+                                  strokeWidth="10"
+                                  className="text-emerald-200 dark:text-emerald-900"
+                                  stroke="currentColor"
+                                />
+                                <circle
+                                  cx="60"
+                                  cy="60"
+                                  r="52"
+                                  fill="none"
+                                  strokeWidth="10"
+                                  strokeLinecap="round"
+                                  className="text-emerald-500"
+                                  stroke="currentColor"
+                                  strokeDasharray={model.ringCircumference}
+                                  strokeDashoffset={model.ringOffset}
+                                />
+                              </svg>
+
+                              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <p className="font-display text-3xl leading-none text-emerald-900 dark:text-emerald-100">
+                                  {model.financialHealthScore}
+                                </p>
+                                <p className="font-body text-[10px] uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300/80">
+                                  out of 100
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="font-body text-lg font-semibold text-emerald-900 dark:text-emerald-100">
+                                {model.scoreLabel}
+                              </p>
+                              <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90 mt-1">
+                                {model.scoreSummaryLine1}
+                              </p>
+                              <p className="font-body text-sm text-emerald-800 dark:text-emerald-200/90">
+                                {model.scoreSummaryLine2}
+                              </p>
+                            </div>
+                          </div>
+                        </article>
                       </div>
-                    </div>
-                  </article>
+                    </section>
+                  )}
+
+                  {zoneSnapshotVisible && zoneDeeperVisible && (
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-6 lg:my-4" />
+                  )}
+
+                  {zoneDeeperVisible && (
+                    <section>
+                      <p className={ZONE_LABEL_CLASS}>Deeper insights</p>
+                      <InsightCards insights={infoInsights} transactionCount={currentMonthTransactionCount} />
+                    </section>
+                  )}
                 </div>
-              </section>
-            )}
+              )}
+            </div>
 
-            {zoneSnapshotVisible && zoneDeeperVisible && (
-              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-6" />
-            )}
-
-            {zoneDeeperVisible && (
-              <section>
-                <p className={ZONE_LABEL_CLASS}>Deeper insights</p>
-                <InsightCards insights={infoInsights} transactionCount={currentMonthTransactionCount} />
-              </section>
-            )}
+            <aside className="hidden lg:block lg:w-[240px] lg:flex-shrink-0">
+              <div className="lg:sticky lg:top-6 rounded-2xl border border-zinc-200 bg-white/80 dark:bg-zinc-900/70 dark:border-zinc-800 p-3 backdrop-blur">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  View
+                </p>
+                <nav className="mt-2 flex flex-col gap-1.5" aria-label="Insight categories">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`w-full border rounded-xl px-3 py-2 text-left text-[13px] transition-colors ${
+                        activeTab === tab
+                          ? 'bg-[#1D9E75] text-white border-[#1D9E75] shadow-[0_8px_20px_-14px_rgba(8,80,65,0.9)]'
+                          : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </aside>
           </div>
-        )}
+        </div>
       </div>
 
       <AddExpenseModal

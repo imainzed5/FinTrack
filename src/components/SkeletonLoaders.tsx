@@ -219,10 +219,10 @@ export function DashboardSkeleton() {
 
 export function InsightsSkeleton() {
   return (
-    <div className="space-y-7">
+    <div className="space-y-7 lg:space-y-5">
       <section>
         <div className="mb-3 h-3 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 2 }).map((_, index) => (
             <article
               key={`alert-${index}`}
@@ -245,8 +245,8 @@ export function InsightsSkeleton() {
 
       <section>
         <div className="mb-3 h-3 w-44 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <article className="sm:col-span-2 rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr]">
+          <article className="sm:col-span-2 lg:col-span-1 rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
             <div className="h-4 w-52 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
             <div className="mt-4 grid grid-cols-7 gap-2">
               {Array.from({ length: 7 }).map((_, i) => (
@@ -267,7 +267,7 @@ export function InsightsSkeleton() {
             <div className="mt-2 h-3 w-40 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
           </article>
 
-          <article className="rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <article className="sm:col-span-2 lg:col-span-1 lg:col-start-2 rounded-[12px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
             <div className="h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
             <div className="mt-3 flex items-center gap-4">
               <div className="h-24 w-24 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
@@ -285,7 +285,7 @@ export function InsightsSkeleton() {
 
       <section>
         <div className="mb-3 h-3 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 3 }).map((_, index) => (
             <article
               key={`info-${index}`}

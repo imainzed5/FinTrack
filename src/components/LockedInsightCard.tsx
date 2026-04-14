@@ -25,7 +25,7 @@ export default function LockedInsightCard({
   const progress = Math.max(0, Math.min(100, (safeCurrent / safeRequired) * 100));
 
   return (
-    <div className={`rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-3.5 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-2 ${isFullWidth ? 'col-span-2' : ''}`}>
+    <div className={`rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-3.5 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-2 ${isFullWidth ? 'col-span-2 lg:col-span-3 xl:col-span-4' : ''}`}>
       <div className="flex items-center gap-2">
         <Lock size={12} className="text-zinc-400 dark:text-zinc-500" />
         <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">{title}</p>
