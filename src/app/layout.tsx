@@ -1,31 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, DM_Serif_Display, Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
 import { AppSessionProvider } from "@/components/AppSessionProvider";
 import ThemeProvider from "@/components/ThemeProvider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const dmSerifDisplay = DM_Serif_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400"],
-});
-
-const inter = Inter({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "Moneda",
@@ -55,10 +33,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} ${inter.variable} antialiased bg-[#f5f5f0] dark:bg-zinc-950`}
-      >
+    <html lang="en" className={`${GeistSans.className} ${GeistSans.variable}`}>
+      <body className="antialiased bg-[#f5f5f0] dark:bg-zinc-950">
         <ThemeProvider>
           <AppSessionProvider>
             <AppShell>{children}</AppShell>

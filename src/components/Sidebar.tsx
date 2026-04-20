@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronUp,
+  ChevronRight,
   Database,
   Shield,
   LayoutDashboard,
@@ -170,14 +170,14 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
   };
 
   return (
-    <aside className="hidden sm:flex flex-col w-56 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen fixed left-0 top-0">
-      <div className="flex items-center gap-2.5 px-4 py-5">
+    <aside className="fixed left-0 top-0 hidden h-screen w-60 flex-col border-r border-black/[0.07] bg-white sm:flex">
+      <div className="flex items-center gap-2.5 px-4 pt-5 pb-5">
         <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
           <Wallet size={16} className="text-white" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-zinc-900 dark:text-white leading-tight">Moneda</p>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight">
+          <p className="text-sm font-semibold text-zinc-900 leading-tight">Moneda</p>
+          <p className="text-[10px] text-zinc-500 leading-tight">
             Financial Intelligence
           </p>
         </div>
@@ -189,7 +189,7 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
             <button
               type="button"
               onClick={() => toggleSection(section.label)}
-              className="mb-1 flex w-full cursor-pointer items-center px-3 text-[10px] font-medium uppercase tracking-widest text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400"
+              className="mb-1 flex w-full cursor-pointer items-center px-3 text-[10px] tracking-widest font-medium text-zinc-500 uppercase"
               aria-expanded={!collapsedSections[section.label]}
             >
               <span>{section.label}</span>
@@ -204,13 +204,17 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                    className={`mb-0.5 flex items-center gap-[9px] rounded-lg px-2 py-[7px] text-[13.5px] ${
                       isActive
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                        : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+                        ? 'bg-[#1D9E75] text-white font-medium'
+                        : 'text-zinc-600 font-normal hover:bg-black/5 hover:text-zinc-900'
                     }`}
                   >
-                    <Icon size={15} strokeWidth={isActive ? 2.5 : 1.5} />
+                    <Icon
+                      size={15}
+                      strokeWidth={isActive ? 2.5 : 1.5}
+                      className={isActive ? 'opacity-90' : 'opacity-60'}
+                    />
                     {item.label}
                   </Link>
                 );
@@ -220,28 +224,28 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="px-3 py-3 border-t border-zinc-200 dark:border-zinc-800">
-        <div ref={menuRef} className="relative">
+      <div className="px-3 py-3">
+        <div ref={menuRef} className="relative mx-0 mt-2 rounded-lg border border-black/[0.08] bg-white/50 p-2">
           {viewer.authenticated && isMenuOpen ? (
-            <div className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-              <div className="border-b border-zinc-100 px-2 pb-2 dark:border-zinc-800">
-                <p className="text-[11px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+            <div className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 rounded-lg border border-black/[0.08] bg-white p-2 shadow-lg">
+              <div className="border-b border-zinc-100 px-2 pb-2">
+                <p className="text-[11px] uppercase tracking-wide text-zinc-400">
                   Signed in as
                 </p>
-                <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                <p className="truncate text-xs font-medium text-zinc-700">
                   {viewer.email}
                 </p>
               </div>
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="mt-2 inline-flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-rose-300 dark:text-rose-300 dark:hover:bg-rose-500/10 dark:disabled:text-rose-700"
+                className="mt-2 inline-flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-rose-300"
               >
                 {isLoggingOut ? 'Logging out...' : 'Log out'}
                 <LogOut size={16} />
               </button>
               {logoutError ? (
-                <p className="px-2 pt-1 text-xs text-rose-600 dark:text-rose-400">{logoutError}</p>
+                <p className="px-2 pt-1 text-xs text-rose-600">{logoutError}</p>
               ) : null}
             </div>
           ) : null}
@@ -252,26 +256,24 @@ export default function Sidebar({ viewer, onLoggedOut }: SidebarProps) {
                 setIsMenuOpen((previous) => !previous);
                 setLogoutError('');
               }}
-              className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-black/5"
               aria-expanded={isMenuOpen}
               aria-haspopup="menu"
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-[11px] font-medium text-white">
                 {initials}
               </div>
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100 leading-tight">
+                <p className="truncate text-[12.5px] font-medium leading-tight text-zinc-900">
                   {displayName}
                 </p>
-                <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500 leading-tight">
+                <p className="truncate text-[11px] leading-tight text-zinc-500">
                   {viewer.email}
                 </p>
               </div>
-              <ChevronUp
+              <ChevronRight
                 size={13}
-                className={`shrink-0 text-zinc-400 transition-transform dark:text-zinc-500 ${
-                  isMenuOpen ? '' : 'rotate-180'
-                }`}
+                className="shrink-0 text-zinc-900 opacity-35"
               />
             </button>
           ) : (
