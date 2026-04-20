@@ -49,13 +49,13 @@ export default function SavingsGoalsDashboardCard({
         </div>
 
         <section className="grid grid-cols-2 gap-2.5">
-          <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+          <article className="rounded-xl border-0 bg-white p-3">
             <p className="text-[10px] uppercase tracking-[0.05em] text-zinc-500">Total saved</p>
             <p className="mt-1 text-lg font-semibold text-zinc-900">
               {formatCurrency(summary?.totalSaved ?? 0)}
             </p>
           </article>
-          <article className="rounded-xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+          <article className="rounded-xl border-0 bg-white p-3">
             <p className="text-[10px] uppercase tracking-[0.05em] text-zinc-500">Active goals</p>
             <p className="mt-1 text-lg font-semibold text-zinc-900">
               {summary?.activeGoalCount ?? 0}
@@ -67,7 +67,7 @@ export default function SavingsGoalsDashboardCard({
           {topGoals.map((goal) => (
             <article
               key={goal.id}
-              className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3"
+              className="rounded-2xl border-0 bg-white p-3"
             >
               <div className="mb-1 flex items-center justify-between text-sm">
                 <p className="truncate font-medium text-zinc-800">

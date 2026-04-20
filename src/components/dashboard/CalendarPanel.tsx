@@ -830,7 +830,7 @@ export default function CalendarPanel({
 
       <aside
         ref={panelRef}
-        className="fixed right-0 top-0 z-30 hidden h-screen overflow-hidden bg-[#f8f7f2] md:block"
+        className="fixed right-0 top-0 z-30 hidden h-screen overflow-hidden bg-[#f2efe6] md:block"
         style={{
           width: isOpen ? `${panelWidth}px` : '0px',
           opacity: isOpen ? 1 : 0,

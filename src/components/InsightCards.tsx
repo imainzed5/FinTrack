@@ -18,6 +18,8 @@ const FULL_WIDTH_TYPES: InsightType[] = [
   'month_end_projection',
 ];
 
+const FULL_WIDTH_SPAN_CLASS = 'col-span-2 lg:col-span-3 xl:col-span-4';
+
 const LOCKED_DESCRIPTIONS: Partial<Record<InsightType, string>> = {
   budget_burn_rate: 'How long your budget will last at current pace',
   biggest_expense: 'Your largest single transaction this month',
@@ -512,7 +514,7 @@ function InsightCard({ insight, forceFullWidth }: { insight: Insight; forceFullW
   const hasPayload = Boolean(insight.dataPayload && Object.keys(insight.dataPayload).length > 0);
 
   return (
-    <div className={`rounded-[14px] border p-3.5 flex flex-col ${getCardStyle(insight)} ${isFullWidth ? 'col-span-2' : ''}`}>
+    <div className={`rounded-[14px] border-0 p-3.5 flex flex-col ${getCardStyle(insight)} ${isFullWidth ? FULL_WIDTH_SPAN_CLASS : ''}`}>
       <div className={`h-[3px] rounded-full mb-3 ${getAccentColor(insight)}`} />
 
       <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide leading-none">
@@ -557,7 +559,7 @@ export default function InsightCards({ insights, transactionCount, compact = fal
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-4">
         {orderedInsights.map((insight) => (
           <InsightCard
             key={insight.id}
@@ -573,7 +575,7 @@ export default function InsightCards({ insights, transactionCount, compact = fal
           <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-300 dark:text-zinc-600">
             Locked - keep tracking to unlock
           </p>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-4">
             {lockedInsights.map((insight) => (
               <LockedInsightCard
                 key={insight.id}

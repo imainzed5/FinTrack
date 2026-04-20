@@ -103,27 +103,79 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
   const isDashboardPath = pathname === '/dashboard';
 
   return (
-    <div className="min-h-screen bg-[#f8f7f2] dark:bg-zinc-950">
-      <aside className="hidden sm:fixed sm:inset-y-0 sm:left-0 sm:flex h-screen w-56 animate-pulse flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-6 my-5 h-10 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-        <div className="flex-1 space-y-2 px-3 py-4">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="h-10 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-          ))}
+    <div className="min-h-screen bg-[#f2efe6] dark:bg-zinc-950">
+      <aside className="hidden h-screen w-60 animate-pulse flex-col border-r border-black/[0.07] bg-white sm:fixed sm:inset-y-0 sm:left-0 sm:flex">
+        <div className="px-4 pt-5 pb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-black/[0.09]" />
+            <div className="space-y-1">
+              <div className="h-3 w-16 rounded bg-black/[0.13]" />
+              <div className="h-2.5 w-24 rounded bg-black/[0.08]" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 px-3 py-2">
+          <div className="mb-4">
+            <div className="mb-1 h-2 w-14 rounded bg-black/[0.07]" />
+            <div className="space-y-1">
+              <div className="h-[34px] rounded-lg bg-black/[0.08]" />
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <div className="mb-1 h-2 w-10 rounded bg-black/[0.07]" />
+            <div className="space-y-1">
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <div className="mb-1 h-2 w-12 rounded bg-black/[0.07]" />
+            <div className="space-y-1">
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 h-2 w-14 rounded bg-black/[0.07]" />
+            <div className="space-y-1">
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+              <div className="h-[34px] rounded-lg bg-black/[0.06]" />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-3 py-3">
+          <div className="mx-0 mt-2 rounded-lg border border-black/[0.08] bg-white/50 p-2">
+            <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+              <div className="h-7 w-7 rounded-full bg-black/[0.11]" />
+              <div className="flex-1 space-y-1">
+                <div className="h-3 w-18 rounded bg-black/[0.12]" />
+                <div className="h-2.5 w-24 rounded bg-black/[0.08]" />
+              </div>
+              <div className="h-3 w-3 rounded bg-black/[0.1]" />
+            </div>
+          </div>
         </div>
       </aside>
       <main
         className={
           isDashboardPath
-            ? 'min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-56 sm:pb-0 dark:bg-zinc-950'
-            : 'space-y-4 bg-[#f8f7f2] p-5 sm:ml-56 sm:p-8 dark:bg-zinc-950'
+            ? 'min-h-screen bg-[#f2efe6] pb-20 mobile-nav-offset sm:ml-60 sm:pb-0 dark:bg-zinc-950'
+            : 'space-y-4 bg-[#f2efe6] p-5 sm:ml-60 sm:p-8 dark:bg-zinc-950'
         }
       >
         {isDashboardPath ? (
           <DashboardSkeleton />
         ) : (
           <>
-            <div className="h-8 w-56 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+            <div className="h-8 w-60 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
@@ -393,7 +445,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar viewer={viewer} onLoggedOut={handleLoggedOut} />
-      <main className="min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-56 sm:pb-0 dark:bg-zinc-950">
+      <main className="min-h-screen bg-[#f2efe6] pb-20 mobile-nav-offset sm:ml-60 sm:pb-0 dark:bg-zinc-950">
         {showDeviceBanner ? (
           <div className="border-b border-amber-200 bg-amber-50/95 px-4 py-3 text-sm text-amber-900 backdrop-blur sm:px-6">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">

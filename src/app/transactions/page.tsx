@@ -1547,7 +1547,7 @@ export default function TransactionsPage() {
     <>
       <div className="mx-auto max-w-6xl px-4 pb-32 pt-4 sm:px-6 sm:pb-6">
         <div className="-mx-4 bg-white/95 px-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/90 sm:mx-0 sm:px-0">
-          <div className="rounded-2xl border border-zinc-200 bg-white/95 p-4 dark:border-zinc-800 dark:bg-zinc-900/95">
+          <div className="rounded-2xl border-0 bg-white/95 p-4 dark:bg-zinc-900/95">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h1 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">Transactions</h1>
@@ -1657,7 +1657,7 @@ export default function TransactionsPage() {
 
         {activeView === 'list' ? (
           <>
-            <div className="mt-4 hidden rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 md:block">
+            <div className="mt-4 hidden rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900 md:block">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -1686,17 +1686,17 @@ export default function TransactionsPage() {
             </div>
 
             <div className="-mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:hidden">
-              <div className="min-w-[152px] rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="min-w-[152px] rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900">
                 <p className="mb-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Total spent</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(totalSpent)}</p>
                 <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{filteredExpenseTransactions.length} transactions</p>
               </div>
-              <div className="min-w-[152px] rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="min-w-[152px] rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900">
                 <p className="mb-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Avg / day</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(avgPerDay)}</p>
                 <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{daysTracked} days tracked</p>
               </div>
-              <div className="min-w-[152px] rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="min-w-[152px] rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900">
                 <p className="mb-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Biggest spend</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">
                   {formatPesoDecimal(biggestSpendTx?.amount ?? 0)}
@@ -1710,17 +1710,17 @@ export default function TransactionsPage() {
             </div>
 
             <div className="mt-4 hidden grid-cols-3 gap-3 md:grid">
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+              <div className="rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900">
                 <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Total spent</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(totalSpent)}</p>
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{filteredExpenseTransactions.length} transactions</p>
               </div>
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+              <div className="rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900">
                 <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Avg / day</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">{formatPesoDecimal(avgPerDay)}</p>
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{daysTracked} days tracked</p>
               </div>
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+              <div className="rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900">
                 <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Biggest spend</p>
                 <p className="font-display text-lg font-bold text-zinc-900 dark:text-white">
                   {formatPesoDecimal(biggestSpendTx?.amount ?? 0)}
@@ -1876,7 +1876,7 @@ export default function TransactionsPage() {
                       </button>
                     </div>
 
-                    <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+                    <div className="mt-3 rounded-2xl border-0 bg-white px-4 py-3 dark:bg-zinc-900">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -1898,7 +1898,7 @@ export default function TransactionsPage() {
                   </div>
 
                   {activeFilterCount > 0 && (
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div className="rounded-2xl border-0 bg-white p-3 dark:bg-zinc-900">
                       <div className="flex flex-wrap items-center gap-2">
                         {selectedDayFilter && selectedDayFilterLabel && (
                           <button
@@ -2055,7 +2055,7 @@ export default function TransactionsPage() {
                 return (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-4"
+                    className="flex items-center justify-between gap-3 rounded-2xl border-0 bg-white p-4 dark:bg-zinc-900"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">

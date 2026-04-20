@@ -372,7 +372,7 @@ export default function SavingsClientPage() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-[#f8f7f2] px-4 py-5 sm:px-6 md:py-6">
+      <div className="min-h-screen bg-[#f2efe6] px-4 py-5 sm:px-6 md:py-6">
         <div className="mx-auto max-w-5xl space-y-4">
           <div className="h-10 w-48 animate-pulse rounded-2xl bg-zinc-200/80" />
           <div className="h-28 animate-pulse rounded-3xl bg-zinc-200/70" />
@@ -388,7 +388,7 @@ export default function SavingsClientPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-[#f8f7f2] px-4 py-5 sm:px-6 md:py-6">
+      <div className="min-h-screen bg-[#f2efe6] px-4 py-5 sm:px-6 md:py-6">
         <div className="mx-auto max-w-5xl">
           <header className="mb-5 flex items-center justify-between">
             <div>
@@ -407,7 +407,7 @@ export default function SavingsClientPage() {
             </button>
           </header>
 
-          <section className="mb-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+          <section className="mb-4 rounded-2xl border-0 bg-emerald-50/70 p-4 dark:bg-emerald-900/10">
             <div className="flex items-start gap-3">
               <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
                 <BerdeSprite state={berdeSavingsContext.state} size={54} />
@@ -422,7 +422,7 @@ export default function SavingsClientPage() {
           <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
             <button
               type="button"
-              className="relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
+              className="relative w-full rounded-2xl border-0 bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Total saved</p>
@@ -434,7 +434,7 @@ export default function SavingsClientPage() {
 
             <button
               type="button"
-              className="relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
+              className="relative w-full rounded-2xl border-0 bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Active goals</p>
@@ -447,7 +447,7 @@ export default function SavingsClientPage() {
             <button
               type="button"
               onClick={() => setShowSavingsRatePopup(true)}
-              className="relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
+              className="relative w-full rounded-2xl border-0 bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3"
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Savings rate</p>
@@ -460,7 +460,7 @@ export default function SavingsClientPage() {
 
           <section className="mt-5 space-y-3">
             {activeGoals.length === 0 ? (
-              <article className="rounded-2xl border-[0.5px] border-dashed border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-5 text-center">
+              <article className="rounded-2xl border-0 bg-white p-5 text-center">
                 <p className="text-sm text-zinc-600">No savings goals yet.</p>
                 <button
                   type="button"
@@ -474,7 +474,7 @@ export default function SavingsClientPage() {
               activeGoals.map((goal, index) => (
                 <article
                   key={goal.id}
-                  className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 animate-fade-up"
+                  className="rounded-2xl border-0 bg-white p-4 animate-fade-up"
                   style={{ animationDelay: `${index * 60}ms` }}
                 >
                   <button type="button" className="w-full text-left" onClick={() => setSelectedGoal(goal)}>
@@ -538,7 +538,7 @@ export default function SavingsClientPage() {
             )}
           </section>
 
-          <section className="mt-6 rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+          <section className="mt-6 rounded-2xl border-0 bg-white p-4">
             <button
               type="button"
               onClick={() => setShowArchived((prev) => !prev)}
@@ -564,7 +564,7 @@ export default function SavingsClientPage() {
             ) : null}
           </section>
 
-          <section className="mt-6 rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+          <section className="mt-6 rounded-2xl border-0 bg-white p-4">
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">Savings history</h2>
               <p className="mt-1 text-sm text-zinc-500">Month-by-month breakdown of what you saved</p>
@@ -577,17 +577,17 @@ export default function SavingsClientPage() {
             ) : (
               <>
                 <div className="mt-4 grid grid-cols-1 gap-2.5 md:grid-cols-3">
-                  <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <article className="rounded-2xl border-0 bg-white p-3">
                     <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Total saved (cumulative)</p>
                     <p className="mt-1 text-[20px] font-medium leading-tight text-zinc-900">{formatCurrency(totalSaved)}</p>
                   </article>
 
-                  <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <article className="rounded-2xl border-0 bg-white p-3">
                     <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Avg savings rate</p>
                     <p className="mt-1 text-[20px] font-medium leading-tight text-zinc-900">{avgSavingsRate.toFixed(1)}%</p>
                   </article>
 
-                  <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3">
+                  <article className="rounded-2xl border-0 bg-white p-3">
                     <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-500">Best month</p>
                     <p className="mt-1 text-[20px] font-medium leading-tight text-zinc-900">
                       {bestMonth ? format(new Date(`${bestMonth.month}-01`), 'MMM yyyy') : '—'}
@@ -595,11 +595,11 @@ export default function SavingsClientPage() {
                   </article>
                 </div>
 
-                <div className="mt-4 rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                <div className="mt-4 rounded-2xl border-0 bg-white p-4">
                   <MonthlySavingsChart data={savingsHistory} />
                 </div>
 
-                <div className="mt-4 overflow-x-auto rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)]">
+                <div className="mt-4 overflow-x-auto rounded-2xl border-0">
                   <table className="min-w-full divide-y divide-zinc-200 text-sm">
                     <thead className="bg-zinc-50">
                       <tr>

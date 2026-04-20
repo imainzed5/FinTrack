@@ -26,7 +26,7 @@ export default function SavingsGoalsRailCard({
     .slice(0, 3);
 
   return (
-    <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+    <section className="rounded-2xl border-0 bg-white p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-[14px] font-medium text-zinc-800">Savings goals</h2>
@@ -46,10 +46,7 @@ export default function SavingsGoalsRailCard({
       {loading ? (
         <div className="mt-4 space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3"
-            >
+            <div key={index} className="rounded-2xl border-0 bg-white p-3">
               <div className="h-4 w-2/3 animate-pulse rounded bg-zinc-100" />
               <div className="mt-3 h-2 animate-pulse rounded-full bg-zinc-100" />
               <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-zinc-100" />
@@ -63,10 +60,7 @@ export default function SavingsGoalsRailCard({
       ) : (
         <div className="mt-4 space-y-3">
           {topGoals.map((goal) => (
-            <article
-              key={goal.id}
-              className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3"
-            >
+            <article key={goal.id} className="rounded-2xl border-0 bg-white p-3">
               <div className="mb-2 flex items-start justify-between gap-2 text-sm">
                 <p className="min-w-0 truncate font-medium text-zinc-800">
                   {goal.emoji} {goal.name} {goal.isPinned ? <Pin size={12} className="inline" /> : null}
