@@ -156,7 +156,7 @@ export default function RecentTransactions({
 
   return (
     <section
-      className={`flex flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 ${className ?? ''}`}
+      className={`flex flex-col rounded-2xl border-0 bg-white p-4 ${className ?? ''}`}
     >
       <div className="flex items-center justify-between">
         <h2 className="text-[14px] font-medium text-zinc-800">Recent transactions</h2>

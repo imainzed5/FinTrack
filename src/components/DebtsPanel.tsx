@@ -259,7 +259,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
     return (
       <div
         key={debt.id}
-        className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3.5"
+        className="rounded-2xl border-0 bg-white p-3.5 dark:bg-zinc-900"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
@@ -331,7 +331,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
     return (
       <div
         key={debt.id}
-        className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3.5 opacity-80"
+        className="rounded-2xl border-0 bg-white p-3.5 opacity-80 dark:bg-zinc-900"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -384,7 +384,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
         )}
 
         {loading ? (
-          <article className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10 animate-pulse">
+          <article className="rounded-2xl border-0 bg-emerald-50/70 p-4 animate-pulse dark:bg-emerald-900/10">
             <div className="flex items-start gap-3">
               <div className="h-[70px] w-[70px] rounded-xl bg-white/70 dark:bg-zinc-900/70" />
               <div className="flex-1 pt-1">
@@ -394,7 +394,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
             </div>
           </article>
         ) : (
-          <article className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+          <article className="rounded-2xl border-0 bg-emerald-50/70 p-4 dark:bg-emerald-900/10">
             <div className="flex items-start gap-3">
               <div className="rounded-xl bg-white/80 p-2 dark:bg-zinc-900/80">
                 <BerdeSprite state={berdeDebtContext.state} size={54} />
@@ -408,13 +408,13 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
         )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <article className="rounded-2xl border border-red-200 bg-red-50/70 dark:border-red-900/40 dark:bg-red-900/10 p-4">
+          <article className="rounded-2xl border-0 bg-red-50/70 p-4 dark:bg-red-900/10">
             <p className="text-[11px] font-semibold tracking-wide text-red-500 uppercase">You owe</p>
             <p className="mt-1 font-display text-3xl font-bold text-red-600">{formatCurrency(totalOwing)}</p>
             <p className="text-sm text-red-500 mt-0.5">{owingPeopleCount} people</p>
           </article>
 
-          <article className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-900/10 p-4">
+          <article className="rounded-2xl border-0 bg-emerald-50/70 p-4 dark:bg-emerald-900/10">
             <p className="text-[11px] font-semibold tracking-wide text-emerald-600 uppercase">Owed to you</p>
             <p className="mt-1 font-display text-3xl font-bold text-emerald-600">{formatCurrency(totalOwed)}</p>
             <p className="text-sm text-emerald-600 mt-0.5">{owedPeopleCount} people</p>
@@ -449,7 +449,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
             <div className="h-6 w-6 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+          <div className="rounded-2xl border-0 bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-300">
             {error}
           </div>
         ) : tab === 'active' ? (
@@ -467,7 +467,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
                 <p className="mb-2 text-xs font-semibold tracking-[0.08em] uppercase text-zinc-400">You owe</p>
                 <div className="space-y-3">
                   {owedByMe.length === 0 ? (
-                    <p className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                       Nothing to settle right now.
                     </p>
                   ) : (
@@ -480,7 +480,7 @@ export default function DebtsPanel({ showHeader = true, initialUserId = '' }: De
                 <p className="mb-2 text-xs font-semibold tracking-[0.08em] uppercase text-zinc-400">Owed to you</p>
                 <div className="space-y-3">
                   {owedToMe.length === 0 ? (
-                    <p className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                       Nobody owes you right now.
                     </p>
                   ) : (

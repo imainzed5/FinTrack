@@ -30,7 +30,7 @@ export function StatsCards({ data }: StatsCardsProps) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+      <div className="rounded-2xl bg-white p-4 border-0 dark:bg-zinc-900">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Spent This Month</span>
           <Wallet size={16} className="text-emerald-500" />
@@ -49,7 +49,7 @@ export function StatsCards({ data }: StatsCardsProps) {
       </div>
 
       {/* Budget remaining follows the configured budget cap only. */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+      <div className="rounded-2xl bg-white p-4 border-0 dark:bg-zinc-900">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Budget Remaining</span>
           <Target size={16} className="text-blue-500" />
@@ -68,7 +68,7 @@ export function StatsCards({ data }: StatsCardsProps) {
         )}
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+      <div className="rounded-2xl bg-white p-4 border-0 dark:bg-zinc-900">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Savings Rate</span>
           <PiggyBank size={16} className="text-violet-500" />
@@ -81,7 +81,7 @@ export function StatsCards({ data }: StatsCardsProps) {
         </p>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+      <div className="rounded-2xl bg-white p-4 border-0 dark:bg-zinc-900">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Last Month</span>
           {data.expenseGrowthRate <= 0 ? (

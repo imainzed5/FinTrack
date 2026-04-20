@@ -103,7 +103,7 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
   const isDashboardPath = pathname === '/dashboard';
 
   return (
-    <div className="min-h-screen bg-[#f8f7f2] dark:bg-zinc-950">
+    <div className="min-h-screen bg-[#f2efe6] dark:bg-zinc-950">
       <aside className="hidden h-screen w-60 animate-pulse flex-col border-r border-black/[0.07] bg-white sm:fixed sm:inset-y-0 sm:left-0 sm:flex">
         <div className="px-4 pt-5 pb-5">
           <div className="flex items-center gap-2.5">
@@ -167,8 +167,8 @@ function AppRouteSkeleton({ pathname }: { pathname: string }) {
       <main
         className={
           isDashboardPath
-            ? 'min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-60 sm:pb-0 dark:bg-zinc-950'
-            : 'space-y-4 bg-[#f8f7f2] p-5 sm:ml-60 sm:p-8 dark:bg-zinc-950'
+            ? 'min-h-screen bg-[#f2efe6] pb-20 mobile-nav-offset sm:ml-60 sm:pb-0 dark:bg-zinc-950'
+            : 'space-y-4 bg-[#f2efe6] p-5 sm:ml-60 sm:p-8 dark:bg-zinc-950'
         }
       >
         {isDashboardPath ? (
@@ -445,7 +445,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar viewer={viewer} onLoggedOut={handleLoggedOut} />
-      <main className="min-h-screen bg-[#f8f7f2] pb-20 mobile-nav-offset sm:ml-60 sm:pb-0 dark:bg-zinc-950">
+      <main className="min-h-screen bg-[#f2efe6] pb-20 mobile-nav-offset sm:ml-60 sm:pb-0 dark:bg-zinc-950">
         {showDeviceBanner ? (
           <div className="border-b border-amber-200 bg-amber-50/95 px-4 py-3 text-sm text-amber-900 backdrop-blur sm:px-6">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">

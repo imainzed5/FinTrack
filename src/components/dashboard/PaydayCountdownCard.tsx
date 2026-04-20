@@ -73,7 +73,7 @@ export default function PaydayCountdownCard({
   const paceLabel = getPaceLabel(remainingBudget, daysUntilPayday);
 
   return (
-    <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:px-5 md:py-4">
+    <section className="rounded-2xl border-0 bg-white p-4 md:px-5 md:py-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0F6E56]">

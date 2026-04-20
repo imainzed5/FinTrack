@@ -514,7 +514,7 @@ function InsightCard({ insight, forceFullWidth }: { insight: Insight; forceFullW
   const hasPayload = Boolean(insight.dataPayload && Object.keys(insight.dataPayload).length > 0);
 
   return (
-    <div className={`rounded-[14px] border p-3.5 flex flex-col ${getCardStyle(insight)} ${isFullWidth ? FULL_WIDTH_SPAN_CLASS : ''}`}>
+    <div className={`rounded-[14px] border-0 p-3.5 flex flex-col ${getCardStyle(insight)} ${isFullWidth ? FULL_WIDTH_SPAN_CLASS : ''}`}>
       <div className={`h-[3px] rounded-full mb-3 ${getAccentColor(insight)}`} />
 
       <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide leading-none">

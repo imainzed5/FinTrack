@@ -422,7 +422,7 @@ export default function InsightsPage() {
                     <section>
                       <p className={ZONE_LABEL_CLASS}>This month at a glance</p>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr]">
-                        <article className="sm:col-span-2 lg:col-span-1 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 p-4">
+                        <article className="sm:col-span-2 lg:col-span-1 rounded-[12px] border-0 bg-emerald-50/70 dark:bg-emerald-500/10 p-4">
                           <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
                             You spend most on {model.highestDay.label}.
                           </p>
@@ -455,7 +455,7 @@ export default function InsightsPage() {
                           </div>
                         </article>
 
-                        <article className="rounded-[12px] border-[0.5px] border-blue-300/80 dark:border-blue-500/30 bg-blue-50/75 dark:bg-blue-500/10 p-4">
+                        <article className="rounded-[12px] border-0 bg-blue-50/75 dark:bg-blue-500/10 p-4">
                           <p className="font-body text-sm font-semibold text-blue-900 dark:text-blue-200">
                             Top category
                           </p>
@@ -482,7 +482,7 @@ export default function InsightsPage() {
                           )}
                         </article>
 
-                        <article className="sm:col-span-2 lg:col-span-1 lg:col-start-2 rounded-[12px] border-[0.5px] border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50/75 dark:bg-emerald-500/10 p-4">
+                        <article className="sm:col-span-2 lg:col-span-1 lg:col-start-2 rounded-[12px] border-0 bg-emerald-50/75 dark:bg-emerald-500/10 p-4">
                           <p className="font-body text-sm font-semibold text-emerald-900 dark:text-emerald-200">
                             Financial Health Score
                           </p>
@@ -555,7 +555,7 @@ export default function InsightsPage() {
             </div>
 
             <aside className="hidden lg:block lg:w-[240px] lg:flex-shrink-0">
-              <div className="lg:sticky lg:top-6 rounded-2xl border border-zinc-200 bg-white/80 dark:bg-zinc-900/70 dark:border-zinc-800 p-3 backdrop-blur">
+              <div className="lg:sticky lg:top-6 rounded-2xl border-0 bg-white/80 p-3 backdrop-blur dark:bg-zinc-900/70">
                 <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                   View
                 </p>

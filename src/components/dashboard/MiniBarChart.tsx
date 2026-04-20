@@ -42,9 +42,7 @@ export default function MiniBarChart({
   const sevenDayTotal = entries.reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
-    <section
-      className={`flex h-full flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 ${sectionClassName} ${className ?? ''}`}
-    >
+    <section className={`flex h-full flex-col rounded-2xl border-0 bg-white p-4 ${sectionClassName} ${className ?? ''}`}>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[14px] font-medium text-zinc-800">Last 7 days</h2>

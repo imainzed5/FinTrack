@@ -70,7 +70,7 @@ export default function DashboardNextActions({
   }
 
   return (
-    <section className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:p-5">
+    <section className="rounded-2xl border-0 bg-white p-4 md:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-[14px] font-medium text-zinc-900">Next actions</h2>
@@ -104,7 +104,7 @@ export default function DashboardNextActions({
               <Link
                 key={action.id}
                 href={action.href}
-                className="rounded-2xl border border-[#E8DFD0] bg-[#FBF8F1] p-4 transition-colors hover:bg-[#F7F2E7]"
+                className="rounded-2xl border-0 bg-[#FBF8F1] p-4 transition-colors hover:bg-[#F7F2E7]"
               >
                 {sharedBody}
               </Link>
@@ -116,7 +116,7 @@ export default function DashboardNextActions({
               key={action.id}
               type="button"
               onClick={action.onClick}
-              className="rounded-2xl border border-[#E8DFD0] bg-[#FBF8F1] p-4 text-left transition-colors hover:bg-[#F7F2E7]"
+              className="rounded-2xl border-0 bg-[#FBF8F1] p-4 text-left transition-colors hover:bg-[#F7F2E7]"
             >
               {sharedBody}
             </button>

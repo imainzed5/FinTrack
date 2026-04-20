@@ -48,7 +48,7 @@ function Tile({
     <button
       type="button"
       onClick={onClick}
-      className={`relative w-full rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3 animate-fade-up ${className ?? ''}`}
+      className={`relative w-full rounded-2xl border-0 bg-white p-3.5 text-left transition-transform duration-100 active:scale-95 md:p-3 animate-fade-up ${className ?? ''}`}
       style={{ animationDelay: `${delay ?? 0}ms` }}
       aria-label={label}
     >

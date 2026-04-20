@@ -511,7 +511,7 @@ export default function DashboardClientPage() {
                 {data.budgetSignals.hasPlanningMismatch ? (
                   <Link
                     href={`/budgets?month=${format(now, 'yyyy-MM')}`}
-                    className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 transition-colors hover:bg-amber-50"
+                    className="rounded-2xl border-0 bg-amber-50/90 p-4 transition-colors hover:bg-amber-50"
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
                       Plan mismatch
@@ -528,7 +528,7 @@ export default function DashboardClientPage() {
                 {data.budgetSignals.topRiskBudget ? (
                   <Link
                     href={`/budgets?month=${format(now, 'yyyy-MM')}`}
-                    className="rounded-2xl border border-[#e3dbc9] bg-white p-4 transition-colors hover:bg-[#fbf8f1]"
+                    className="rounded-2xl border-0 bg-white p-4 transition-colors hover:bg-[#fbf8f1]"
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
                       Top budget risk
@@ -549,7 +549,7 @@ export default function DashboardClientPage() {
             {data.budgetSignals.topUncoveredCategory ? (
               <Link
                 href={`/budgets?month=${format(now, 'yyyy-MM')}`}
-                className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm transition-colors hover:bg-amber-50"
+                className="mt-4 flex items-start gap-3 rounded-2xl border-0 bg-amber-50/80 px-4 py-3 text-sm transition-colors hover:bg-amber-50"
               >
                 <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-amber-600">
                   <AlertTriangle size={16} />

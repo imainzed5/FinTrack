@@ -28,7 +28,7 @@ export function DashboardSkeleton() {
             </div>
           </header>
 
-          <section className="mt-4 rounded-[20px] border border-[#0b5b47] bg-[#0F6E56] px-4 py-4 text-left md:rounded-2xl md:px-5">
+          <section className="mt-4 rounded-[20px] bg-[#0F6E56] px-4 py-4 text-left md:rounded-2xl md:px-5">
             <div className="flex items-center gap-3 md:gap-4">
               <div className="h-[72px] w-[72px] shrink-0 animate-pulse rounded-2xl bg-[#E1F5EE]/60" />
               <div className="min-w-0 flex-1 space-y-2">
@@ -42,10 +42,7 @@ export function DashboardSkeleton() {
 
           <section className="mt-4 grid grid-cols-2 gap-[10px] md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <article
-                key={index}
-                className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-3.5 md:p-3"
-              >
+              <article key={index} className="rounded-2xl border-0 bg-white p-3.5 md:p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="h-3 w-24 animate-pulse rounded bg-zinc-200" />
                   <div className="h-4 w-4 animate-pulse rounded-full bg-zinc-200" />
@@ -59,7 +56,7 @@ export function DashboardSkeleton() {
           <section className="mt-4 md:flex md:items-start md:gap-6">
             <div className="min-w-0 flex-1 space-y-4">
               <div className="grid grid-cols-1 gap-4 min-[1180px]:grid-cols-2 min-[1180px]:items-stretch">
-                <article className="flex min-h-[220px] flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:min-h-[280px]">
+                <article className="flex min-h-[220px] flex-col rounded-2xl border-0 bg-white p-4 md:min-h-[280px]">
                   <div className="flex items-center justify-between">
                     <div className="space-y-2">
                       <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
@@ -88,7 +85,7 @@ export function DashboardSkeleton() {
                   </div>
                 </article>
 
-                <article className="flex h-full min-h-[220px] flex-col rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:min-h-[280px]">
+                <article className="flex h-full min-h-[220px] flex-col rounded-2xl border-0 bg-white p-4 md:min-h-[280px]">
                   <div className="flex items-center justify-between">
                     <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
                     <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
@@ -104,7 +101,7 @@ export function DashboardSkeleton() {
                 </article>
               </div>
 
-              <article className="hidden rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4 md:block md:px-5 md:py-4">
+              <article className="hidden rounded-2xl border-0 bg-white p-4 md:block md:px-5 md:py-4">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="h-7 w-24 animate-pulse rounded-full bg-[#E1F5EE]" />
@@ -130,7 +127,7 @@ export function DashboardSkeleton() {
                 </div>
               </article>
 
-              <article className="md:hidden rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+              <article className="md:hidden rounded-2xl border-0 bg-white p-4">
                 <div className="flex items-center justify-between">
                   <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
                   <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
@@ -154,7 +151,7 @@ export function DashboardSkeleton() {
 
             <aside className="hidden md:block md:w-[300px] md:flex-shrink-0">
               <div className="md:sticky md:top-6 md:flex md:flex-col md:gap-3">
-                <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                <article className="rounded-2xl border-0 bg-white p-4">
                   <div className="flex items-center justify-between">
                     <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
                     <div className="h-3 w-14 animate-pulse rounded bg-zinc-200" />
@@ -175,12 +172,12 @@ export function DashboardSkeleton() {
                   </div>
                 </article>
 
-                <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                <article className="rounded-2xl border-0 bg-white p-4">
                   <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
                   <div className="mt-2 h-3 w-36 animate-pulse rounded bg-zinc-200" />
                   <div className="mt-4 grid gap-2.5">
                     {Array.from({ length: 2 }).map((_, index) => (
-                      <div key={index} className="rounded-2xl border border-zinc-200 p-4">
+                      <div key={index} className="rounded-2xl border-0 p-4">
                         <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
                         <div className="mt-2 h-3 w-28 animate-pulse rounded bg-zinc-200" />
                       </div>
@@ -188,7 +185,7 @@ export function DashboardSkeleton() {
                   </div>
                 </article>
 
-                <article className="rounded-2xl border-[0.5px] border-[color:var(--color-border-tertiary,#d9d7cf)] bg-white p-4">
+                <article className="rounded-2xl border-0 bg-white p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="h-4 w-24 animate-pulse rounded bg-zinc-200" />
@@ -198,7 +195,7 @@ export function DashboardSkeleton() {
                   </div>
                   <div className="mt-4 space-y-3">
                     {Array.from({ length: 2 }).map((_, index) => (
-                      <div key={index} className="rounded-2xl border border-zinc-200 p-3">
+                      <div key={index} className="rounded-2xl border-0 p-3">
                         <div className="h-4 w-32 animate-pulse rounded bg-zinc-200" />
                         <div className="mt-3 h-2 rounded-full bg-zinc-100">
                           <div className="h-full w-1/2 animate-pulse rounded-full bg-zinc-200" />

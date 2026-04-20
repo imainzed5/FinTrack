@@ -35,7 +35,7 @@ export default function BerdeCard({
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full overflow-hidden rounded-[20px] border border-[#0b5b47] px-4 py-4 text-left md:rounded-2xl md:px-5 md:py-4"
+      className="relative w-full overflow-hidden rounded-[20px] px-4 py-4 text-left md:rounded-2xl md:px-5 md:py-4"
       style={{ background: '#0F6E56' }}
       aria-label={ariaLabel || 'Open Berde'}
     >
