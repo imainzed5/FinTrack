@@ -79,12 +79,17 @@ Moneda follows semantic versioning: `MAJOR.MINOR.PATCH`
 | `MINOR` (0.**x**.0) | New feature batch merged to main |
 | `MAJOR` (**x**.0.0) | Public launch or breaking redesign |
 
-### Current version: v0.33.2
+### Current version: v0.34.0
 
 
 ---
 
 ## Version Roadmap
+v0.34.0 - 2026-04-25
+  - feat(landing): Replace the public landing page in `src/app/page.tsx` with a scroll-driven storytelling experience that introduces Moneda through a cinematic hero, fog-to-clarity section, three narrative scenes, a reflective turn, and a clean CTA.
+  - feat(landing): Add Framer Motion to support staggered text reveals, scroll-linked chip movement, and in-view scene animations while keeping the existing app shell and public routing intact.
+  - verification: `npm run lint -- src/app/page.tsx` passed after the landing page narrative redesign and motion updates.
+
 v0.33.2 - 2026-04-08
   - fix(accounts): Refine the Accounts hero in `src/components/accounts/AccountsClientPage.tsx` so the desktop net worth line no longer clips, the filter pills sit directly under the summary line, and the two mini summary cards use the full bottom row width without overflowing or leaving dead space.
   - verification: `npx.cmd tsc --noEmit` and `npx.cmd eslint src/components/accounts/AccountsClientPage.tsx` passed after the Accounts hero layout polish.
